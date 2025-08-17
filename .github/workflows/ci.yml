@@ -1,0 +1,97 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  BUILD_CONFIGURATION: 'Release'
+  BUILD_PLATFORM: 'x64'
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Restore NuGet packages
+      run: dotnet restore --locked-mode
+      
+    - name: Build solution
+      run: dotnet build --configuration ${{ env.BUILD_CONFIGURATION }} --platform ${{ env.BUILD_PLATFORM }} --no-restore
+      
+    - name: Run unit tests
+      run: dotnet test --configuration ${{ env.BUILD_CONFIGURATION }} --platform ${{ env.BUILD_PLATFORM }} --no-build --logger trx --collect:"XPlat Code Coverage"
+      
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: TestResults/
+        
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: TestResults/*/coverage.cobertura.xml
+        
+  code-quality:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install dotnet-format
+      run: dotnet tool install -g dotnet-format
+      
+    - name: Check code formatting
+      run: dotnet format --verify-no-changes --verbosity diagnostic
+      
+    - name: Run code analysis
+      run: dotnet build --configuration ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+      
+  dependency-check:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Check package vulnerabilities
+      run: dotnet list package --vulnerable --include-transitive
+      
+    - name: Verify package versions
+      run: |
+        # 驗證套件版本與 Directory.Packages.props 一致
+        dotnet restore --verbosity detailed
+        
+    - name: License compliance check
+      run: |
+        # 檢查開源授權合規性（基於 PRD §2.1.1）
+        echo "開始授權合規性檢查..."
+        # TODO: 實作授權掃描邏輯

@@ -1,0 +1,36 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- 核心 .NET 框架組件 - 嚴格版本鎖定 (基於 PRD §2.1.2) -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageVersion Include="System.Drawing.Common" Version="8.0.0" />
+    <PackageVersion Include="Prism.Core" Version="8.1.97" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    <PackageVersion Include="NLog" Version="5.2.3" />
+    <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.2" />
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.6" />
+    <PackageVersion Include="NAudio" Version="2.2.1" />
+    <PackageVersion Include="ToastNotifications" Version="2.5.1" />
+    
+    <!-- 圖像處理 - OpenCV -->
+    <PackageVersion Include="OpenCvSharp4" Version="4.8.0.20230708" />
+    <PackageVersion Include="OpenCvSharp4.runtime.win" Version="4.8.0.20230708" />
+    
+    <!-- 測試框架 -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageVersion Include="MSTest.TestAdapter" Version="3.0.4" />
+    <PackageVersion Include="MSTest.TestFramework" Version="3.0.4" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.0" />
+    <PackageVersion Include="Moq" Version="4.20.69" />
+    
+    <!-- 開發工具 -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.1.118" />
+  </ItemGroup>
+</Project>

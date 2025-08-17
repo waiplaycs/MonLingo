@@ -1,0 +1,99 @@
+<Window x:Class="MonLingo.View.Windows.SettingMainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="設定" Height="600" Width="800"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- 標題列 -->
+        <Border Grid.Row="0" Background="#2196F3" Padding="20,15">
+            <TextBlock Text="MonLingo 設定" 
+                      FontSize="18" 
+                      FontWeight="Bold" 
+                      Foreground="White"
+                      HorizontalAlignment="Center"/>
+        </Border>
+        
+        <!-- 主要內容區 -->
+        <ScrollViewer Grid.Row="1" Padding="20">
+            <StackPanel>
+                
+                <!-- 一般設定 -->
+                <GroupBox Header="一般設定" Margin="0,0,0,20">
+                    <StackPanel Margin="10">
+                        <CheckBox Content="開機時自動啟動" Margin="0,5"/>
+                        <CheckBox Content="最小化到系統匣" Margin="0,5"/>
+                        <CheckBox Content="啟用音效提示" Margin="0,5"/>
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- 翻譯設定 -->
+                <GroupBox Header="翻譯設定" Margin="0,0,0,20">
+                    <StackPanel Margin="10">
+                        <StackPanel Orientation="Horizontal" Margin="0,5">
+                            <TextBlock Text="預設翻譯引擎：" VerticalAlignment="Center" Width="120"/>
+                            <ComboBox Width="200">
+                                <ComboBoxItem Content="Google 翻譯"/>
+                                <ComboBoxItem Content="DeepL"/>
+                                <ComboBoxItem Content="Microsoft Translator"/>
+                            </ComboBox>
+                        </StackPanel>
+                        
+                        <StackPanel Orientation="Horizontal" Margin="0,5">
+                            <TextBlock Text="來源語言：" VerticalAlignment="Center" Width="120"/>
+                            <ComboBox Width="200">
+                                <ComboBoxItem Content="自動偵測"/>
+                                <ComboBoxItem Content="繁體中文"/>
+                                <ComboBoxItem Content="簡體中文"/>
+                                <ComboBoxItem Content="英文"/>
+                                <ComboBoxItem Content="日文"/>
+                            </ComboBox>
+                        </StackPanel>
+                        
+                        <StackPanel Orientation="Horizontal" Margin="0,5">
+                            <TextBlock Text="目標語言：" VerticalAlignment="Center" Width="120"/>
+                            <ComboBox Width="200">
+                                <ComboBoxItem Content="繁體中文"/>
+                                <ComboBoxItem Content="簡體中文"/>
+                                <ComboBoxItem Content="英文"/>
+                                <ComboBoxItem Content="日文"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- 熱鍵設定 -->
+                <GroupBox Header="熱鍵設定" Margin="0,0,0,20">
+                    <StackPanel Margin="10">
+                        <StackPanel Orientation="Horizontal" Margin="0,5">
+                            <TextBlock Text="螢幕擷取：" VerticalAlignment="Center" Width="120"/>
+                            <TextBox Text="Ctrl+Shift+S" Width="200" IsReadOnly="True"/>
+                        </StackPanel>
+                        
+                        <StackPanel Orientation="Horizontal" Margin="0,5">
+                            <TextBlock Text="語音翻譯：" VerticalAlignment="Center" Width="120"/>
+                            <TextBox Text="Ctrl+Shift+V" Width="200" IsReadOnly="True"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+                
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- 按鈕列 -->
+        <Border Grid.Row="2" Background="#F5F5F5" Padding="20,15">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="確定" Width="80" Height="30" Margin="5,0" Click="OkButton_Click"/>
+                <Button Content="取消" Width="80" Height="30" Margin="5,0" Click="CancelButton_Click"/>
+                <Button Content="套用" Width="80" Height="30" Margin="5,0" Click="ApplyButton_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

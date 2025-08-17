@@ -1,0 +1,35 @@
+EXPORTS
+; === 初始化和清理 ===
+native_initialize
+native_cleanup
+get_version
+
+; === Graphics Capture API 支援檢查 ===
+graphics_capture_is_supported
+
+; === 螢幕截圖功能 ===
+screenshot_window_once
+screenshot_window_loop_start
+screenshot_window_loop_read
+screenshot_window_loop_stop
+free_image_data
+
+; === OCR 功能 ===
+ocr_image_data
+ocr_screen_region
+free_ocr_result
+
+; === 視窗管理功能 ===
+find_window_by_title
+find_window_by_class
+get_window_rect
+is_window_visible
+
+; === 系統資訊功能 ===
+get_system_info
+
+; === 調試功能 ===
+debug_output
+
+; === 記憶體管理 ===
+free_native_string
