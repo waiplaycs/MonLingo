@@ -28,6 +28,14 @@ namespace MonLingo.Core
                     TestProgram.Main(args).Wait();
                     return;
                 }
+                
+                // 檢查是否為 Phase 5 測試模式
+                if (args.Length > 0 && args[0] == "--phase5")
+                {
+                    // Phase 5 測試模式：運行 Phase 5 核心翻譯功能測試
+                    Phase5Program.Main(args).Wait();
+                    return;
+                }
 
                 // 最小化 WPF 應用程式
                 var app = new SimpleApp();

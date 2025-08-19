@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>NLog.Extensions.Logging</id>
+    <version>5.3.2</version>
+    <authors>Microsoft,Julian Verdurmen</authors>
+    <license type="expression">BSD-2-Clause</license>
+    <licenseUrl>https://licenses.nuget.org/BSD-2-Clause</licenseUrl>
+    <icon>N.png</icon>
+    <readme>README.md</readme>
+    <projectUrl>https://github.com/NLog/NLog.Extensions.Logging</projectUrl>
+    <description>NLog LoggerProvider for Microsoft.Extensions.Logging for logging in .NET Standard libraries and .NET Core applications.
+
+For ASP.NET Core, check: https://www.nuget.org/packages/NLog.Web.AspNetCore</description>
+    <releaseNotes>ChangeLog:
+
+- Updated to NLog v5.2.2 (#680) (@snakefoot)
+
+Full changelog: https://github.com/NLog/NLog.Extensions.Logging/blob/master/CHANGELOG.MD
+
+NLog v5.2 changes how to load extensions: https://nlog-project.org/2023/05/30/nlog-5-2-trim-warnings.html
+
+List of major changes in NLog 5.0: https://nlog-project.org/2021/08/25/nlog-5-0-preview1-ready.html</releaseNotes>
+    <tags>NLog Microsoft.Extensions.Logging log logging logfiles netcore</tags>
+    <repository type="git" url="https://github.com/NLog/NLog.Extensions.Logging.git" commit="d47e232ba867eedbff8f7972047a17715b8c1c2f" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.6.1">
+        <dependency id="Microsoft.Extensions.Configuration.Abstractions" version="2.1.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging" version="2.1.0" exclude="Build,Analyzers" />
+        <dependency id="NLog" version="5.2.2" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard1.3">
+        <dependency id="Microsoft.Extensions.Configuration.Abstractions" version="1.0.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging.Abstractions" version="1.0.0" exclude="Build,Analyzers" />
+        <dependency id="NETStandard.Library" version="1.6.0" exclude="Build,Analyzers" />
+        <dependency id="NLog" version="5.2.2" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard1.5">
+        <dependency id="Microsoft.Extensions.Configuration.Abstractions" version="1.0.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging.Abstractions" version="1.0.0" exclude="Build,Analyzers" />
+        <dependency id="NETStandard.Library" version="1.6.0" exclude="Build,Analyzers" />
+        <dependency id="NLog" version="5.2.2" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net6.0">
+        <dependency id="Microsoft.Extensions.Configuration.Abstractions" version="6.0.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging" version="6.0.0" exclude="Build,Analyzers" />
+        <dependency id="NLog" version="5.2.2" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Microsoft.Extensions.Configuration.Abstractions" version="2.1.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging" version="2.1.0" exclude="Build,Analyzers" />
+        <dependency id="NLog" version="5.2.2" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.1">
+        <dependency id="Microsoft.Extensions.Configuration.Abstractions" version="3.1.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging" version="3.1.0" exclude="Build,Analyzers" />
+        <dependency id="NLog" version="5.2.2" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="Microsoft.CSharp" targetFramework=".NETFramework4.6.1" />
+      <frameworkAssembly assemblyName="System" targetFramework=".NETFramework4.6.1" />
+    </frameworkAssemblies>
+  </metadata>
+</package>

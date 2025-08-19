@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>UTF.Unknown</id>
+    <version>2.5.1</version>
+    <authors>Julian Verdurmen, Rustam Sayfutdinov, Rudi Pettazzi, Shy Shalom</authors>
+    <licenseUrl>https://github.com/CharsetDetector/UTF-unknown/blob/master/license/MPL-1.1.txt</licenseUrl>
+    <projectUrl>https://github.com/CharsetDetector/UTF-unknown</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/CharsetDetector/UTF-unknown/master/logo.png</iconUrl>
+    <description>Detect character set for files, streams and other bytes.
+
+      This package is based on Ude and since version 2 also on uchardet, which are ports of the Mozilla Universal Charset Detector.
+
+Features:
+- Easy to use API
+- Supports frameworks:
+  - .NET Standard 1.0
+  - .NET Standard 1.3 and 2.0
+  - .NET Core 3.0 (because `System.Text.Encoding.CodePages` in shared framework)
+  - .NET Framework 4.0
+- Strong named
+- XML documentation included
+
+ Compared to Ude:
+ 
+ - Refactor of API, namespaces and deadcode removal
+ - Added some docs
+ - Improve error handling
+ - Improved unit tests</description>
+    <releaseNotes>- See https://github.com/CharsetDetector/UTF-unknown/releases</releaseNotes>
+    <tags>charset detection unicode ascii netstandard chardet</tags>
+    <repository type="git" url="https://github.com/CharsetDetector/UTF-unknown" commit="0c87445567d750f685c739f92360ab43c129fe50" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.0" />
+      <group targetFramework=".NETStandard1.0">
+        <dependency id="NETStandard.Library" version="1.6.1" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard1.3">
+        <dependency id="NETStandard.Library" version="1.6.1" exclude="Build,Analyzers" />
+        <dependency id="System.Text.Encoding.CodePages" version="4.7.0" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETCoreApp3.0" />
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="System.Text.Encoding.CodePages" version="4.7.0" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

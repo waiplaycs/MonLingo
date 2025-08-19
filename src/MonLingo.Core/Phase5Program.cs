@@ -18,12 +18,12 @@ namespace MonLingo.Core
             Console.WriteLine("基於 Gaminik 深度分析的完整實現");
             Console.WriteLine("========================================");
             
-            Phase5TranslationTest test = null;
+            Test.Phase5TranslationTest test = null;
             
             try
             {
                 // 創建並執行 Phase 5 測試
-                test = new Phase5TranslationTest();
+                test = new Test.Phase5TranslationTest();
                 await test.RunPhase5TestsAsync();
                 
                 Console.WriteLine("\n🎯 Phase 5 核心功能準備就緒！");
@@ -50,7 +50,7 @@ namespace MonLingo.Core
             finally
             {
                 // 清理資源
-                test?.Cleanup();
+                test?.Dispose();
             }
         }
     }

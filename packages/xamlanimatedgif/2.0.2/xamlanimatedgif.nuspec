@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>XamlAnimatedGif</id>
+    <version>2.0.2</version>
+    <title>XAML Animated GIF</title>
+    <authors>Thomas Levesque</authors>
+    <license type="expression">Apache-2.0</license>
+    <licenseUrl>https://licenses.nuget.org/Apache-2.0</licenseUrl>
+    <icon>assets/xamlanimatedgif.png</icon>
+    <projectUrl>https://github.com/XamlAnimatedGif/XamlAnimatedGif</projectUrl>
+    <description>A simple library to display animated GIF images in WPF applications</description>
+    <releaseNotes>https://github.com/XamlAnimatedGif/XamlAnimatedGif/releases</releaseNotes>
+    <tags>wpf xaml animated gif</tags>
+    <repository type="git" url="https://github.com/XamlAnimatedGif/XamlAnimatedGif.git" commit="8b9b8dd2f2501079d9553ef2214885bb4498efaf" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.5" />
+      <group targetFramework=".NETCoreApp3.1" />
+      <group targetFramework="net5.0-windows7.0" />
+    </dependencies>
+    <frameworkReferences>
+      <group targetFramework=".NETCoreApp3.1">
+        <frameworkReference name="Microsoft.WindowsDesktop.App.WPF" />
+      </group>
+      <group targetFramework="net5.0-windows7.0">
+        <frameworkReference name="Microsoft.WindowsDesktop.App.WPF" />
+      </group>
+      <group targetFramework=".NETFramework4.5" />
+    </frameworkReferences>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="PresentationCore" targetFramework=".NETFramework4.5" />
+      <frameworkAssembly assemblyName="PresentationFramework" targetFramework=".NETFramework4.5" />
+      <frameworkAssembly assemblyName="System.Net.Http" targetFramework=".NETFramework4.5" />
+      <frameworkAssembly assemblyName="System.Xaml" targetFramework=".NETFramework4.5" />
+      <frameworkAssembly assemblyName="WindowsBase" targetFramework=".NETFramework4.5" />
+    </frameworkAssemblies>
+  </metadata>
+</package>

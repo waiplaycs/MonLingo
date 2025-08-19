@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Prism.Events</id>
+    <version>9.0.537</version>
+    <authors>Brian Lagunas,Dan Siegel</authors>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <license type="file">LICENSE</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <icon>prism-logo.png</icon>
+    <readme>ReadMe.md</readme>
+    <projectUrl>https://github.com/PrismLibrary/Prism</projectUrl>
+    <description>Prism.Events is a library that facilitates communication between loosely coupled components in an application. It provides an event aggregator service that allows publishers and subscribers to interact through events without direct references. With multicast publish/subscribe functionality, multiple publishers can raise the same event, and multiple subscribers can listen to it, enabling flexible and efficient communication.</description>
+    <tags>prism wpf xamarin dotnet maui maui uno unoplatform events event aggregator ieventaggregator pubsubevent</tags>
+    <repository type="git" url="https://github.com/PrismLibrary/Prism" commit="ec6d1926b4a20540f1dbf2d90b432660670d0c30" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.6.2" />
+      <group targetFramework=".NETFramework4.7" />
+      <group targetFramework="net6.0" />
+      <group targetFramework=".NETStandard2.0" />
+    </dependencies>
+  </metadata>
+</package>

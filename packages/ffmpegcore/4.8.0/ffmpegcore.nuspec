@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>FFMpegCore</id>
+    <version>4.8.0</version>
+    <authors>Malte Rosenbjerg, Vlad Jerca, Max Bagryantsev</authors>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <readme>README.md</readme>
+    <projectUrl>https://github.com/rosenbjerg/FFMpegCore</projectUrl>
+    <description>A .NET Standard FFMpeg/FFProbe wrapper for easily integrating media analysis and conversion into your .NET applications</description>
+    <releaseNotes>- Fixes for `MetaDataArgument` (thanks @JKamsker)
+- Support for Audible `aaxc` (thanks @JKamsker)
+- Include errordata in `IMediaAnalysis` (thanks @JKamsker)
+- Pass `FFOptions` properly when using ffprobe (thanks @Notheisz57)
+- CancellationToken support for `AnalyseAsync`
+- Case-insensitive dictionaries for `Tags` and `Disposition`
+- Fix for `PosterWithAudio`
+- Fix for `JoinImageSequence`
+- Updates to dependendies
+- A lot of bug fixes</releaseNotes>
+    <tags>ffmpeg ffprobe convert video audio mediafile resize analyze muxing</tags>
+    <repository type="GitHub" url="https://github.com/rosenbjerg/FFMpegCore" />
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Instances" version="2.0.0" exclude="Build,Analyzers" />
+        <dependency id="System.Drawing.Common" version="5.0.2" exclude="Build,Analyzers" />
+        <dependency id="System.Text.Json" version="6.0.2" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

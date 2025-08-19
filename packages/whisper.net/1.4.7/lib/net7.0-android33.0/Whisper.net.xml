@@ -1,0 +1,616 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Whisper.net</name>
+    </assembly>
+    <members>
+        <member name="T:Whisper.net.BeamSearchSamplingStrategyBuilder">
+            <summary>
+            Builder for <seealso cref="T:Whisper.net.SamplingStrategy.BeamSearchSamplingStrategy"/>
+            </summary>
+        </member>
+        <member name="P:Whisper.net.BeamSearchSamplingStrategyBuilder.ParentBuilder">
+            <inheritdoc/>
+        </member>
+        <member name="M:Whisper.net.BeamSearchSamplingStrategyBuilder.WithBeamSize(System.Int32)">
+            <summary>
+            Configures the Beam Search Sampling Strategy with the specified <paramref name="beamSize"/>.
+            </summary>
+            <param name="beamSize">The beam size to be used</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not configured, 5 beam sizes are used.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.BeamSearchSamplingStrategyBuilder.WithPatience(System.Single)">
+            <summary>
+            Configures the Beam Search Sampling Strategy with the specified <paramref name="patience"/>.
+            </summary>
+            <param name="patience">The patience to be used</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not configured, -1.0f patience is used.
+            Note: This is not implmented yet in the native code.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.Ggml.WhisperGgmlDownloader.GetGgmlModelAsync(Whisper.net.Ggml.GgmlType,Whisper.net.Ggml.QuantizationType,System.Threading.CancellationToken)">
+            <summary>
+            Gets the download stream for the model
+            </summary>
+            <param name="type">The type of the model which needs to be downloaded.</param>
+            <param name="quantization">The quantization of the model.</param>
+            <param name="cancellationToken">A cancellation token used to cancell the request to huggingface.</param>
+            <exception cref="T:System.ArgumentOutOfRangeException"></exception>
+        </member>
+        <member name="M:Whisper.net.Ggml.WhisperGgmlDownloader.GetEncoderCoreMLModelAsync(Whisper.net.Ggml.GgmlType,System.Threading.CancellationToken)">
+            <summary>
+            Gets the download stream for the CoreML model, which is a zip file.
+            </summary>
+            <param name="type">The type of the model which needs to be downloaded.</param>
+            <param name="cancellationToken">A cancellation token used to cancell the request to huggingface.</param>
+            <remarks>
+            Needs to be extracted on in the same directory as the ggml model, also ggml model needs to be loaded using file path, not stream.
+            </remarks>
+            <exception cref="T:System.ArgumentOutOfRangeException"></exception>
+        </member>
+        <member name="M:Whisper.net.Ggml.WhisperGgmlDownloader.ExtractToPath(System.Threading.Tasks.Task{System.IO.Stream},System.String)">
+            <summary>
+            Extracts the given zip stream to the given path.
+            </summary>
+            <param name="zipStream">The zip stream to be extracted.</param>
+            <param name="path">The path.</param>
+            <remarks>
+            In order to work, you'll need to provide the same path as the ggml model.
+            </remarks>
+            <returns></returns>
+        </member>
+        <member name="T:Whisper.net.GreedySamplingStrategyBuilder">
+            <summary>
+            Builder for <seealso cref="T:Whisper.net.GreedySamplingStrategyBuilder"/>
+            </summary>
+        </member>
+        <member name="P:Whisper.net.GreedySamplingStrategyBuilder.ParentBuilder">
+            <inheritdoc/>
+        </member>
+        <member name="M:Whisper.net.GreedySamplingStrategyBuilder.WithBestOf(System.Int32)">
+            <summary>
+            Configures the Greedy Sampling Strategy with the specified <paramref name="bestOf"/>.
+            </summary>
+            <param name="bestOf">The best of to be used</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not configured, 1 decoder is used.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.IWhisperSamplingStrategyBuilder.ParentBuilder">
+            <summary>
+            Returns the parent <seealso cref="T:Whisper.net.WhisperProcessorBuilder"/>.
+            </summary>
+        </member>
+        <member name="M:Whisper.net.LibraryLoader.NativeLibraryLoader.SetLibraryLoader(Whisper.net.LibraryLoader.ILibraryLoader)">
+            <summary>
+            Sets the library loader used to load the native libraries. Overwrite this only if you want some custom loading.
+            </summary>
+            <param name="libraryLoader">The library loader to be used.</param>
+            <remarks>
+            It needs to be set before the first <seealso cref="T:Whisper.net.WhisperFactory"/> is created, otherwise it won't have any effect.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.Channels">
+            <summary>
+            Gets the number of channels in the current wave file.
+            </summary>
+            <remarks>
+            It is populated only after the initialization.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.SampleRate">
+            <summary>
+            Gets the Sample Rate in the current wave file.
+            </summary>
+            <remarks>
+            It is populated only after the initialization.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.BitsPerSample">
+            <summary>
+            Gets the Bits Per Sample in the current wave file.
+            </summary>
+            <remarks>
+            It is populated only after the initialization.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.DataChunkSize">
+            <summary>
+            Gets the size of the data chunk in the current wave file.
+            </summary>
+            <remarks>
+            It is populated only after the initialization.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.DataChunkPosition">
+            <summary>
+            Gets the position of the data chunk in the current wave file.
+            </summary>
+            <remarks>
+            It is populated only after the initialization.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.IsInitialized">
+            <summary>
+            Gets a value indicating whether the wave parser is initialized.
+            </summary>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.SamplesCount">
+            <summary>
+            Gets the number of samples for each channel in the current wave file.
+            </summary>
+            <remarks>
+            It is populated only after the initialization.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.FrameSize">
+            <summary>
+            Gets the size of a single frame in the current wave file.
+            </summary>
+            <remarks>
+            It is populated only after the initialization and it is equal to <see cref="P:Whisper.net.Wave.WaveParser.BitsPerSample"/> / 8 * <see cref="P:Whisper.net.Wave.WaveParser.Channels"/>.
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.Wave.WaveParser.ValueToDivide">
+            <summary>
+            Gets the value to divide the sample by to get the actual float value.
+            </summary>
+        </member>
+        <member name="M:Whisper.net.Wave.WaveParser.GetAvgSamplesAsync(System.Threading.CancellationToken)">
+            <summary>
+            Returns the average samples from all channels.
+            </summary>
+        </member>
+        <member name="M:Whisper.net.Wave.WaveParser.GetAvgSamples">
+            <summary>
+            Returns the average samples from all channels.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Whisper.net.Wave.WaveParser.Initialize">
+            <summary>
+            Initializes the wave parser, by reading the header and the format chunk.
+            </summary>
+        </member>
+        <member name="M:Whisper.net.Wave.WaveParser.InitializeAsync(System.Threading.CancellationToken)">
+            <summary>
+            Initializes the wave parser, by reading the header and the format chunk in an async manner.
+            </summary>
+        </member>
+        <member name="T:Whisper.net.WhisperFactory">
+            <summary>
+            A factory for creating <seealso cref="T:Whisper.net.WhisperProcessorBuilder"/> used to initialize the process.
+            </summary>
+            <remarks>
+            The factory is loading the model and it is reusing it across all the processors.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperFactory.FromPath(System.String,System.Boolean,System.String,System.Boolean)">
+            <summary>
+            Creates a factory that uses the ggml model from a path in order to create <seealso cref="T:Whisper.net.WhisperProcessorBuilder"/>.
+            </summary>
+            <param name="path">The path to the model.</param>
+            <param name="delayInitialization">A value indicating if the model should be loaded right away or during the first <see cref="M:Whisper.net.WhisperFactory.CreateBuilder"/> call.</param>
+            <param name="libraryPath">The path to the library</param>
+            <param name="bypassLoading">Bypass loading the library. Use this if you've already loaded the library through other means.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If you don't know where to find a ggml model, you can use <seealso cref="T:Whisper.net.Ggml.WhisperGgmlDownloader"/> which is downloading a model from huggingface.co.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperFactory.FromBuffer(System.Byte[],System.Boolean,System.String,System.Boolean)">
+            <summary>
+            Creates a factory that uses the ggml model from a buffer in order to create <seealso cref="T:Whisper.net.WhisperProcessorBuilder"/>.
+            </summary>
+            <param name="buffer">The buffer with the model.</param>
+            <param name="delayInitialization">A value indicating if the model should be loaded right away or during the first <see cref="M:Whisper.net.WhisperFactory.CreateBuilder"/> call.</param>
+            <param name="libraryPath">The path to the library</param>
+            <param name="bypassLoading">Bypass loading the library. Use this if you've already loaded the library though other means.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If you don't know where to find a ggml model, you can use <seealso cref="T:Whisper.net.Ggml.WhisperGgmlDownloader"/> which is downloading a model from huggingface.co.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperFactory.CreateBuilder">
+            <summary>
+            Creates a builder that can be used to initialize the whisper processor.
+            </summary>
+            <returns>An instance to a new builder.</returns>
+            <exception cref="T:System.ObjectDisposedException">Throws if the factory was already disposed.</exception>
+            <exception cref="T:Whisper.net.WhisperModelLoadException">Throws if the model couldn't be loaded.</exception>
+        </member>
+        <member name="T:Whisper.net.WhisperProcessorBuilder">
+            <summary>
+            Builder for <see cref="T:Whisper.net.WhisperProcessor"/>.
+            </summary>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithThreads(System.Int32)">
+            <summary>
+            Configures the processor to use the specified number of threads.
+            </summary>
+            <param name="threads">The number of threads to be used during encoding and decoding.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the same number as the hardware threads that the underlying hardware can support concurrently is used.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithMaxLastTextTokens(System.Int32)">
+            <summary>
+            Configures the processor with the max number of tokens to be used from the previous text as prompt for the decoder.
+            </summary>
+            <param name="maxLastTextTokens">The max number of tokens to be used.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, a number of 16384 tokens is used.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithOffset(System.TimeSpan)">
+            <summary>
+            Configures the processor with the start time in the audio from which it starts the processing.
+            </summary>
+            <param name="offset">Offset in the audio.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processing is happening from the beginning.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithDuration(System.TimeSpan)">
+            <summary>
+            Configures the processor with the duration of the audio to be processed.
+            </summary>
+            <param name="duration">Duration to be processed</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processing is happening for the entire input.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithTranslate">
+            <summary>
+            Configures the processor to translate the text to English.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor will just transcribe it.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithNoContext">
+            <summary>
+            Configures the processor to not use past transformation (if any) as the initial prompt for a newer processing. 
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor use part transformations as initial prompt for newer processing.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithSingleSegment">
+            <summary>
+            Configures the processor to force a single segment as output instead of multiple. 
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor will return multiple segments (if they are recognized).
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithPrintSpecialTokens">
+            <summary>
+            Configures the processor to print special tokens (e.g. &lt;SOT&gt;, &lt;EOT&gt;, &lt;BEG&gt;, etc.)
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor will not print special tokens.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithPrintProgress">
+            <summary>
+            Configures the processor to print progress information.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor will not print progress information.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithPrintResults">
+            <summary>
+            Configures the processor to print results to stdout.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor will not print results to stdout.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithPrintTimestamps(System.Boolean)">
+            <summary>
+            Configures the processor to print timestamps for each segment to stdout.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            This option is available only if <seealso cref="M:Whisper.net.WhisperProcessorBuilder.WithPrintResults"/> is configured.
+            If not specified, the processor will print also timestamps.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithTokenTimestamps">
+            <summary>
+            [EXPERIMENTAL] Configures the processor to use token-level timestamps.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor will not use token timestamps.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithTokenTimestampsThreshold(System.Single)">
+            <summary>
+            Configures the processor to use the specified probability threshold for token timestamps.
+            </summary>
+            <param name="tokenTimestampsThreshold">Probability threshold to be used for token-level timestamps.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Default value is 0.01f.
+            This option have effect only together with <seealso cref="M:Whisper.net.WhisperProcessorBuilder.WithTokenTimestamps"/>
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithTokenTimestampsSumThreshold(System.Single)">
+            <summary>
+            Configures the processor to use the specified SUM probability threshold for token timestamps.
+            </summary>
+            <param name="tokenTimestampsSumThreshold">Probability SUM threshold to be used for token-level timestamps.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Default value is 0.01f.
+            This option have effect only together with <seealso cref="M:Whisper.net.WhisperProcessorBuilder.WithTokenTimestamps"/>
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithMaxSegmentLength(System.Int32)">
+            <summary>
+            Configures the processor to use a maximum segment length.
+            </summary>
+            <param name="maxSegmentLength">The maximum segment length to be used</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified no max segment length will be applied.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.SplitOnWord">
+            <summary>
+            Configures the processor to split on each word.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified split will be done based on the model configuration.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithMaxTokensPerSegment(System.Int32)">
+            <summary>
+            Configures the processor to use a maximum tokens per segment.
+            </summary>
+            <param name="maxTokensPerSegment">The maximum number of tokens to be used</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified no max number of tokens will be applied.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithSpeedUp2x">
+            <summary>
+            [EXPERIMENTAL] Configures the processor to speed up the audio 2x for faster recognition.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Quality might be degraded while performance might be improved.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithAudioContextSize(System.Int32)">
+            <summary>
+             [EXPERIMENTAL] Configures the processor to override the audio context size.
+            </summary>
+            <param name="audioContextSize">Audio context size to be overridden</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Quality might be degraded while performance might be improved.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithPrompt(System.String)">
+            <summary>
+            [EXPERIMENTAL] Configures the processor to use an initial prompt, which will be prepended to any existing text context.
+            </summary>
+            <param name="prompt">The prompt to be used.</param>
+            <returns>An instance to the same builder.</returns>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithLanguage(System.String)">
+            <summary>
+            Configures the processor with the language to be used for detection.
+            </summary>
+            <param name="language">The language (2 letters) to be used.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Default value is "en". 
+            Example: "en", "ro"
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithLanguageDetection">
+            <summary>
+            Configures the processor to auto-detect the language based on initial samples.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Note: Processing time will slightly increase.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithoutSuppressBlank">
+            <summary>
+            Configures the processor to NOT suppress blank outputs.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, blanks are automatically suppressed.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithTemperature(System.Single)">
+            <summary>
+            Configures the temperature for the processor.
+            </summary>
+            <param name="temperature">The temperature value to be used</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, default value is: 0.2f.
+            More details: https://ai.stackexchange.com/questions/32477/what-is-the-temperature-in-the-gpt-models/32478#32478
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithMaxInitialTs(System.Single)">
+            <summary>
+            Configures the processor with a value indicating that the initial timestamp cannot be later than this.
+            </summary>
+            <param name="maxInitialTs">The initial max timestamp.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, default value is: 1f.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithLengthPenalty(System.Single)">
+            <summary>
+            Configures the processor with a value indicating the length penalty (alpha).
+            </summary>
+            <param name="lengthPenalty">The initial max timestamp.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            If not specified, the processor will use simple length normalization by default.
+            More information about the length penalty can be found here: https://arxiv.org/abs/1609.08144.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithTemperatureInc(System.Single)">
+            <summary>
+            Configures the processor with a temperature to increase when falling back.
+            </summary>
+            <param name="temperature">The temperature to increase when falling back.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Falling back can happen when the decoding fails to meet either of the thresholds in: <seealso cref="M:Whisper.net.WhisperProcessorBuilder.WithEntropyThreshold(System.Single)"/>, <seealso cref="M:Whisper.net.WhisperProcessorBuilder.WithLogProbThreshold(System.Single)"/> or <seealso cref="M:Whisper.net.WhisperProcessorBuilder.WithNoSpeechThreshold(System.Single)"/>.
+            Default value is 0.2f.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithEntropyThreshold(System.Single)">
+            <summary>
+            Configures the processor with the entropy threshold for falling back.
+            </summary>
+            <param name="entropyThreshold">The entropy threshold</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Default value is 2.4f.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithLogProbThreshold(System.Single)">
+            <summary>
+            Configures the processor with a average log probability threshold over sampled tokens.
+            </summary>
+            <param name="logProbThreshold">The average log probability threshold.</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Default value is -1.0f.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithNoSpeechThreshold(System.Single)">
+            <summary>
+            [EXPERIMENTAL] Configures the processor with a no_speech probability.
+            </summary>
+            <param name="noSpeechThreshold">The no_speech probability</param>
+            <returns>An instance to the same builder.</returns>
+            <remarks>
+            Default value is 0.6f.
+            Note: Not implemented in native code.
+            </remarks>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithSegmentEventHandler(Whisper.net.OnSegmentEventHandler)">
+            <summary>
+            Adds a <seealso cref="T:Whisper.net.OnSegmentEventHandler"/> which will be called every time a new segment is detected.
+            </summary>
+            <param name="segmentEventHandler">The event handler to be added.</param>
+            <returns>An instance to the same builder.</returns>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithProgressHandler(Whisper.net.OnProgressHandler)">
+            <summary>
+            Adds a <seealso cref="T:Whisper.net.OnProgressHandler"/> which will report the progress in percentage.
+            </summary>
+            <param name="progressHandler">The event handler to be added.</param>
+            <returns>An instance to the same builder.</returns>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithEncoderBeginHandler(Whisper.net.OnEncoderBeginEventHandler)">
+            <summary>
+            Adds a <seealso cref="T:Whisper.net.OnEncoderBeginEventHandler"/> which will be called when encoder will begin.
+            </summary>
+            <param name="encoderBeginEventHandler">The event handler to be added.</param>
+            <returns>An instance to the same builder.</returns>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithGreedySamplingStrategy">
+            <summary>
+            Configures the processor to use the Greedy Sampling strategy.
+            </summary>
+            <returns>A new <seealso cref="T:Whisper.net.GreedySamplingStrategyBuilder"/> for configuring the <seealso cref="T:Whisper.net.SamplingStrategy.GreedySamplingStrategy"/></returns>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithBeamSearchSamplingStrategy">
+            <summary>
+            Configures the processor to use the Beam Search Sampling Strategy.
+            </summary>
+            <returns>A new <seealso cref="T:Whisper.net.BeamSearchSamplingStrategyBuilder"/> for configuring the <seealso cref="T:Whisper.net.SamplingStrategy.BeamSearchSamplingStrategy"/></returns>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.WithProbabilities">
+            <summary>
+            Confiugres the processor to return probabilities during segment decoding <seealso cref="P:Whisper.net.SegmentData.MaxProbability"/>, <seealso cref="P:Whisper.net.SegmentData.MinProbability"/> and <seealso cref="P:Whisper.net.SegmentData.Probability"/>.
+            </summary>
+            <returns>An instance to the same builder.</returns>
+        </member>
+        <member name="M:Whisper.net.WhisperProcessorBuilder.Build">
+            <summary>
+            Builds the processor.
+            </summary>
+            <returns>The <seealso cref="T:Whisper.net.WhisperProcessor"/> build with these configs.</returns>
+        </member>
+        <member name="P:Whisper.net.SegmentData.Text">
+            <summary>
+            Gets the text of the segment.
+            </summary>
+        </member>
+        <member name="P:Whisper.net.SegmentData.Start">
+            <summary>
+            Gets the time when the segment started.
+            </summary>
+        </member>
+        <member name="P:Whisper.net.SegmentData.End">
+            <summary>
+            Gets the time when the segment ended.
+            </summary>
+        </member>
+        <member name="P:Whisper.net.SegmentData.MinProbability">
+            <summary>
+            Gets the minimum probability found in any of the tokens.
+            </summary>
+            <remarks>
+            The possible values are from 0 to 1
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.SegmentData.MaxProbability">
+            <summary>
+            Gets the maximum probability found in any of the tokens.
+            </summary>
+            <remarks>
+            The possible values are from 0 to 1
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.SegmentData.Probability">
+            <summary>
+            Gets the average probability of the segment.
+            </summary>
+            <remarks>
+            The possible values are from 0 to 1
+            </remarks>
+        </member>
+        <member name="P:Whisper.net.SegmentData.Language">
+            <summary>
+            Gets the language of the current segment.
+            </summary>
+        </member>
+    </members>
+</doc>

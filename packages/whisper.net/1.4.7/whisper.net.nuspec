@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Whisper.net</id>
+    <version>1.4.7</version>
+    <authors>Sandro Hanea</authors>
+    <license type="file">LICENSE</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <readme>readme.md</readme>
+    <projectUrl>https://github.com/sandrohanea/whisper.net</projectUrl>
+    <description>Cross-platform dotnet bindings for Whisper.</description>
+    <repository type="GIT" url="https://github.com/sandrohanea/whisper.net" />
+    <dependencies>
+      <group targetFramework="net6.0" />
+      <group targetFramework="net7.0-android33.0" />
+      <group targetFramework="net7.0-ios16.1" />
+      <group targetFramework="net7.0-maccatalyst16.1" />
+      <group targetFramework="net7.0-tvos16.1" />
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Microsoft.Bcl.AsyncInterfaces" version="7.0.0" exclude="Build,Analyzers" />
+        <dependency id="System.IO.Compression" version="4.3.0" exclude="Build,Analyzers" />
+        <dependency id="System.Memory" version="4.5.5" exclude="Build,Analyzers" />
+        <dependency id="System.Net.Http" version="4.3.4" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.1" />
+    </dependencies>
+  </metadata>
+</package>

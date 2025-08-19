@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using MonLingo.Core.Commands;
 using MonLingo.Core.Infrastructure;
+using MonLingo.Core.Service;
 
 namespace MonLingo.ViewModel
 {
@@ -18,6 +19,7 @@ namespace MonLingo.ViewModel
         // 服務引用
         private readonly ISimpleEventAggregator _eventAggregator;
         private readonly ISimpleNotificationService _notificationService;
+        private readonly UITranslationBridge _translationBridge;
 
         #region 屬性
 
@@ -250,15 +252,49 @@ namespace MonLingo.ViewModel
 
         public MainBarWindowViewModel()
         {
-            // 建立服務容器實例
-            var serviceContainer = new SimpleServiceContainer();
-            serviceContainer.Initialize();
-            
-            // 獲取服務實例
-            _eventAggregator = serviceContainer.GetService<ISimpleEventAggregator>();
-            _notificationService = serviceContainer.GetService<ISimpleNotificationService>();
-            
-            InitializeCommands();
+            try
+            {
+                // 初始化 Phase 5 服務容器
+                Phase5ServiceContainer.Initialize();
+                
+                // 建立服務容器實例（原有的）
+                var serviceContainer = new SimpleServiceContainer();
+                serviceContainer.Initialize();
+                
+                // 獲取服務實例
+                _eventAggregator = serviceContainer.GetService<ISimpleEventAggregator>();
+                _notificationService = serviceContainer.GetService<ISimpleNotificationService>();
+                
+                // 獲取 Phase 5 翻譯橋接器
+                _translationBridge = Phase5ServiceContainer.GetService<UITranslationBridge>();
+                
+                InitializeCommands();
+                
+                // 初始化 Phase 5 翻譯功能
+                InitializePhase5Async();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"MainBarWindowViewModel 初始化失敗: {ex.Message}\n\n詳細錯誤: {ex}", 
+                    "初始化錯誤", 
+                    System.Windows.MessageBoxButton.OK, 
+                    System.Windows.MessageBoxImage.Error);
+                throw;
+            }
+        }
+
+        private async void InitializePhase5Async()
+        {
+            try
+            {
+                await _translationBridge.InitializeAsync();
+                StatusText = "Phase 5 翻譯功能已就緒";
+            }
+            catch (Exception ex)
+            {
+                StatusText = "初始化失敗";
+                System.Diagnostics.Debug.WriteLine($"Phase 5 初始化失敗: {ex.Message}");
+            }
         }
 
         private void InitializeCommands()
@@ -347,7 +383,7 @@ namespace MonLingo.ViewModel
                 IsTranslationActive = true;
                 
                 // 使用事件聚合器發送捕獲事件
-                _eventAggregator?.Publish(new CaptureRequestedEvent());
+                _eventAggregator?.Publish(new Phase5CaptureRequestedEvent());
                 
                 // 觸發螢幕擷取事件（向後相容）
                 CaptureRequested?.Invoke(this, EventArgs.Empty);
@@ -455,23 +491,67 @@ namespace MonLingo.ViewModel
         {
             try
             {
-                // 如果已經在翻譯，停止翻譯
+                IsTranslationActive = !IsTranslationActive;
+                
                 if (IsTranslationActive)
                 {
-                    StatusText = "停止翻譯";
-                    IsTranslationActive = false;
-                    // TODO: 停止翻譯邏輯
+                    StatusText = "啟動翻譯會話...";
+                    
+                    // 使用 Phase 5 翻譯橋接器啟動翻譯會話
+                    System.Threading.Tasks.Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _translationBridge.StartTranslationSessionAsync();
+                            
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                StatusText = "翻譯會話已啟動 - 按 F4 開始翻譯";
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                StatusText = "啟動失敗";
+                                IsTranslationActive = false;
+                                _notificationService?.ShowError($"翻譯啟動失敗: {ex.Message}");
+                            });
+                        }
+                    });
                 }
                 else
                 {
-                    // 開始翻譯
-                    ExecuteCaptureCommand();
+                    StatusText = "停止翻譯會話...";
+                    
+                    // 停止翻譯會話
+                    System.Threading.Tasks.Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _translationBridge.StopTranslationSessionAsync();
+                            
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                StatusText = "翻譯會話已停止";
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                StatusText = "停止失敗";
+                                _notificationService?.ShowError($"翻譯停止失敗: {ex.Message}");
+                            });
+                        }
+                    });
                 }
             }
             catch (Exception ex)
             {
-                StatusText = "操作失敗";
-                System.Diagnostics.Debug.WriteLine($"開始翻譯錯誤: {ex.Message}");
+                StatusText = "翻譯操作失敗";
+                IsTranslationActive = false;
+                System.Diagnostics.Debug.WriteLine($"翻譯操作錯誤: {ex.Message}");
             }
         }
 
@@ -508,11 +588,42 @@ namespace MonLingo.ViewModel
             try
             {
                 StatusText = "快速截圖翻譯...";
-                // TODO: 實現快速截圖翻譯
-                System.Diagnostics.Debug.WriteLine("快速截圖功能待實現");
+                
+                // 使用 Phase 5 翻譯橋接器進行快速翻譯
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _translationBridge.QuickScreenshotTranslationAsync();
+                        
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            StatusText = "快速翻譯完成";
+                            
+                            // 3秒後重置狀態
+                            System.Threading.Tasks.Task.Run(async () =>
+                            {
+                                await System.Threading.Tasks.Task.Delay(3000);
+                                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    StatusText = "就緒";
+                                });
+                            });
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            StatusText = "快速翻譯失敗";
+                            _notificationService?.ShowError($"快速翻譯失敗: {ex.Message}");
+                        });
+                    }
+                });
             }
             catch (Exception ex)
             {
+                StatusText = "快速翻譯操作失敗";
                 System.Diagnostics.Debug.WriteLine($"快速截圖錯誤: {ex.Message}");
             }
         }
@@ -695,6 +806,12 @@ namespace MonLingo.ViewModel
             {
                 if (disposing)
                 {
+                    // 清理 Phase 5 翻譯橋接器
+                    _translationBridge?.Dispose();
+                    
+                    // 清理 Phase 5 服務容器
+                    Phase5ServiceContainer.Cleanup();
+                    
                     // 清理託管資源
                     // 取消所有事件訂閱
                     CaptureRequested = null;

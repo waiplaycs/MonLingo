@@ -1,0 +1,6 @@
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\pch.cpp;C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\obj\x64\Debug\MonLingo.Native\pch.obj
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\NativeAPI.cpp;C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\obj\x64\Debug\MonLingo.Native\NativeAPI.obj
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\ScreenCapture\ScreenCaptureEngine.cpp;C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\obj\x64\Debug\MonLingo.Native\ScreenCaptureEngine.obj
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\OCR\OcrEngine.cpp;C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\obj\x64\Debug\MonLingo.Native\OcrEngine.obj
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\Common\Logger.cpp;C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\obj\x64\Debug\MonLingo.Native\Logger.obj
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\dllmain.cpp;C:\Users\User\Desktop\MonLingo2\src\MonLingo.Native\obj\x64\Debug\MonLingo.Native\dllmain.obj

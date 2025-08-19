@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Instances</id>
+    <version>2.0.0</version>
+    <title>Instances</title>
+    <authors>Malte Rosenbjerg</authors>
+    <projectUrl>https://github.com/rosenbjerg/Instances</projectUrl>
+    <description>A .NET Standard Process wrapper with an elegant API, for both asyncronous and syncronous use, providing both Events and support for Tasks with cancellation support</description>
+    <releaseNotes>Improved API</releaseNotes>
+    <copyright>Rosenbjerg Softworks</copyright>
+    <tags>instances instance process async task events run exec</tags>
+    <repository url="https://github.com/rosenbjerg/Instances" />
+    <dependencies>
+      <group targetFramework=".NETStandard2.0" />
+    </dependencies>
+  </metadata>
+</package>

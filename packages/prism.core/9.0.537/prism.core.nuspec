@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Prism.Core</id>
+    <version>9.0.537</version>
+    <authors>Brian Lagunas,Dan Siegel</authors>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <license type="file">LICENSE</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <icon>prism-logo.png</icon>
+    <readme>ReadMe.md</readme>
+    <projectUrl>https://github.com/PrismLibrary/Prism</projectUrl>
+    <description>Prism provides an implementation of a collection of design patterns that are helpful in writing well structured and maintainable XAML applications, including MVVM, dependency injection, commanding, event aggregation, and more. Prism's core functionality is a shared code base in a class library that does not target any specific Application Framework. Features that need to be platform specific are implemented in the respective libraries for the target platform.</description>
+    <tags>prism wpf xamarin dotnet maui maui uno unoplatform mvvm xaml</tags>
+    <repository type="git" url="https://github.com/PrismLibrary/Prism" commit="ec6d1926b4a20540f1dbf2d90b432660670d0c30" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.6.2">
+        <dependency id="Prism.Events" version="9.0.537" exclude="Build,Analyzers" />
+        <dependency id="Prism.Container.Abstractions" version="9.0.106" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETFramework4.7">
+        <dependency id="Prism.Events" version="9.0.537" exclude="Build,Analyzers" />
+        <dependency id="Prism.Container.Abstractions" version="9.0.106" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net6.0">
+        <dependency id="Prism.Events" version="9.0.537" exclude="Build,Analyzers" />
+        <dependency id="Prism.Container.Abstractions" version="9.0.106" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Prism.Events" version="9.0.537" exclude="Build,Analyzers" />
+        <dependency id="Prism.Container.Abstractions" version="9.0.106" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

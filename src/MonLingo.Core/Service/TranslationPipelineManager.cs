@@ -24,8 +24,9 @@ namespace MonLingo.Core.Service
         
         public bool IsCapturing => _isCapturing;
         
-        public event Action<TranslationResult> TranslationCompleted;
-        public event Action<string> ErrorOccurred;
+        public event EventHandler<TranslationResult> TranslationCompleted;
+        public event EventHandler CaptureRequested;
+        public event EventHandler<Exception> ErrorOccurred;
         
         public TranslationPipelineManager(
             IScreenCaptureService screenCaptureService,
@@ -68,7 +69,7 @@ namespace MonLingo.Core.Service
             catch (Exception ex)
             {
                 var errorMessage = $"Translation session failed: {ex.Message}";
-                ErrorOccurred?.Invoke(errorMessage);
+                ErrorOccurred?.Invoke(this, new Exception(errorMessage));
                 _notificationService.ShowError(errorMessage);
                 StopCaptureSession();
             }
@@ -97,7 +98,7 @@ namespace MonLingo.Core.Service
                 }
                 catch (Exception ex)
                 {
-                    ErrorOccurred?.Invoke($"Frame processing error: {ex.Message}");
+                    ErrorOccurred?.Invoke(this, ex);
                     // 繼續處理，不中斷整個會話
                 }
             }
@@ -135,7 +136,7 @@ namespace MonLingo.Core.Service
                 // 4. 建立翻譯結果
                 var result = new TranslationResult
                 {
-                    OriginalText = ocrResult.Text,
+                    SourceText = ocrResult.Text,
                     TranslatedText = translationResult,
                     Timestamp = DateTime.Now,
                     BoundingBox = ocrResult.BoundingBox,
@@ -145,7 +146,7 @@ namespace MonLingo.Core.Service
                 };
                 
                 // 5. 觸發翻譯完成事件
-                TranslationCompleted?.Invoke(result);
+                TranslationCompleted?.Invoke(this, result);
                 
                 // 6. 顯示通知（可選）
                 if (await _configService.GetAsync<bool>("ShowNotifications"))
@@ -155,7 +156,72 @@ namespace MonLingo.Core.Service
             }
             catch (Exception ex)
             {
-                ErrorOccurred?.Invoke($"Frame processing failed: {ex.Message}");
+                ErrorOccurred?.Invoke(this, ex);
+            }
+        }
+        
+        /// <summary>
+        /// 初始化翻譯管道
+        /// </summary>
+        public async Task InitializeAsync()
+        {
+            try
+            {
+                // 初始化各個服務
+                _notificationService.ShowInfo("正在初始化翻譯服務...");
+                
+                // TODO: 添加具體的初始化邏輯
+                await Task.Delay(100); // 模擬初始化時間
+                
+                _notificationService.ShowSuccess("翻譯服務已就緒");
+            }
+            catch (Exception ex)
+            {
+                ErrorOccurred?.Invoke(this, ex);
+                throw;
+            }
+        }
+        
+        /// <summary>
+        /// 啟動完整的擷取翻譯會話 - 自動偵測視窗
+        /// </summary>
+        public async Task StartCaptureSessionAsync()
+        {
+            // 使用當前前景視窗
+            await StartCaptureSessionAsync(IntPtr.Zero);
+        }
+        
+        /// <summary>
+        /// 停止擷取會話（異步版本）
+        /// </summary>
+        public async Task StopCaptureSessionAsync()
+        {
+            await Task.Run(() => StopCaptureSession());
+        }
+        
+        /// <summary>
+        /// 處理單一影格 - 用於快速翻譯
+        /// </summary>
+        public async Task ProcessSingleFrameAsync()
+        {
+            try
+            {
+                CaptureRequested?.Invoke(this, EventArgs.Empty);
+                
+                // 進行單次螢幕擷取
+                var frameData = _screenCaptureService.ReadFrame();
+                if (frameData != null && frameData.ImageData != null && frameData.ImageData.Length > 0)
+                {
+                    await ProcessFrameAsync(frameData);
+                }
+                else
+                {
+                    ErrorOccurred?.Invoke(this, new Exception("無法擷取螢幕畫面"));
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorOccurred?.Invoke(this, ex);
             }
         }
         
@@ -176,7 +242,7 @@ namespace MonLingo.Core.Service
             }
             catch (Exception ex)
             {
-                ErrorOccurred?.Invoke($"Stop capture session failed: {ex.Message}");
+                ErrorOccurred?.Invoke(this, ex);
             }
         }
         
