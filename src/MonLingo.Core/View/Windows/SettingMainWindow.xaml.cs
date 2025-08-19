@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 
 namespace MonLingo.View.Windows
@@ -14,17 +15,31 @@ namespace MonLingo.View.Windows
 
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
-            // 儲存設定並關閉視窗
-            ApplySettings();
-            this.DialogResult = true;
-            this.Close();
+            try
+            {
+                // 儲存設定並關閉視窗
+                ApplySettings();
+                
+                // 安全地關閉視窗（不設定 DialogResult，因為不是 ShowDialog 方式打開）
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"儲存設定時發生錯誤: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            // 不儲存設定直接關閉
-            this.DialogResult = false;
-            this.Close();
+            try
+            {
+                // 不儲存設定直接關閉
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"關閉視窗時發生錯誤: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void ApplyButton_Click(object sender, RoutedEventArgs e)

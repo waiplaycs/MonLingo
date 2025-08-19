@@ -22,31 +22,60 @@ namespace MonLingo.Core
         private bool _isInitialized = false;
 
         /// <summary>
-        /// 應用程式啟動
+        /// 應用程式啟動事件處理器
         /// </summary>
-        protected override async void OnStartup(StartupEventArgs e)
+        private void Application_Startup(object sender, StartupEventArgs e)
+        {
+            OnStartupSync(e);
+        }
+
+        /// <summary>
+        /// 應用程式啟動（同步版本）
+        /// </summary>
+        private void OnStartupSync(StartupEventArgs e)
         {
             try
             {
                 // 設定例外處理
                 SetupExceptionHandling();
 
-                // 初始化服務容器
-                await ServiceContainer.InitializeAsync();
-
-                // 取得核心服務
-                _hotKeyService = ServiceContainer.GetRequiredService<IHotKeyService>();
-                _eventAggregator = ServiceContainer.GetRequiredService<IEventAggregator>();
-
-                // 訂閱事件
-                SubscribeToEvents();
-
-                // 建立並顯示主視窗
+                // 簡化初始化：先建立基本的 UI
                 CreateMainWindow();
 
-                _isInitialized = true;
+                // 延遲初始化服務（避免阻塞 UI 啟動）
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await ServiceContainer.InitializeAsync();
+                        
+                        // 在 UI 執行緒上獲取服務
+                        Dispatcher.Invoke(() =>
+                        {
+                            try
+                            {
+                                _hotKeyService = ServiceContainer.GetService<IHotKeyService>();
+                                _eventAggregator = ServiceContainer.GetService<IEventAggregator>();
+                                
+                                // 訂閱事件
+                                SubscribeToEvents();
+                                
+                                _isInitialized = true;
+                                Logger.Info("MonLingo 應用程式啟動完成");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Error(ex, "服務初始化失敗");
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "背景服務初始化失敗");
+                    }
+                });
 
-                Logger.Info("MonLingo 應用程式啟動完成");
+                Logger.Info("MonLingo UI 已啟動，服務正在背景初始化");
             }
             catch (Exception ex)
             {
@@ -54,8 +83,6 @@ namespace MonLingo.Core
                 MessageBox.Show($"啟動失敗: {ex.Message}", "MonLingo", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
             }
-
-            base.OnStartup(e);
         }
 
         /// <summary>

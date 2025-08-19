@@ -16,6 +16,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PlatformTarget>x64</PlatformTarget>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <StartupObject>MonLingo.Core.SimpleApp</StartupObject>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -31,6 +32,7 @@
 
   <!-- 核心依賴 - .NET Framework 4.8.1 相容套件 -->
   <ItemGroup>
+    <PackageReference Include="GuerrillaNtp" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Newtonsoft.Json" />
@@ -39,6 +41,10 @@
     <PackageReference Include="NLog.Extensions.Logging" />
     <PackageReference Include="OpenCvSharp4" />
     <PackageReference Include="OpenCvSharp4.runtime.win" />
+    <!-- Phase 4 音訊與網路功能 -->
+    <PackageReference Include="NAudio" />
+    <PackageReference Include="Whisper.net" />
+    <PackageReference Include="Downloader" />
   </ItemGroup>
 
   <!-- 專案輸出設定 -->

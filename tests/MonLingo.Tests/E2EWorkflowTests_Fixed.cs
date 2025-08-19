@@ -121,7 +121,7 @@ namespace MonLingo.Tests.EndToEnd
         public async Task BatchTranslationWorkflow_ShouldMeetPerformanceRequirements()
         {
             // Arrange
-            var translateService = new TranslationService();
+            var translateService = new TranslateService();
             var batchTexts = Enumerable.Range(1, 10)
                 .Select(i => $"Test text {i}")
                 .ToArray();

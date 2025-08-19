@@ -115,6 +115,9 @@ namespace MonLingo.Core.Infrastructure
             services.AddSingleton<IDataService, DataService>();
             services.AddSingleton<IUserService, UserService>();
             services.AddSingleton<ISettingsService, SettingsService>();
+            
+            // 註意: Phase 4 服務 (TimeSyncService, DownloadService) 使用獨立的服務註冊系統
+            // 參見 MonLingo.Core.Service.Services.AddCoreServices() 方法
         }
 
         /// <summary>

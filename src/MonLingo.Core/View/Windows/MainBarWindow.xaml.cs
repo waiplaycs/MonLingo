@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
 using MonLingo.ViewModel;
 
 namespace MonLingo.View.Windows
@@ -10,6 +11,7 @@ namespace MonLingo.View.Windows
     /// <summary>
     /// MainBarWindow - 可拖曳的浮動主工具列
     /// 對應 Gaminik.View.MainBarWindow 的功能和設計
+    /// 基於 TestWindow.xaml 的現代化 UI 設計
     /// </summary>
     public partial class MainBarWindow : Window
     {
@@ -31,9 +33,9 @@ namespace MonLingo.View.Windows
             this.ShowInTaskbar = false;
             this.ResizeMode = ResizeMode.NoResize;
             
-            // 設置初始位置和大小
-            this.Width = 400;
-            this.Height = 60;
+            // 使用新的現代化尺寸
+            this.Height = 52;
+            this.Width = 1050;
             this.Left = (SystemParameters.PrimaryScreenWidth - this.Width) / 2;
             this.Top = 50;
         }
@@ -47,6 +49,18 @@ namespace MonLingo.View.Windows
             _viewModel.CaptureRequested += OnCaptureRequested;
             _viewModel.SettingsRequested += OnSettingsRequested;
             _viewModel.ExitRequested += OnExitRequested;
+            _viewModel.MinimizeRequested += OnMinimizeRequested;
+        }
+
+        /// <summary>
+        /// 處理移動按鈕的滑鼠左鍵按下事件，允許拖動視窗
+        /// </summary>
+        private void MoveButton_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                this.DragMove();
+            }
         }
 
         #region 視窗拖曳功能
@@ -76,15 +90,30 @@ namespace MonLingo.View.Windows
 
         private void OnSettingsRequested(object sender, EventArgs e)
         {
-            // 打開設定視窗
-            var settingsWindow = new SettingMainWindow();
-            settingsWindow.Show();
+            try
+            {
+                // 打開設定視窗
+                var settingsWindow = new SettingMainWindow();
+                settingsWindow.Owner = this; // 設定父視窗
+                settingsWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"無法打開設定視窗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void OnExitRequested(object sender, EventArgs e)
         {
             // 安全關閉應用程式
             Application.Current.Shutdown();
+        }
+
+        private void OnMinimizeRequested(object sender, EventArgs e)
+        {
+            // 最小化工具條到系統托盤
+            this.WindowState = WindowState.Minimized;
+            this.ShowInTaskbar = false;
         }
 
         #endregion
@@ -126,6 +155,7 @@ namespace MonLingo.View.Windows
                 _viewModel.CaptureRequested -= OnCaptureRequested;
                 _viewModel.SettingsRequested -= OnSettingsRequested;
                 _viewModel.ExitRequested -= OnExitRequested;
+                _viewModel.MinimizeRequested -= OnMinimizeRequested;
                 _viewModel.Dispose();
             }
             
