@@ -30,6 +30,26 @@ namespace MonLingo.Core.Service
         void SetSetting<T>(string key, T value);
 
         /// <summary>
+        /// 非同步取得指定設定值
+        /// </summary>
+        Task<T> GetAsync<T>(string key, T defaultValue = default);
+
+        /// <summary>
+        /// 非同步設定指定設定值
+        /// </summary>
+        Task SaveAsync<T>(string key, T value);
+
+        /// <summary>
+        /// 非同步移除指定設定值
+        /// </summary>
+        Task RemoveAsync(string key);
+
+        /// <summary>
+        /// 非同步追加到列表設定
+        /// </summary>
+        Task AppendToListAsync<T>(string key, T item);
+
+        /// <summary>
         /// 重設為預設設定
         /// </summary>
         Task ResetToDefaultAsync();

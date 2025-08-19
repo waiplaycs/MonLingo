@@ -62,7 +62,7 @@ namespace MonLingo.Core.Test
                 var coreServices = new[]
                 {
                     ("IEventAggregator", ServiceContainer.IsServiceAvailable<IEventAggregator>()),
-                    ("INotificationService", ServiceContainer.IsServiceAvailable<INotificationService>())
+                    ("INotificationService", ServiceContainer.IsServiceAvailable<MonLingo.Core.Infrastructure.INotificationService>())
                 };
                 
                 foreach (var (serviceName, isAvailable) in coreServices)

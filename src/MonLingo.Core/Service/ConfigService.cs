@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -163,6 +164,106 @@ namespace MonLingo.Core.Service
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"設定設定值失敗 [{key}]: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 非同步取得指定設定值
+        /// </summary>
+        public async Task<T> GetAsync<T>(string key, T defaultValue = default)
+        {
+            try
+            {
+                // 確保設定已載入
+                if (_currentSettings == null)
+                {
+                    await LoadAsync();
+                }
+                
+                return GetSetting<T>(key, defaultValue);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"非同步取得設定值失敗 [{key}]: {ex.Message}");
+                return defaultValue;
+            }
+        }
+
+        /// <summary>
+        /// 非同步設定指定設定值
+        /// </summary>
+        public async Task SaveAsync<T>(string key, T value)
+        {
+            try
+            {
+                // 確保設定已載入
+                if (_currentSettings == null)
+                {
+                    await LoadAsync();
+                }
+                
+                SetSetting<T>(key, value);
+                await SaveAsync(_currentSettings);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"非同步設定設定值失敗 [{key}]: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 非同步移除指定設定值
+        /// </summary>
+        public async Task RemoveAsync(string key)
+        {
+            try
+            {
+                // 確保設定已載入
+                if (_currentSettings == null)
+                {
+                    await LoadAsync();
+                }
+                
+                // 將該屬性設為預設值
+                var property = typeof(AppSettings).GetProperty(key);
+                if (property != null && property.CanWrite)
+                {
+                    var defaultValue = property.PropertyType.IsValueType 
+                        ? Activator.CreateInstance(property.PropertyType) 
+                        : null;
+                    property.SetValue(_currentSettings, defaultValue);
+                    await SaveAsync(_currentSettings);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"移除設定值失敗 [{key}]: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 非同步追加到列表設定
+        /// </summary>
+        public async Task AppendToListAsync<T>(string key, T item)
+        {
+            try
+            {
+                // 確保設定已載入
+                if (_currentSettings == null)
+                {
+                    await LoadAsync();
+                }
+                
+                // 嘗試取得現有列表
+                var existingList = GetSetting<List<T>>(key, new List<T>());
+                existingList.Add(item);
+                
+                SetSetting(key, existingList);
+                await SaveAsync(_currentSettings);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"追加到列表設定失敗 [{key}]: {ex.Message}", ex);
             }
         }
 
