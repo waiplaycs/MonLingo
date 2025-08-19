@@ -1,0 +1,256 @@
+<Window x:Class="MonLingo.Core.View.Windows.SubtitleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converters="clr-namespace:MonLingo.Core.Converters"
+        mc:Ignorable="d"
+        Title="字幕視窗"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="{Binding IsDetached}"
+        ResizeMode="CanResizeWithGrip"
+        MinWidth="300"
+        MinHeight="120"
+        Width="{Binding WindowWidth, Mode=TwoWay}"
+        Height="{Binding WindowHeight, Mode=TwoWay}"
+        Top="{Binding WindowTop, Mode=TwoWay}"
+        Left="{Binding WindowLeft, Mode=TwoWay}"
+        MouseDown="Window_MouseDown"
+        MouseDoubleClick="Window_MouseDoubleClick">
+
+    <!-- 視窗資源 -->
+    <Window.Resources>
+        <!-- 轉換器 -->
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        
+        <!-- 淡入動畫故事板 -->
+        <Storyboard x:Key="FadeInAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0" To="1"
+                             Duration="0:0:0.5"
+                             BeginTime="0:0:0"/>
+        </Storyboard>
+
+        <!-- 字幕行項目樣式 -->
+        <Style x:Key="SubtitleLineStyle" TargetType="Border">
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Background" Value="#88000000"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="BorderBrush" Value="#44FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Style.Triggers>
+                <!-- 載入時觸發淡入動畫 -->
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard Storyboard="{StaticResource FadeInAnimation}"/>
+                </EventTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 字幕文字樣式 -->
+        <Style x:Key="SubtitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <!-- 文字陰影效果，提高可讀性 -->
+                    <DropShadowEffect Color="Black" 
+                                      Direction="0" 
+                                      ShadowDepth="2" 
+                                      BlurRadius="4" 
+                                      Opacity="0.8"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- 主要內容區域 - 可分離的字幕視窗 -->
+    <Grid>
+        <!-- 主邊框 - 依附模式和分離模式不同樣式 -->
+        <Border x:Name="MainBorder"
+                BorderBrush="#66FFFFFF"
+                BorderThickness="1">
+            
+            <!-- 邊框樣式根據是否分離來決定 -->
+            <Border.Style>
+                <Style TargetType="Border">
+                    <!-- 預設：依附模式 - 下方圓角 -->
+                    <Setter Property="CornerRadius" Value="0,0,26,26"/>
+                    <Style.Triggers>
+                        <!-- 分離模式 - 全圓角 -->
+                        <DataTrigger Binding="{Binding IsDetached}" Value="True">
+                            <Setter Property="CornerRadius" Value="26"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            
+            <!-- 漸變背景效果 -->
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#CC000000" Offset="0"/>
+                    <GradientStop Color="#99000000" Offset="0.5"/>
+                    <GradientStop Color="#CC000000" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <!-- 標題列（僅在分離模式顯示） -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- 字幕內容區 -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 標題列 - 僅在分離模式顯示 -->
+                <Border Grid.Row="0" 
+                        Background="#44FFFFFF" 
+                        CornerRadius="26,26,0,0"
+                        Padding="15,8"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <Border.Visibility>
+                        <Binding Path="IsDetached">
+                            <Binding.Converter>
+                                <converters:BooleanToVisibilityConverter/>
+                            </Binding.Converter>
+                        </Binding>
+                    </Border.Visibility>
+                    
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 標題文字 -->
+                        <TextBlock Grid.Column="0" 
+                                   Text="字幕視窗" 
+                                   Foreground="White" 
+                                   FontWeight="Medium"
+                                   VerticalAlignment="Center"/>
+
+                        <!-- 依附按鈕 -->
+                        <Button Grid.Column="1" 
+                                Content="📌" 
+                                ToolTip="重新依附到工具條"
+                                Background="Transparent"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Padding="8,4"
+                                Margin="5,0"
+                                FontSize="14"
+                                Command="{Binding ReattachCommand}"/>
+
+                        <!-- 關閉按鈕 -->
+                        <Button Grid.Column="2" 
+                                Content="✕" 
+                                Background="Transparent"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Padding="8,4"
+                                FontSize="12"
+                                Command="{Binding CloseCommand}"/>
+                    </Grid>
+                </Border>
+
+                <!-- 滾動檢視器 -->
+                <ScrollViewer Grid.Row="1"
+                              x:Name="SubtitleScrollViewer"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Hidden"
+                              CanContentScroll="True"
+                              Padding="20,10">
+                    
+                    <!-- 字幕行列表 -->
+                    <ItemsControl x:Name="SubtitleItemsControl"
+                                  ItemsSource="{Binding SubtitleLines}">
+                    <!-- 項目容器樣式 -->
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                            <Setter Property="Margin" Value="0,1"/>
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+
+                    <!-- 項目面板：垂直堆疊 -->
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+
+                    <!-- 項目範本 -->
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource SubtitleLineStyle}">
+                                <!-- 字幕文字內容 -->
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <!-- 主要譯文行 -->
+                                        <RowDefinition Height="Auto"/>
+                                        <!-- 原文行（可選） -->
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 主要譯文 -->
+                                    <TextBlock Grid.Row="0"
+                                               Text="{Binding TranslatedText}"
+                                               Style="{StaticResource SubtitleTextStyle}"
+                                               FontSize="18"
+                                               FontWeight="SemiBold"/>
+
+                                    <!-- 原文（如果有的話，較小字體） -->
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding OriginalText}"
+                                               Style="{StaticResource SubtitleTextStyle}"
+                                               FontSize="12"
+                                               FontWeight="Normal"
+                                               Opacity="0.7"
+                                               Margin="0,2,0,0">
+                                        <TextBlock.Visibility>
+                                            <Binding Path="OriginalText" 
+                                                     Converter="{StaticResource StringToVisibilityConverter}"/>
+                                        </TextBlock.Visibility>
+                                    </TextBlock>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+
+    <!-- 分離模式時的邊框調整手柄 -->
+    <Grid x:Name="ResizeGrip" 
+          Width="20" 
+          Height="20" 
+          HorizontalAlignment="Right" 
+          VerticalAlignment="Bottom"
+          Background="Transparent"
+          Cursor="SizeNWSE"
+          MouseLeftButtonDown="ResizeGrip_MouseLeftButtonDown">
+        
+        <Grid.Visibility>
+            <Binding Path="IsDetached">
+                <Binding.Converter>
+                    <converters:BooleanToVisibilityConverter/>
+                </Binding.Converter>
+            </Binding>
+        </Grid.Visibility>
+        
+        <!-- 視覺化調整手柄 -->
+        <Path Data="M 0,20 L 20,0 M 5,20 L 20,5 M 10,20 L 20,10" 
+              Stroke="#88FFFFFF" 
+              StrokeThickness="1"/>
+    </Grid>
+</Grid>
+</Window>

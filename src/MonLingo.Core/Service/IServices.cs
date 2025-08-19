@@ -31,6 +31,14 @@ namespace MonLingo.Core.Service
             // 註冊下載服務 (Phase 4)
             services.AddSingleton<IDownloadService, DownloadService>();
 
+            // 註冊商業化服務 (Phase 6)
+            services.AddSingleton<IApiClient, ApiClient>();
+            services.AddSingleton<IUserService, UserService>();
+            services.AddSingleton<ILicenseService, LicenseService>();
+            services.AddSingleton<IPointsService, PointsService>();
+            services.AddSingleton<ICoinsService, CoinsService>();
+            services.AddSingleton<ICurrencyService, CurrencyService>();
+
             return services;
         }
     }

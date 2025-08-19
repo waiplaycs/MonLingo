@@ -19,9 +19,17 @@ namespace MonLingo.View.Windows
         
         public MainBarWindow()
         {
-            InitializeComponent();
-            InitializeWindow();
-            SetupViewModel();
+            try
+            {
+                InitializeComponent();
+                InitializeWindow();
+                SetupViewModel();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"MainBarWindow 初始化失敗:\n{ex.Message}\n\n詳細:\n{ex.ToString()}", "錯誤", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                throw;
+            }
         }
 
         private void InitializeWindow()
@@ -36,20 +44,18 @@ namespace MonLingo.View.Windows
             // 使用新的現代化尺寸
             this.Height = 52;
             this.Width = 1050;
-            this.Left = (SystemParameters.PrimaryScreenWidth - this.Width) / 2;
+            
+            // 設置初始位置 (螢幕上方中央)
+            var screenWidth = SystemParameters.PrimaryScreenWidth;
+            this.Left = (screenWidth - this.Width) / 2;
             this.Top = 50;
         }
 
         private void SetupViewModel()
         {
-            _viewModel = new MainBarWindowViewModel();
-            this.DataContext = _viewModel;
-            
-            // 訂閱ViewModel事件
-            _viewModel.CaptureRequested += OnCaptureRequested;
-            _viewModel.SettingsRequested += OnSettingsRequested;
-            _viewModel.ExitRequested += OnExitRequested;
-            _viewModel.MinimizeRequested += OnMinimizeRequested;
+            // 使用工作版 ViewModel 啟用按鈕功能
+            var workingViewModel = new WorkingMainBarWindowViewModel();
+            this.DataContext = workingViewModel;
         }
 
         /// <summary>
@@ -81,8 +87,8 @@ namespace MonLingo.View.Windows
         {
             // 觸發螢幕擷取功能
             // 這裡將會打開 CaptureRegionWindow
-            var captureWindow = new CaptureRegionWindow();
-            captureWindow.Show();
+            // var captureWindow = new CaptureRegionWindow(); // 暫時註解 - Phase6 測試
+            // captureWindow.Show();
             
             // 臨時隱藏工具列以避免干擾擷取
             this.Hide();

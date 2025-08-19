@@ -27,6 +27,9 @@ namespace MonLingo.Core.Infrastructure
             // 註冊核心翻譯服務
             RegisterCoreServices(services);
             
+            // 註冊商業化服務（Phase 6）
+            RegisterBusinessServices(services);
+            
             // 註冊 UI 相關服務
             RegisterUIServices(services);
             
@@ -76,6 +79,22 @@ namespace MonLingo.Core.Infrastructure
         {
             // 配置服務已在 RegisterCoreServices 中註冊
             // 這裡可以添加額外的配置相關服務
+        }
+
+        /// <summary>
+        /// 註冊商業化服務（Phase 6）
+        /// </summary>
+        private static void RegisterBusinessServices(IServiceCollection services)
+        {
+            // 註冊商業化核心服務
+            services.AddSingleton<MonLingo.Core.Service.IUserService, MonLingo.Core.Service.UserService>();
+            services.AddSingleton<MonLingo.Core.Service.ILicenseService, MonLingo.Core.Service.LicenseService>();
+            services.AddSingleton<MonLingo.Core.Service.ICurrencyService, MonLingo.Core.Service.CurrencyService>();
+            services.AddSingleton<MonLingo.Core.Service.IPointsService, MonLingo.Core.Service.PointsService>();
+            services.AddSingleton<MonLingo.Core.Service.ICoinsService, MonLingo.Core.Service.CoinsService>();
+            
+            // 註冊 API 客戶端（如果需要）
+            services.AddSingleton<MonLingo.Core.Service.IApiClient, MonLingo.Core.Service.ApiClient>();
         }
 
         /// <summary>
@@ -215,6 +234,15 @@ namespace MonLingo.Core.Infrastructure
     /// </summary>
     public class Phase5CaptureRequestedEvent
     {
+        public DateTime Timestamp { get; } = DateTime.Now;
+    }
+
+    /// <summary>
+    /// Phase 5 區域選擇事件
+    /// </summary>
+    public class Phase5RegionSelectionEvent
+    {
+        public int RegionType { get; set; }
         public DateTime Timestamp { get; } = DateTime.Now;
     }
 }

@@ -6,9 +6,9 @@
         AllowsTransparency="True" 
         WindowStyle="None" 
         Background="Transparent"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Topmost="True"
-        ShowInTaskbar="False"
+        ShowInTaskbar="True"
         ResizeMode="NoResize">
 
     <Window.Resources>
@@ -118,7 +118,7 @@
     <!-- 主容器，使用 Border 實現圓角、邊框和背景 -->
     <Border CornerRadius="26" BorderThickness="1" BorderBrush="#44888888" Padding="12,8">
         <Border.Background>
-            <SolidColorBrush Color="Black" Opacity="0.7"/>
+            <SolidColorBrush Color="Black" Opacity="0.9"/>
         </Border.Background>
         <Border.Effect>
             <BlurEffect Radius="1"/>
@@ -172,7 +172,7 @@
             <Rectangle Fill="#44888888" Width="1" Height="16" Margin="12,0"/>
 
             <!-- 5. 翻譯引擎選擇 -->
-            <Border Background="#1AFFFFFF" CornerRadius="999" Padding="8,4">
+            <Border Background="#80000000" CornerRadius="999" Padding="8,4">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Ellipse Fill="#4ADE80" Width="8" Height="8"/>
                     <TextBlock Text="{Binding SelectedEngine}" 
@@ -194,7 +194,7 @@
                     Command="{Binding CompareEnginesCommand}"/>
 
             <!-- 7. 翻譯語言 -->
-            <Border Background="#1AFFFFFF" CornerRadius="999" Padding="8,4" Margin="4,0,0,0">
+            <Border Background="#80000000" CornerRadius="999" Padding="8,4" Margin="4,0,0,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding SourceLanguage}" 
                                Foreground="White" 

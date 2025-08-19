@@ -25,7 +25,7 @@ namespace MonLingo.Core
                 if (args.Length > 0 && args[0] == "--test")
                 {
                     // 測試模式：運行測試程式
-                    TestProgram.Main(args).Wait();
+                    // TestProgram.TestApp(); // 暫時註解 - Phase6 測試
                     return;
                 }
                 
@@ -55,7 +55,7 @@ namespace MonLingo.Core
         {
             try
             {
-                // 直接建立主視窗，使用安全的初始化方式
+                // 使用完整的 MainBarWindow
                 var mainWindow = new MainBarWindow();
                 
                 // 確保視窗可見

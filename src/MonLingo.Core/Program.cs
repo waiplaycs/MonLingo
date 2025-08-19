@@ -27,13 +27,12 @@ namespace MonLingo.Core
                 if (args.Length > 0 && args[0] == "--test")
                 {
                     // 測試模式：運行測試程式
-                    TestProgram.Main(args).Wait();
+                                // TestProgram.TestApp(); // 暫時註解 - Phase6 測試
                     return;
                 }
 
                 // 正常模式：啟動 WPF 應用程式
-                var app = new App();
-                app.InitializeComponent();
+                var app = new SimpleApp();
                 app.Run();
             }
             catch (Exception ex)

@@ -88,8 +88,9 @@ namespace MonLingo.Core.Service
             {
                 _notificationService.ShowInfo("正在進行快速截圖翻譯...");
                 
-                // 觸發單次截圖翻譯
-                await _pipelineManager.ProcessSingleFrameAsync();
+                // 使用新的快速翻譯服務，支持字幕模式
+                var quickTranslationService = new MonLingo.Core.Services.QuickTranslationService();
+                await quickTranslationService.StartQuickTranslationAsync();
             }
             catch (Exception ex)
             {
