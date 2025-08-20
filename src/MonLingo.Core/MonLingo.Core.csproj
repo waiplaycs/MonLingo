@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net481</TargetFramework>
     <Platform>x64</Platform>
     <UseWPF>true</UseWPF>
@@ -16,7 +16,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PlatformTarget>x64</PlatformTarget>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <StartupObject>MonLingo.Core.SimpleApp</StartupObject>
+    <StartupObject>MonLingo.Core.Program</StartupObject>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -36,6 +37,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="PaddleOCRSharp" />
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="NLog" />
     <PackageReference Include="NLog.Extensions.Logging" />
@@ -47,6 +49,16 @@
     <PackageReference Include="Downloader" />
   </ItemGroup>
 
+  <!-- Framework 引用 -->
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+
   <!-- 專案輸出設定 -->
   <ItemGroup>
     <None Update="app.manifest">
@@ -54,6 +66,11 @@
     </None>
     <None Update="NLog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- 包含 Native DLL -->
+    <None Include="..\..\MonLingo.Native.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>MonLingo.Native.dll</Link>
     </None>
   </ItemGroup>
 

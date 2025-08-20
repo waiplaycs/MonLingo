@@ -22,6 +22,11 @@ namespace MonLingo.Core
             
             try
             {
+                // 先測試 DLL 函數可用性
+                Console.WriteLine("🔍 正在測試 Native DLL 函數...");
+                MonLingo.Core.Service.DllFunctionTesterNew.TestAllOcrFunctions();
+                Console.WriteLine();
+                
                 // 創建並執行 Phase 5 測試
                 test = new Test.Phase5TranslationTest();
                 await test.RunPhase5TestsAsync();

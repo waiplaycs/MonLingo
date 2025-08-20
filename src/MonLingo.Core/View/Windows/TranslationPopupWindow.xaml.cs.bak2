@@ -1,0 +1,313 @@
+using System;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media.Animation;
+using MonLingo.Core.ViewModel;
+
+namespace MonLingo.View.Windows
+{
+    /// <summary>
+    /// TranslationPopupWindow - 翻譯結果顯示視窗
+    /// 支援覆蓋模式和字幕模式
+    /// </summary>
+    public partial class TranslationPopupWindow : Window
+    {
+        private TranslationResultViewModel _viewModel;
+        private Rect _sourceRegion;
+
+        public TranslationPopupWindow(Rect sourceRegion)
+        {
+            _sourceRegion = sourceRegion;
+            InitializeComponent();
+            InitializeWindow();
+            SetupViewModel();
+        }
+
+        private void InitializeWindow()
+        {
+            // 設置視窗屬性
+            this.WindowStyle = WindowStyle.None;
+            this.AllowsTransparency = true;
+            this.Topmost = true;
+            this.ShowInTaskbar = false;
+            this.ResizeMode = ResizeMode.NoResize;
+
+            // 根據來源區域設置視窗位置
+            SetWindowPosition();
+        }
+
+        private void SetWindowPosition()
+        {
+            // 預設視窗大小
+            var windowWidth = 400.0;
+            var windowHeight = 200.0;
+
+            // 計算視窗位置，優先顯示在來源區域下方
+            var left = _sourceRegion.Left;
+            var top = _sourceRegion.Bottom + 10;
+
+            // 檢查是否超出螢幕邊界
+            var screenWidth = SystemParameters.PrimaryScreenWidth;
+            var screenHeight = SystemParameters.PrimaryScreenHeight;
+
+            // 水平邊界檢查
+            if (left + windowWidth > screenWidth)
+            {
+                left = screenWidth - windowWidth - 20;
+            }
+            if (left < 20)
+            {
+                left = 20;
+            }
+
+            // 垂直邊界檢查
+            if (top + windowHeight > screenHeight)
+            {
+                // 如果下方空間不足，顯示在上方
+                top = _sourceRegion.Top - windowHeight - 10;
+                if (top < 20)
+                {
+                    // 如果上方也不足，顯示在螢幕中央
+                    top = (screenHeight - windowHeight) / 2;
+                }
+            }
+
+            this.Left = left;
+            this.Top = top;
+            this.Width = windowWidth;
+            this.Height = windowHeight;
+        }
+
+        private void SetupViewModel()
+        {
+            _viewModel = new TranslationResultViewModel(_sourceRegion);
+            this.DataContext = _viewModel;
+
+            // 訂閱ViewModel事件
+            _viewModel.CloseRequested += OnCloseRequested;
+            _viewModel.TranslationCompleted += OnTranslationCompleted;
+
+            // 開始翻譯過程
+            _viewModel.StartTranslation();
+        }
+
+        #region 視窗操作
+
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                this.DragMove();
+            }
+        }
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                CloseWindow();
+                e.Handled = true;
+            }
+        }
+
+        #endregion
+
+        #region ViewModel事件處理
+
+        private void OnCloseRequested(object sender, EventArgs e)
+        {
+            CloseWindow();
+        }
+
+        private void OnTranslationCompleted(object sender, TranslationCompletedEventArgs e)
+        {
+            // 翻譯完成後的處理
+            if (e.IsSuccess)
+            {
+                // 可以添加成功的視覺反饋
+                PlaySuccessAnimation();
+            }
+            else
+            {
+                // 可以添加錯誤的視覺反饋
+                PlayErrorAnimation();
+            }
+        }
+
+        #endregion
+
+        #region 動畫效果
+
+        /// <summary>
+        /// 顯示視窗時的動畫
+        /// </summary>
+        public void ShowWithAnimation()
+        {
+            this.Opacity = 0;
+            this.Show();
+
+            // 淡入動畫
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300));
+            
+            // 縮放動畫
+            var scaleTransform = new System.Windows.Media.ScaleTransform(0.8, 0.8);
+            this.RenderTransform = scaleTransform;
+            this.RenderTransformOrigin = new Point(0.5, 0.5);
+
+            var scaleXAnimation = new DoubleAnimation(0.8, 1.0, TimeSpan.FromMilliseconds(300))
+            {
+                EasingFunction = new BackEase { Amplitude = 0.3 }
+            };
+            var scaleYAnimation = new DoubleAnimation(0.8, 1.0, TimeSpan.FromMilliseconds(300))
+            {
+                EasingFunction = new BackEase { Amplitude = 0.3 }
+            };
+
+            this.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+            scaleTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scaleXAnimation);
+            scaleTransform.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scaleYAnimation);
+        }
+
+        /// <summary>
+        /// 成功動畫
+        /// </summary>
+        private void PlaySuccessAnimation()
+        {
+            // 綠色閃爍效果
+            var colorAnimation = new System.Windows.Media.Animation.ColorAnimation(
+                System.Windows.Media.Colors.LightGreen, 
+                System.Windows.Media.Colors.Transparent, 
+                TimeSpan.FromMilliseconds(500));
+            
+            // 應用到邊框
+            if (MainBorder != null)
+            {
+                var brush = new System.Windows.Media.SolidColorBrush();
+                MainBorder.BorderBrush = brush;
+                brush.BeginAnimation(System.Windows.Media.SolidColorBrush.ColorProperty, colorAnimation);
+            }
+        }
+
+        /// <summary>
+        /// 錯誤動畫
+        /// </summary>
+        private void PlayErrorAnimation()
+        {
+            // 紅色閃爍效果
+            var colorAnimation = new System.Windows.Media.Animation.ColorAnimation(
+                System.Windows.Media.Colors.LightCoral, 
+                System.Windows.Media.Colors.Transparent, 
+                TimeSpan.FromMilliseconds(500));
+            
+            // 應用到邊框
+            if (MainBorder != null)
+            {
+                var brush = new System.Windows.Media.SolidColorBrush();
+                MainBorder.BorderBrush = brush;
+                brush.BeginAnimation(System.Windows.Media.SolidColorBrush.ColorProperty, colorAnimation);
+            }
+
+            // 搖擺動畫
+            var shakeAnimation = new DoubleAnimationUsingKeyFrames();
+            shakeAnimation.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(0))));
+            shakeAnimation.KeyFrames.Add(new DiscreteDoubleKeyFrame(-5, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(50))));
+            shakeAnimation.KeyFrames.Add(new DiscreteDoubleKeyFrame(5, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(100))));
+            shakeAnimation.KeyFrames.Add(new DiscreteDoubleKeyFrame(-3, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(150))));
+            shakeAnimation.KeyFrames.Add(new DiscreteDoubleKeyFrame(3, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(200))));
+            shakeAnimation.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(250))));
+
+            var translateTransform = new System.Windows.Media.TranslateTransform();
+            this.RenderTransform = translateTransform;
+            translateTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, shakeAnimation);
+        }
+
+        #endregion
+
+        #region 視窗生命週期
+
+        private void CloseWindow()
+        {
+            // 淡出動畫
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
+            fadeOut.Completed += (s, e) => this.Close();
+            this.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            
+            // 確保視窗獲得焦點
+            this.Focus();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            // 清理資源
+            if (_viewModel != null)
+            {
+                _viewModel.CloseRequested -= OnCloseRequested;
+                _viewModel.TranslationCompleted -= OnTranslationCompleted;
+                _viewModel.Dispose();
+            }
+
+            base.OnClosed(e);
+        }
+
+        #endregion
+
+        #region 快捷功能
+
+        /// <summary>
+        /// 複製翻譯結果到剪貼簿
+        /// </summary>
+        private void CopyToClipboard()
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(_viewModel?.TranslatedText))
+                {
+                    Clipboard.SetText(_viewModel.TranslatedText);
+                    
+                    // 顯示複製成功提示
+                    _viewModel.ShowMessage("已複製到剪貼簿", MessageType.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"複製到剪貼簿錯誤: {ex.Message}");
+                _viewModel?.ShowMessage("複製失敗", MessageType.Error);
+            }
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// 翻譯完成事件參數
+    /// </summary>
+    public class TranslationCompletedEventArgs : EventArgs
+    {
+        public bool IsSuccess { get; }
+        public string Result { get; }
+        public string ErrorMessage { get; }
+
+        public TranslationCompletedEventArgs(bool isSuccess, string result = null, string errorMessage = null)
+        {
+            IsSuccess = isSuccess;
+            Result = result;
+            ErrorMessage = errorMessage;
+        }
+    }
+
+    /// <summary>
+    /// 訊息類型
+    /// </summary>
+    public enum MessageType
+    {
+        Info,
+        Success,
+        Warning,
+        Error
+    }
+}

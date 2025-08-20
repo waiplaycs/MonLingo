@@ -1,0 +1,304 @@
+<Window x:Class="MonLingo.Core.UI.SmsLoginDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="手機簡訊登入" 
+        Height="350" 
+        Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStyle="None">
+    
+    <Window.Resources>
+        <!-- 按鈕樣式 -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#28A745"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#218838"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#1e7e34"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 次要按鈕樣式 -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#6C757D"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#5A6268"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#545B62"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 文本框樣式 -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#28A745"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- 主容器 -->
+    <Border Background="White" 
+            CornerRadius="12" 
+            BorderBrush="#E0E0E0" 
+            BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Opacity="0.15" ShadowDepth="5" BlurRadius="15"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 標題欄 -->
+            <Grid Grid.Row="0" Background="#F8F9FA" Height="40">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 標題 -->
+                <TextBlock Grid.Column="0" 
+                          Text="手機簡訊登入" 
+                          VerticalAlignment="Center" 
+                          Margin="15,0,0,0"
+                          FontWeight="Medium"
+                          Foreground="#333"/>
+
+                <!-- 關閉按鈕 -->
+                <Button Grid.Column="1" 
+                        Content="✕" 
+                        Width="40" 
+                        Height="40"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        FontSize="16"
+                        Foreground="#666"
+                        Click="CloseButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FF5555"/>
+                                                <Setter Property="Foreground" Value="White"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+
+            <!-- 主要內容 -->
+            <StackPanel Grid.Row="1" Margin="30,20,30,30">
+
+                <!-- 說明文字 -->
+                <TextBlock Text="請輸入您的手機號碼，我們將發送驗證碼到您的手機" 
+                           TextWrapping="Wrap"
+                           Foreground="#666"
+                           Margin="0,0,0,20"
+                           TextAlignment="Center"/>
+
+                <!-- 手機號碼輸入 -->
+                <StackPanel x:Name="PhoneInputPanel">
+                    <TextBlock Text="手機號碼" FontWeight="Medium" Margin="0,0,0,5" Foreground="#333"/>
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- 國家代碼 -->
+                        <ComboBox Grid.Column="0" 
+                                  x:Name="CountryCodeComboBox"
+                                  Height="40"
+                                  SelectedIndex="0"
+                                  Margin="0,0,5,0">
+                            <ComboBoxItem Content="+86" Tag="86"/>
+                            <ComboBoxItem Content="+1" Tag="1"/>
+                            <ComboBoxItem Content="+886" Tag="886"/>
+                            <ComboBoxItem Content="+852" Tag="852"/>
+                            <ComboBoxItem Content="+853" Tag="853"/>
+                        </ComboBox>
+                        
+                        <!-- 手機號碼 -->
+                        <TextBox Grid.Column="1" 
+                                 x:Name="PhoneTextBox" 
+                                 Style="{StaticResource ModernTextBox}"
+                                 Height="40"
+                                 MaxLength="11"/>
+                    </Grid>
+
+                    <!-- 發送驗證碼按鈕 -->
+                    <Button x:Name="SendCodeButton" 
+                            Content="發送驗證碼" 
+                            Style="{StaticResource ModernButton}"
+                            Height="40"
+                            Margin="0,0,0,20"
+                            Click="SendCodeButton_Click"/>
+                </StackPanel>
+
+                <!-- 驗證碼輸入 -->
+                <StackPanel x:Name="CodeInputPanel" Visibility="Collapsed">
+                    <TextBlock Text="驗證碼" FontWeight="Medium" Margin="0,0,0,5" Foreground="#333"/>
+                    <TextBox x:Name="CodeTextBox" 
+                             Style="{StaticResource ModernTextBox}"
+                             Height="40"
+                             MaxLength="6"
+                             Margin="0,0,0,10"/>
+
+                    <!-- 重新發送提示 -->
+                    <Grid Margin="0,0,0,20">
+                        <TextBlock x:Name="ResendHintText" 
+                                   Text="如果您沒有收到驗證碼，可在 60 秒後重新發送"
+                                   Foreground="#666"
+                                   FontSize="12"
+                                   HorizontalAlignment="Left"/>
+                        <Button x:Name="ResendButton" 
+                                Content="重新發送" 
+                                Background="Transparent"
+                                Foreground="#28A745"
+                                BorderThickness="0"
+                                FontSize="12"
+                                HorizontalAlignment="Right"
+                                Cursor="Hand"
+                                Visibility="Collapsed"
+                                Click="ResendButton_Click"/>
+                    </Grid>
+
+                    <!-- 登入按鈕 -->
+                    <Button x:Name="LoginButton" 
+                            Content="登入" 
+                            Style="{StaticResource ModernButton}"
+                            Height="40"
+                            Margin="0,0,0,10"
+                            Click="LoginButton_Click"/>
+
+                    <!-- 返回按鈕 -->
+                    <Button x:Name="BackButton" 
+                            Content="返回" 
+                            Style="{StaticResource SecondaryButton}"
+                            Height="35"
+                            Click="BackButton_Click"/>
+                </StackPanel>
+
+                <!-- 載入指示器 -->
+                <Grid x:Name="LoadingPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                    <StackPanel HorizontalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" Height="4" Width="150" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="LoadingText" 
+                                   Text="正在處理..." 
+                                   HorizontalAlignment="Center"
+                                   Foreground="#666"
+                                   FontSize="12"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 錯誤訊息 -->
+                <Border x:Name="ErrorPanel" 
+                        Background="#FFF5F5" 
+                        BorderBrush="#FF6B6B" 
+                        BorderThickness="1" 
+                        CornerRadius="6" 
+                        Padding="12"
+                        Margin="0,15,0,0"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="ErrorText" 
+                               Foreground="#D63384" 
+                               TextWrapping="Wrap"
+                               FontSize="12"/>
+                </Border>
+
+                <!-- 成功訊息 -->
+                <Border x:Name="SuccessPanel" 
+                        Background="#F0F9F0" 
+                        BorderBrush="#28A745" 
+                        BorderThickness="1" 
+                        CornerRadius="6" 
+                        Padding="12"
+                        Margin="0,15,0,0"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="SuccessText" 
+                               Foreground="#155724" 
+                               TextWrapping="Wrap"
+                               FontSize="12"/>
+                </Border>
+
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

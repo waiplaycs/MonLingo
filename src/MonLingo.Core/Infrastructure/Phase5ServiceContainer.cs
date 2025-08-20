@@ -50,9 +50,13 @@ namespace MonLingo.Core.Infrastructure
             services.AddSingleton<MonLingo.Core.Service.INotificationService, MonLingo.Core.Service.NotificationService>();
             services.AddSingleton<MonLingo.Core.Service.IConfigService, MonLingo.Core.Service.ConfigService>();
             
+            // 註冊顯示服務
+            services.AddSingleton<MonLingo.Core.Service.IDisplayService, MonLingo.Core.Service.DisplayService>();
+            
             // 再註冊依賴基礎服務的服務
             services.AddSingleton<MonLingo.Core.Service.IScreenCaptureService, MonLingo.Core.Service.ScreenCaptureService>();
-            services.AddSingleton<MonLingo.Core.Service.IOcrService, MonLingo.Core.Service.OcrService>();
+            // 🎯 使用真正的 PaddleOCR 服務
+            services.AddSingleton<MonLingo.Core.Service.IOcrService, MonLingo.Core.Service.RealOcrService>();
             services.AddSingleton<MonLingo.Core.Service.ITranslateService, MonLingo.Core.Service.TranslateService>();
             
             // 最後註冊高層服務

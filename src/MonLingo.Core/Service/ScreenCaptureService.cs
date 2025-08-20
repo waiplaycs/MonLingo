@@ -9,10 +9,40 @@ namespace MonLingo.Core.Service
     /// </summary>
     public class ScreenCaptureService : IScreenCaptureService
     {
+        private static bool _nativeInitialized = false;
+        private static readonly object _initLock = new object();
+        
         private bool _isCapturing = false;
         private IntPtr _targetWindow = IntPtr.Zero;
         
         public bool IsCapturing => _isCapturing;
+        
+        /// <summary>
+        /// 確保 Native.dll 已初始化
+        /// </summary>
+        private static void EnsureNativeInitialized()
+        {
+            if (_nativeInitialized) return;
+            
+            lock (_initLock)
+            {
+                if (_nativeInitialized) return;
+                
+                Console.WriteLine("[DEBUG] Initializing Native.dll...");
+                int result = NativeBridge.native_initialize();
+                Console.WriteLine($"[DEBUG] native_initialize() returned: {result}");
+                
+                if (result == 0) // 0 = Success based on ResultCode
+                {
+                    _nativeInitialized = true;
+                    Console.WriteLine("[DEBUG] Native.dll initialized successfully");
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Failed to initialize Native.dll: error code {result}");
+                }
+            }
+        }
         
         /// <summary>
         /// 開始擷取指定視窗（PRD §2.3.1 完整實現）
@@ -23,14 +53,25 @@ namespace MonLingo.Core.Service
             
             try
             {
+                Console.WriteLine($"[DEBUG] StartCapture called with hwnd={hwnd}");
+                
+                // 確保 Native.dll 已初始化
+                EnsureNativeInitialized();
+                
                 // 檢查 Graphics Capture 支援
-                if (!NativeBridge.graphics_capture_is_supported())
+                bool isSupported = NativeBridge.graphics_capture_is_supported();
+                Console.WriteLine($"[DEBUG] Graphics Capture supported: {isSupported}");
+                
+                if (!isSupported)
                 {
                     throw new NotSupportedException("Graphics Capture API not supported");
                 }
                 
-                // 啟動擷取迴圈
-                if (NativeBridge.screenshot_window_loop_start(hwnd))
+                // 啟動擷取迴圈 (每100ms捕獲一次)
+                int result = NativeBridge.screenshot_window_loop_start(hwnd, 100);
+                Console.WriteLine($"[DEBUG] screenshot_window_loop_start returned: {result}");
+                
+                if (result == 0) // 0 = Success
                 {
                     _isCapturing = true;
                     _targetWindow = hwnd;
@@ -54,11 +95,16 @@ namespace MonLingo.Core.Service
             
             try
             {
+                Console.WriteLine($"[DEBUG] ScreenCaptureService.ReadFrame: _isCapturing={_isCapturing}");
                 var buffer = new byte[1920 * 1080 * 4]; // 4K 緩衝區
                 int size = buffer.Length;
                 int width = 0, height = 0;
                 
-                if (NativeBridge.screenshot_window_loop_read(buffer, ref size, ref width, ref height))
+                Console.WriteLine($"[DEBUG] Calling screenshot_window_loop_read with buffer.Length={buffer.Length}");
+                int result = NativeBridge.screenshot_window_loop_read(buffer, ref size, ref width, ref height);
+                Console.WriteLine($"[DEBUG] screenshot_window_loop_read returned: result={result}, size={size}, width={width}, height={height}");
+                
+                if (result == 0) // 0 = Success
                 {
                     return new CaptureFrame
                     {
@@ -105,6 +151,23 @@ namespace MonLingo.Core.Service
         {
             StopCapture();
         }
+        
+        /// <summary>
+        /// 清理 Native.dll 資源（靜態方法，應在應用程式結束時調用）
+        /// </summary>
+        public static void CleanupNative()
+        {
+            lock (_initLock)
+            {
+                if (_nativeInitialized)
+                {
+                    Console.WriteLine("[DEBUG] Cleaning up Native.dll...");
+                    NativeBridge.native_cleanup();
+                    _nativeInitialized = false;
+                    Console.WriteLine("[DEBUG] Native.dll cleanup completed");
+                }
+            }
+        }
     }
     
     /// <summary>
@@ -116,6 +179,13 @@ namespace MonLingo.Core.Service
         private const string DllName = "MonLingo.Native.dll";
         
         // === 螢幕擷取管線 (基於實際匯出函式) ===
+        // === Native DLL 初始化 (必須先呼叫) ===
+        [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
+        public static extern int native_initialize();
+        
+        [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
+        public static extern void native_cleanup();
+        
         [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
         public static extern bool graphics_capture_is_supported();
         
@@ -123,10 +193,10 @@ namespace MonLingo.Core.Service
         public static extern bool screenshot_window_once(IntPtr hwnd, byte[] buffer, ref int size);
         
         [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
-        public static extern bool screenshot_window_loop_start(IntPtr hwnd);
+        public static extern int screenshot_window_loop_start(IntPtr hwnd, int intervalMs);
         
         [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
-        public static extern bool screenshot_window_loop_read(byte[] buffer, ref int size, ref int width, ref int height);
+        public static extern int screenshot_window_loop_read(byte[] buffer, ref int size, ref int width, ref int height);
         
         [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
         public static extern void screenshot_window_close();

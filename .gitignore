@@ -32,14 +32,42 @@ coverage.xml
 *.coveragexml
 
 # Native binaries
-*.dll
 *.lib
-*.pdb
 *.exp
 *.ilk
-*.obj
 *.tlog
 *.lastbuildstate
+
+# Build outputs
+*.exe
+*.exe.config
+*.pdb
+
+# MSBuild temporary files
+*.AssemblyInfo.cs
+*.AssemblyInfoInputs.cache
+*.assets.cache
+*.csproj.AssemblyReference.cache
+*.csproj.CoreCompileInputs.cache
+*.csproj.FileListAbsolute.txt
+*.csproj.SuggestedBindingRedirects.cache
+*.nuget.dgspec.json
+*.nuget.g.props
+*.nuget.g.targets
+project.assets.json
+project.nuget.cache
+*.sourcelink.json
+*.g.cs
+*.g.resources
+*.baml
+*_MarkupCompile.cache
+*_MarkupCompile.lref
+*.Up2Date
+GeneratedInternalTypeHelper.g.cs
+*.GeneratedMSBuildEditorConfig.editorconfig
+
+# Build temp directories
+build_temp/
 
 # Temporary files
 *.tmp

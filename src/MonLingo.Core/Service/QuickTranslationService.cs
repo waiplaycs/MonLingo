@@ -6,18 +6,25 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
 using MonLingo.Core.View.Windows;
+using MonLingo.Core.Infrastructure;
 
 namespace MonLingo.Core.Service
 {
     /// <summary>
     /// 快速翻譯服務
     /// 負責處理螢幕截圖、OCR識別和翻譯的完整流程
+    /// 實現完整的 OCR → 文字合併 → 翻譯 → 顯示流程
     /// </summary>
     public class QuickTranslationService
     {
         private CaptureRegionWindow _captureWindow;
         private SubtitleWindow _subtitleWindow;
         private Window _mainBarWindow;
+        
+        // 服務依賴 (延遲初始化)
+        private IOcrService _ocrService;
+        private ITranslateService _translateService;
+        private IDisplayService _displayService;
 
         /// <summary>
         /// 建構函式
@@ -26,18 +33,38 @@ namespace MonLingo.Core.Service
         public QuickTranslationService(Window mainBarWindow)
         {
             _mainBarWindow = mainBarWindow;
+            
+            // 🛑 延遲服務初始化，避免在建構函數中觸發自動測試
+            // 服務將在第一次使用時才初始化
         }
 
         public async Task StartQuickTranslationAsync()
         {
             try
             {
+                // 🔧 首次使用時初始化服務
+                EnsureServicesInitialized();
+                
                 // 步驟1: 顯示區域選擇視窗
                 await ShowRegionSelectionAsync();
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"快速翻譯出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 確保服務已初始化（只在需要時才初始化）
+        /// </summary>
+        private void EnsureServicesInitialized()
+        {
+            if (_ocrService == null)
+            {
+                // 獲取服務實例
+                _ocrService = Phase5ServiceContainer.GetService<IOcrService>();
+                _translateService = Phase5ServiceContainer.GetService<ITranslateService>();
+                _displayService = Phase5ServiceContainer.GetService<IDisplayService>();
             }
         }
 
@@ -150,41 +177,98 @@ namespace MonLingo.Core.Service
 
         private async Task<string> PerformOcrAsync(Bitmap image)
         {
-            // 暫時模擬OCR處理
-            await Task.Delay(1000); // 模擬處理時間
-            
-            // TODO: 整合真正的OCR引擎 (PaddleOCR)
-            // 這裡先返回模擬結果
-            return "This is a sample text recognition result. OCR engine integration is needed.";
+            try
+            {
+                // 初始化 OCR 服務（如果需要）
+                if (!_ocrService.IsInitialized)
+                {
+                    await _ocrService.InitializeAsync();
+                }
+                
+                // 將 Bitmap 轉換為 byte[]
+                byte[] imageData;
+                using (var stream = new MemoryStream())
+                {
+                    image.Save(stream, ImageFormat.Png);
+                    imageData = stream.ToArray();
+                }
+                
+                // ============ PHASE 1: OCR 處理 ============
+                var ocrResult = await _ocrService.RecognizeTextAsync(
+                    imageData, image.Width, image.Height);
+                
+                if (ocrResult == null || ocrResult.Lines == null || ocrResult.Lines.Length == 0)
+                {
+                    return string.Empty; // 沒有識別到文字
+                }
+                
+                // ============ PHASE 2: 【字幕模式特殊邏輯】文字合併 ============
+                // 將零散的文字行合併成連貫的句子
+                string mergedText = TextMerger.MergeForSubtitle(ocrResult);
+                
+                return mergedText;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"OCR識別失敗: {ex.Message}", ex);
+            }
         }
 
         private async Task<string> TranslateTextAsync(string text)
         {
-            // 暫時模擬翻譯處理
-            await Task.Delay(800); // 模擬翻譯時間
-            
-            // TODO: 整合真正的翻譯服務
-            // 這裡先返回模擬結果
-            if (text.Contains("sample"))
+            try
             {
-                return "這是一個範例文字識別結果。需要整合OCR引擎。";
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return string.Empty;
+                }
+                
+                // 使用真正的翻譯服務
+                // TODO: 從配置服務獲取語言設定
+                var sourceLanguage = "auto"; // 自動檢測
+                var targetLanguage = "zh-TW"; // 繁體中文
+                
+                var translatedText = await _translateService.TranslateAsync(
+                    text, sourceLanguage, targetLanguage);
+                
+                return translatedText ?? string.Empty;
             }
-            return $"[翻譯結果] {text}";
+            catch (Exception ex)
+            {
+                throw new Exception($"翻譯失敗: {ex.Message}", ex);
+            }
         }
 
         private void ShowTranslationResult(string originalText, string translatedText, Rect sourceRegion)
         {
             try
             {
-                // 確保字幕視窗存在
+                // ============ PHASE 4: 顯示結果分發 ============
+                // 確保字幕視窗存在並設置 DisplayService
                 if (_subtitleWindow == null)
                 {
                     _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                    
+                    // 設置 DisplayService 的 SubtitleViewModel 引用
+                    if (_displayService != null)
+                    {
+                        var viewModel = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                        _displayService.SetSubtitleViewModel(viewModel);
+                    }
+                    
                     _subtitleWindow.ShowSubtitle();
                 }
 
-                // 在字幕視窗中顯示翻譯結果
-                _subtitleWindow.AddSubtitleLine(originalText, translatedText);
+                // 使用 DisplayService 顯示翻譯結果
+                if (_displayService != null)
+                {
+                    _displayService.Show(originalText, translatedText);
+                }
+                else
+                {
+                    // 如果 DisplayService 不可用，直接調用字幕視窗
+                    _subtitleWindow.AddSubtitleLine(originalText, translatedText);
+                }
             }
             catch (Exception ex)
             {
