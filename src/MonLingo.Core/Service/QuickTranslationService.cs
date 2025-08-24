@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Forms;
 using MonLingo.Core.View.Windows;
 using MonLingo.Core.Infrastructure;
+using NLog;
 
 namespace MonLingo.Core.Service
 {
@@ -17,6 +18,7 @@ namespace MonLingo.Core.Service
     /// </summary>
     public class QuickTranslationService
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private CaptureRegionWindow _captureWindow;
         private SubtitleWindow _subtitleWindow;
         private Window _mainBarWindow;
@@ -32,24 +34,36 @@ namespace MonLingo.Core.Service
         /// <param name="mainBarWindow">主工具條視窗</param>
         public QuickTranslationService(Window mainBarWindow)
         {
+            Logger.Info("🚀 QuickTranslationService(Service) 建構函數開始");
+            Logger.Debug($"📋 主視窗引用: {(mainBarWindow != null ? mainBarWindow.GetType().Name : "null")}");
             _mainBarWindow = mainBarWindow;
             
             // 🛑 延遲服務初始化，避免在建構函數中觸發自動測試
             // 服務將在第一次使用時才初始化
+            Logger.Info("✅ QuickTranslationService(Service) 建構完成");
         }
 
         public async Task StartQuickTranslationAsync()
         {
+            Logger.Info("🎯 StartQuickTranslationAsync(Service) 開始執行");
+            Logger.Debug($"📋 服務狀態: _mainBarWindow={((_mainBarWindow == null) ? "null" : "已設定")}, _subtitleWindow={((_subtitleWindow == null) ? "null" : "已存在")}");
+            
             try
             {
                 // 🔧 首次使用時初始化服務
+                Logger.Info("🔧 確保服務已初始化");
                 EnsureServicesInitialized();
                 
                 // 步驟1: 顯示區域選擇視窗
+                Logger.Info("📐 開始顯示區域選擇");
                 await ShowRegionSelectionAsync();
+                Logger.Info("✅ StartQuickTranslationAsync(Service) 執行完成");
             }
             catch (Exception ex)
             {
+                Logger.Error(ex, "❌ QuickTranslationService(Service).StartQuickTranslationAsync 發生異常");
+                Logger.Error($"🔍 異常詳情: {ex.Message}");
+                Logger.Error($"📍 異常堆疊: {ex.StackTrace}");
                 System.Windows.MessageBox.Show($"快速翻譯出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -247,6 +261,7 @@ namespace MonLingo.Core.Service
                 // 確保字幕視窗存在並設置 DisplayService
                 if (_subtitleWindow == null)
                 {
+                    Logger.Debug("🆕 創建新的字幕視窗");
                     _subtitleWindow = new SubtitleWindow(_mainBarWindow);
                     
                     // 設置 DisplayService 的 SubtitleViewModel 引用
@@ -257,6 +272,23 @@ namespace MonLingo.Core.Service
                     }
                     
                     _subtitleWindow.ShowSubtitle();
+                    Logger.Debug("✅ 新字幕視窗已顯示");
+                }
+                else
+                {
+                    Logger.Debug($"♻️ 重複使用現有字幕視窗，當前狀態: Visibility={_subtitleWindow.Visibility}, IsVisible={_subtitleWindow.IsVisible}");
+                    
+                    // 如果字幕視窗已存在但被隱藏，重新顯示它
+                    if (_subtitleWindow.Visibility == Visibility.Hidden || !_subtitleWindow.IsVisible)
+                    {
+                        Logger.Debug("🔄 重新顯示隱藏的字幕視窗");
+                        _subtitleWindow.ShowSubtitle();
+                        Logger.Debug($"✅ 字幕視窗重新顯示完成，新狀態: Visibility={_subtitleWindow.Visibility}, IsVisible={_subtitleWindow.IsVisible}");
+                    }
+                    else
+                    {
+                        Logger.Debug("ℹ️ 字幕視窗已經是顯示狀態，無需重新顯示");
+                    }
                 }
 
                 // 使用 DisplayService 顯示翻譯結果

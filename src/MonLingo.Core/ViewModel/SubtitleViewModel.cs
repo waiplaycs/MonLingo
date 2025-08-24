@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using MonLingo.Core.Commands;
+using NLog;
 
 namespace MonLingo.Core.ViewModel
 {
@@ -14,6 +15,8 @@ namespace MonLingo.Core.ViewModel
     /// </summary>
     public class SubtitleViewModel : INotifyPropertyChanged
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        
         #region Properties
 
         /// <summary>
@@ -119,11 +122,8 @@ namespace MonLingo.Core.ViewModel
         /// <param name="translatedText">譯文</param>
         public void AddNewLine(string originalText, string translatedText)
         {
-            // 如果超過最大行數，移除最舊的一行
-            if (SubtitleLines.Count >= MaxLines)
-            {
-                SubtitleLines.RemoveAt(0);
-            }
+            // 先清洗舊顯示內容
+            SubtitleLines.Clear();
 
             // 創建新的字幕行項目
             var newLine = new SubtitleLineItem
@@ -186,14 +186,27 @@ namespace MonLingo.Core.ViewModel
         private RelayCommand _closeCommand;
         public RelayCommand CloseCommand => _closeCommand ??= new RelayCommand(() =>
         {
-            // 隱藏字幕視窗
+            Logger.Info("🔒 SubtitleViewModel CloseCommand 被觸發");
+            Logger.Debug($"📊 目前應用程式視窗數量: {Application.Current.Windows.Count}");
+            
+            // 隱藏字幕視窗但不關閉，允許下次重新顯示
+            bool windowFound = false;
             foreach (Window window in Application.Current.Windows)
             {
+                Logger.Debug($"🔍 檢查視窗: {window.GetType().Name}");
                 if (window.GetType().Name == "SubtitleWindow")
                 {
-                    window.Hide();
+                    Logger.Info($"📺 找到字幕視窗，當前狀態: IsVisible={window.IsVisible}, Visibility={window.Visibility}");
+                    window.Visibility = Visibility.Hidden;
+                    Logger.Info($"✅ 字幕視窗已隱藏，新狀態: IsVisible={window.IsVisible}, Visibility={window.Visibility}");
+                    windowFound = true;
                     break;
                 }
+            }
+            
+            if (!windowFound)
+            {
+                Logger.Warn("⚠️ 未找到字幕視窗進行關閉操作");
             }
         });
 
@@ -254,8 +267,23 @@ namespace MonLingo.Core.ViewModel
         {
             if (IsDetached)
             {
-                // 分離模式：保存當前位置，不再跟隨主工具條
-                // 可以選擇將視窗移動到螢幕中央或保持當前位置
+                // 分離模式：保持與依附模式完全相同的尺寸
+                // 不改變位置，只確保尺寸一致
+                if (_mainBarWindow != null)
+                {
+                    // 使用與依附模式完全相同的尺寸
+                    WindowWidth = _mainBarWindow.ActualWidth;
+                    WindowHeight = 120; // 與依附模式相同的高度
+                }
+                else
+                {
+                    // 默認尺寸
+                    WindowWidth = 400;
+                    WindowHeight = 120;
+                }
+                
+                // 完全不移動視窗位置，保持用戶當前的視窗位置
+                // 這樣雙擊分離時視窗會停留在原地
             }
             else
             {
@@ -273,6 +301,9 @@ namespace MonLingo.Core.ViewModel
 
             // 設置寬度與主工具條一致
             WindowWidth = _mainBarWindow.ActualWidth;
+            
+            // 設置固定高度，確保比例協調
+            WindowHeight = 120; // 依附模式標準高度
             
             // 設置左邊距與主工具條一致
             WindowLeft = _mainBarWindow.Left;

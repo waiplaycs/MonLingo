@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Input;
 using System.Windows;
 using System.Threading.Tasks;
+using NLog;
 
 namespace MonLingo.ViewModel
 {
@@ -11,6 +12,17 @@ namespace MonLingo.ViewModel
     /// </summary>
     public class WorkingMainBarWindowViewModel : INotifyPropertyChanged
     {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+        private Window _mainBarWindow;
+        
+        public WorkingMainBarWindowViewModel(Window mainBarWindow = null)
+        {
+            Logger.Info("🔧 WorkingMainBarWindowViewModel 建構函數開始");
+            Logger.Debug($"📋 傳入的主視窗: {(mainBarWindow != null ? mainBarWindow.GetType().Name : "null")}");
+            _mainBarWindow = mainBarWindow;
+            Logger.Info("✅ WorkingMainBarWindowViewModel 建構完成");
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         #region 顯示屬性
@@ -126,6 +138,39 @@ namespace MonLingo.ViewModel
                 MessageBox.Show("開始翻譯功能被點擊！\n狀態: 翻譯會話已啟動", "翻譯功能", MessageBoxButton.OK, MessageBoxImage.Information);
             });
 
+        // 2. 升級到PRO
+        private ICommand _upgradeToProCommand;
+        public ICommand UpgradeToProCommand =>
+            _upgradeToProCommand ??= new SimpleRelayCommand(() =>
+            {
+                MessageBox.Show("升級到PRO功能被點擊！\n正在打開升級頁面...", "升級PRO", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+
+        // 3. 每日簽到
+        private ICommand _dailyCheckInCommand;
+        public ICommand DailyCheckInCommand =>
+            _dailyCheckInCommand ??= new SimpleRelayCommand(() =>
+            {
+                RemainingTranslations += 10; // 模擬獲得翻譯次數
+                MessageBox.Show($"每日簽到完成！\n獲得 10 次翻譯機會\n當前剩餘: {RemainingTranslations} 次", "每日簽到", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+
+        // 4. 購買硬幣
+        private ICommand _purchaseCoinsCommand;
+        public ICommand PurchaseCoinsCommand =>
+            _purchaseCoinsCommand ??= new SimpleRelayCommand(() =>
+            {
+                MessageBox.Show("購買硬幣功能被點擊！\n正在打開硬幣商店...", "硬幣商店", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+
+        // 5. 語言設置
+        private ICommand _languageSettingsCommand;
+        public ICommand LanguageSettingsCommand =>
+            _languageSettingsCommand ??= new SimpleRelayCommand(() =>
+            {
+                MessageBox.Show("語言設置功能被點擊！\n正在打開語言設定...", "語言設置", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+
         // 6. 翻譯引擎對比
         private ICommand _compareEnginesCommand;
         public ICommand CompareEnginesCommand =>
@@ -144,16 +189,36 @@ namespace MonLingo.ViewModel
 
         // 9. 快速截圖翻譯
         private ICommand _quickScreenshotCommand;
+        private static MonLingo.Core.Service.QuickTranslationService _globalQuickTranslationService;
+        
         public ICommand QuickScreenshotCommand =>
             _quickScreenshotCommand ??= new AsyncRelayCommand(async () =>
             {
+                Logger.Info("🖱️ QuickScreenshotCommand 被觸發");
+                Logger.Debug($"📋 命令執行時狀態: _mainBarWindow={((_mainBarWindow == null) ? "null" : _mainBarWindow.GetType().Name)}, _globalQuickTranslationService={((_globalQuickTranslationService == null) ? "null" : "已存在")}");
+                
                 try
                 {
-                    var quickTranslationService = new MonLingo.Core.Service.QuickTranslationService(null);
-                    await quickTranslationService.StartQuickTranslationAsync();
+                    // 使用靜態服務實例，確保字幕視窗可以重複使用
+                    if (_globalQuickTranslationService == null)
+                    {
+                        Logger.Info("🔨 創建新的 QuickTranslationService 實例");
+                        Logger.Debug($"📋 傳入主視窗: {((_mainBarWindow == null) ? "null" : _mainBarWindow.GetType().Name)}");
+                        _globalQuickTranslationService = new MonLingo.Core.Service.QuickTranslationService(_mainBarWindow);
+                        Logger.Info("✅ QuickTranslationService 實例創建完成");
+                    }
+                    else
+                    {
+                        Logger.Info("♻️ 重複使用現有的 QuickTranslationService 實例");
+                    }
+                    
+                    Logger.Info("🚀 開始執行快速翻譯");
+                    await _globalQuickTranslationService.StartQuickTranslationAsync();
+                    Logger.Info("✅ 快速翻譯執行完成");
                 }
                 catch (Exception ex)
                 {
+                    Logger.Error(ex, "❌ 快速翻譯過程中發生錯誤");
                     MessageBox.Show($"快速翻譯出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             });
@@ -233,7 +298,9 @@ namespace MonLingo.ViewModel
             _collapseCommand ??= new SimpleRelayCommand(() =>
             {
                 IsCollapsed = !IsCollapsed;
-                MessageBox.Show($"工具條收縮狀態: {(IsCollapsed ? "已收縮" : "已展開")}", "收縮切換", MessageBoxButton.OK, MessageBoxImage.Information);
+                
+                // 觸發收縮切換事件，讓 View 處理實際的收縮邏輯
+                CollapseRequested?.Invoke(this, new CollapseEventArgs { IsCollapsed = IsCollapsed });
             });
 
         #endregion
@@ -242,6 +309,55 @@ namespace MonLingo.ViewModel
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        #region Window Events
+        
+        /// <summary>
+        /// 截圖請求事件
+        /// </summary>
+        public event EventHandler CaptureRequested;
+        
+        /// <summary>
+        /// 設定請求事件  
+        /// </summary>
+        public event EventHandler SettingsRequested;
+        
+        /// <summary>
+        /// 退出請求事件
+        /// </summary>
+        public event EventHandler ExitRequested;
+        
+        /// <summary>
+        /// 最小化請求事件
+        /// </summary>
+        public event EventHandler MinimizeRequested;
+        
+        /// <summary>
+        /// 收縮切換請求事件
+        /// </summary>
+        public event EventHandler<CollapseEventArgs> CollapseRequested;
+
+        protected virtual void OnCaptureRequested()
+        {
+            CaptureRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected virtual void OnSettingsRequested()
+        {
+            SettingsRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected virtual void OnExitRequested()
+        {
+            ExitRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        protected virtual void OnMinimizeRequested()
+        {
+            MinimizeRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        #endregion
     }
 
     /// <summary>
