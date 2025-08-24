@@ -230,7 +230,34 @@ namespace MonLingo.ViewModel
         public ICommand SelectRegionCommand =>
             _selectRegionCommand ??= new SimpleRelayCommand(() =>
             {
-                MessageBox.Show("翻譯區域選擇功能被點擊！\n請在螢幕上選擇翻譯區域...", "區域選擇", MessageBoxButton.OK, MessageBoxImage.Information);
+                try
+                {
+                    Logger.Info("SelectRegionCommand 被觸發 - 創建1號區域選擇框");
+                    
+                    // 創建1號區域選擇窗口
+                    var overlay = new RegionSelectionOverlay(1);
+                    
+                    // 訂閱區域選擇事件
+                    overlay.RegionSelected += (sender, args) =>
+                    {
+                        var (region, number) = args;
+                        Logger.Info($"區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
+                        
+                        // 這裡可以保存區域信息或觸發其他處理
+                        // TODO: 整合實際的翻譯區域處理邏輯
+                    };
+                    
+                    // 顯示選擇窗口
+                    overlay.Show();
+                    overlay.Activate();
+                    overlay.Focus();
+                    Logger.Info("RegionSelectionOverlay 窗口已顯示");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "啟動區域選擇時發生錯誤");
+                    MessageBox.Show($"啟動區域選擇失敗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             });
 
         // 11. 翻譯區域2選擇
@@ -238,7 +265,34 @@ namespace MonLingo.ViewModel
         public ICommand SelectRegion2Command =>
             _selectRegion2Command ??= new SimpleRelayCommand(() =>
             {
-                MessageBox.Show("翻譯區域2選擇功能被點擊！\n正在設定第二個翻譯區域...", "區域選擇2", MessageBoxButton.OK, MessageBoxImage.Information);
+                try
+                {
+                    Logger.Info("SelectRegion2Command 被觸發 - 創建2號區域選擇框");
+                    
+                    // 創建2號區域選擇窗口
+                    var overlay = new RegionSelectionOverlay(2);
+                    
+                    // 訂閱區域選擇事件
+                    overlay.RegionSelected += (sender, args) =>
+                    {
+                        var (region, number) = args;
+                        Logger.Info($"區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
+                        
+                        // 這裡可以保存區域信息或觸發其他處理
+                        // TODO: 整合實際的翻譯區域處理邏輯
+                    };
+                    
+                    // 顯示選擇窗口
+                    overlay.Show();
+                    overlay.Activate();
+                    overlay.Focus();
+                    Logger.Info("RegionSelectionOverlay 窗口已顯示");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "啟動區域選擇2時發生錯誤");
+                    MessageBox.Show($"啟動區域選擇2失敗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             });
 
         // 12. 漫畫翻譯優化
