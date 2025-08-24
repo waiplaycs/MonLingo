@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using System.Windows.Media;
 using MonLingo.Core.ViewModel;
 
 namespace MonLingo.Core.View.Windows
@@ -36,6 +37,9 @@ namespace MonLingo.Core.View.Windows
             // 載入時隱藏視窗（初始狀態）
             Opacity = 0;
             
+            // 初始化動畫變換
+            InitializeAnimationTransforms();
+            
             // 設置視窗事件
             Loaded += OnWindowLoaded;
             Closed += OnWindowClosed;
@@ -52,6 +56,24 @@ namespace MonLingo.Core.View.Windows
 
         #endregion
 
+        #region Initialization
+
+        /// <summary>
+        /// 初始化動畫變換
+        /// </summary>
+        private void InitializeAnimationTransforms()
+        {
+            // 設置初始變換組合
+            var transformGroup = new TransformGroup();
+            transformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
+            transformGroup.Children.Add(new TranslateTransform(0, 10));
+            
+            RenderTransform = transformGroup;
+            RenderTransformOrigin = new Point(0.5, 0.5);
+        }
+
+        #endregion
+
         #region Public Methods
 
         /// <summary>
@@ -64,20 +86,20 @@ namespace MonLingo.Core.View.Windows
         }
 
         /// <summary>
-        /// 顯示字幕視窗（淡入效果）
+        /// 顯示字幕視窗（增強的順滑動畫效果）
         /// </summary>
         public void ShowSubtitle()
         {
             Show();
-            ShowWithFadeIn();
+            ShowWithEnhancedAnimation();
         }
 
         /// <summary>
-        /// 隱藏字幕視窗（淡出效果）
+        /// 隱藏字幕視窗（增強的順滑淡出效果）
         /// </summary>
         public void HideSubtitle()
         {
-            HideWithFadeOut();
+            HideWithEnhancedAnimation();
         }
 
         /// <summary>
@@ -173,6 +195,76 @@ namespace MonLingo.Core.View.Windows
         }
 
         /// <summary>
+        /// 拖拽縮放控制項的滑鼠按下事件
+        /// </summary>
+        private void ResizeGrip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                // 防止事件冒泡到父視窗
+                e.Handled = true;
+                
+                // 開始視窗縮放拖拽
+                try
+                {
+                    // 記錄初始狀態
+                    var startPoint = PointToScreen(e.GetPosition(this));
+                    var startWidth = Width;
+                    var startHeight = Height;
+                    
+                    // 捕獲滑鼠
+                    CaptureMouse();
+                    
+                    // 定義滑鼠移動處理
+                    MouseEventHandler mouseMoveHandler = null;
+                    MouseButtonEventHandler mouseUpHandler = null;
+                    
+                    mouseMoveHandler = (s, args) =>
+                    {
+                        if (args.LeftButton == MouseButtonState.Pressed)
+                        {
+                            var currentPoint = PointToScreen(args.GetPosition(this));
+                            var deltaX = currentPoint.X - startPoint.X;
+                            var deltaY = currentPoint.Y - startPoint.Y;
+                            
+                            // 計算新的視窗大小，確保不小於最小值
+                            var newWidth = Math.Max(MinWidth, startWidth + deltaX);
+                            var newHeight = Math.Max(MinHeight, startHeight + deltaY);
+                            
+                            // 直接設置視窗大小，避免綁定延遲
+                            Width = newWidth;
+                            Height = newHeight;
+                            
+                            // 同步更新 ViewModel 中的大小
+                            if (_viewModel != null)
+                            {
+                                _viewModel.WindowWidth = newWidth;
+                                _viewModel.WindowHeight = newHeight;
+                            }
+                        }
+                    };
+                    
+                    mouseUpHandler = (s, args) =>
+                    {
+                        // 清理事件處理器
+                        MouseMove -= mouseMoveHandler;
+                        MouseUp -= mouseUpHandler;
+                        ReleaseMouseCapture();
+                    };
+                    
+                    // 註冊事件處理器
+                    MouseMove += mouseMoveHandler;
+                    MouseUp += mouseUpHandler;
+                }
+                catch
+                {
+                    // 忽略拖拽異常，確保滑鼠釋放
+                    ReleaseMouseCapture();
+                }
+            }
+        }
+
+        /// <summary>
         /// 標題列滑鼠按下事件 - 拖拽視窗
         /// </summary>
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -187,17 +279,6 @@ namespace MonLingo.Core.View.Windows
                 {
                     // 忽略拖拽異常
                 }
-            }
-        }
-
-        /// <summary>
-        /// 調整大小手柄滑鼠按下事件
-        /// </summary>
-        private void ResizeGrip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ButtonState == MouseButtonState.Pressed)
-            {
-                this.ResizeMode = ResizeMode.CanResizeWithGrip;
             }
         }
 
@@ -267,6 +348,152 @@ namespace MonLingo.Core.View.Windows
             };
 
             BeginAnimation(OpacityProperty, fadeOut);
+        }
+
+        /// <summary>
+        /// 增強的順滑顯示動畫 - 結合淡入、縮放和滑入效果
+        /// </summary>
+        private void ShowWithEnhancedAnimation()
+        {
+            // 設置初始狀態
+            Opacity = 0;
+            
+            // 確保視窗有 Transform
+            if (RenderTransform == null || RenderTransform == Transform.Identity)
+            {
+                var transformGroup = new TransformGroup();
+                transformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
+                transformGroup.Children.Add(new TranslateTransform(0, 10));
+                RenderTransform = transformGroup;
+                RenderTransformOrigin = new Point(0.5, 0.5);
+            }
+
+            // 創建動畫組
+            var storyboard = new Storyboard();
+
+            // 1. 淡入動畫
+            var fadeInAnimation = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(400),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(fadeInAnimation, this);
+            Storyboard.SetTargetProperty(fadeInAnimation, new PropertyPath(OpacityProperty));
+
+            // 2. 縮放動畫（放大效果）
+            var scaleXAnimation = new DoubleAnimation
+            {
+                From = 0.95,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(350),
+                EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
+            };
+            Storyboard.SetTarget(scaleXAnimation, this);
+            Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath("RenderTransform.Children[0].ScaleX"));
+
+            var scaleYAnimation = new DoubleAnimation
+            {
+                From = 0.95,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(350),
+                EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
+            };
+            Storyboard.SetTarget(scaleYAnimation, this);
+            Storyboard.SetTargetProperty(scaleYAnimation, new PropertyPath("RenderTransform.Children[0].ScaleY"));
+
+            // 3. 滑入動畫（向上滑入）
+            var slideInAnimation = new DoubleAnimation
+            {
+                From = 10,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(400),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(slideInAnimation, this);
+            Storyboard.SetTargetProperty(slideInAnimation, new PropertyPath("RenderTransform.Children[1].Y"));
+
+            // 添加所有動畫到故事板
+            storyboard.Children.Add(fadeInAnimation);
+            storyboard.Children.Add(scaleXAnimation);
+            storyboard.Children.Add(scaleYAnimation);
+            storyboard.Children.Add(slideInAnimation);
+
+            // 開始動畫
+            storyboard.Begin();
+        }
+
+        /// <summary>
+        /// 增強的順滑隱藏動畫 - 結合淡出、縮放和滑出效果
+        /// </summary>
+        private void HideWithEnhancedAnimation()
+        {
+            // 創建動畫組
+            var storyboard = new Storyboard();
+
+            // 1. 淡出動畫
+            var fadeOutAnimation = new DoubleAnimation
+            {
+                From = 1,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(fadeOutAnimation, this);
+            Storyboard.SetTargetProperty(fadeOutAnimation, new PropertyPath(OpacityProperty));
+
+            // 2. 縮小動畫
+            var scaleXAnimation = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.95,
+                Duration = TimeSpan.FromMilliseconds(200),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleXAnimation, this);
+            Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath("RenderTransform.Children[0].ScaleX"));
+
+            var scaleYAnimation = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.95,
+                Duration = TimeSpan.FromMilliseconds(200),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleYAnimation, this);
+            Storyboard.SetTargetProperty(scaleYAnimation, new PropertyPath("RenderTransform.Children[0].ScaleY"));
+
+            // 3. 滑出動畫（向下滑出）
+            var slideOutAnimation = new DoubleAnimation
+            {
+                From = 0,
+                To = 5,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(slideOutAnimation, this);
+            Storyboard.SetTargetProperty(slideOutAnimation, new PropertyPath("RenderTransform.Children[1].Y"));
+
+            // 動畫完成後隱藏視窗
+            storyboard.Completed += (s, e) =>
+            {
+                Hide();
+                // 重置變換為下次顯示做準備
+                var transformGroup = new TransformGroup();
+                transformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
+                transformGroup.Children.Add(new TranslateTransform(0, 10));
+                RenderTransform = transformGroup;
+            };
+
+            // 添加所有動畫到故事板
+            storyboard.Children.Add(fadeOutAnimation);
+            storyboard.Children.Add(scaleXAnimation);
+            storyboard.Children.Add(scaleYAnimation);
+            storyboard.Children.Add(slideOutAnimation);
+
+            // 開始動畫
+            storyboard.Begin();
         }
 
         #endregion
