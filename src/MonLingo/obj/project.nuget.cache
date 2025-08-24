@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "RZpovMB/yh8=",
+  "dgSpecHash": "dgxt0YT/pGA=",
   "success": true,
   "projectFilePath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
   "expectedPackageFiles": [
@@ -48,6 +48,7 @@
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\nlog.extensions.logging\\5.3.2\\nlog.extensions.logging.5.3.2.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\opencvsharp4\\4.8.0.20230708\\opencvsharp4.4.8.0.20230708.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\opencvsharp4.runtime.win\\4.8.0.20230708\\opencvsharp4.runtime.win.4.8.0.20230708.nupkg.sha512",
+    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\paddleocrsharp\\3.0.0\\paddleocrsharp.3.0.0.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\prism.core\\8.1.97\\prism.core.8.1.97.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.componentmodel.annotations\\5.0.0\\system.componentmodel.annotations.5.0.0.nupkg.sha512",
@@ -80,6 +81,17 @@
       "warningLevel": 1,
       "message": "MonLingo 相依於 GuerrillaNtp (>= 1.6.2)，但找不到 GuerrillaNtp 1.6.2。已解析了約略的最佳相符 GuerrillaNtp 2.0.1。",
       "libraryId": "GuerrillaNtp",
+      "targetGraphs": [
+        ".NETFramework,Version=v4.8.1",
+        ".NETFramework,Version=v4.8.1/win7-x64"
+      ]
+    },
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "MonLingo 相依於 PaddleOCRSharp (>= 2.5.0)，但找不到 PaddleOCRSharp 2.5.0。已解析了約略的最佳相符 PaddleOCRSharp 3.0.0。",
+      "libraryId": "PaddleOCRSharp",
       "targetGraphs": [
         ".NETFramework,Version=v4.8.1",
         ".NETFramework,Version=v4.8.1/win7-x64"

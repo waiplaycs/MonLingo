@@ -96,3 +96,4 @@ C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Release\net481\MonL
 C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Release\net481\MonLingo.D78247B5.Up2Date
 C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Release\net481\MonLingo.Tests.dll
 C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Release\net481\MonLingo.Tests.pdb
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Release\net481\MonLingo.Tests.sourcelink.json

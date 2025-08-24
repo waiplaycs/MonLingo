@@ -4,6 +4,8 @@ using System.Windows.Input;
 using System.Windows;
 using System.Threading.Tasks;
 using NLog;
+using MonLingo.View.Windows;
+using MonLingo.Core.View.Windows;
 
 namespace MonLingo.ViewModel
 {
@@ -269,7 +271,47 @@ namespace MonLingo.ViewModel
         public ICommand OpenSettingsCommand =>
             _openSettingsCommand ??= new SimpleRelayCommand(() =>
             {
-                MessageBox.Show("設置功能被點擊！\n正在打開設定頁面...", "設置", MessageBoxButton.OK, MessageBoxImage.Information);
+                try
+                {
+                    Logger.Info("⚙️ 設定按鈕被點擊，正在打開設定頁面...");
+                    
+                    // 獲取主窗口參考以管理 Topmost 狀態
+                    var mainWindow = Application.Current.MainWindow as MainBarWindow;
+                    if (mainWindow != null)
+                    {
+                        // 暫時禁用工具條的 Topmost 設定，避免與設置窗口衝突
+                        mainWindow.Topmost = false;
+                        Logger.Info("🔽 暫時禁用工具條 Topmost 設定");
+                    }
+                    
+                    var settingsWindow = new SettingMainWindow();
+                    Logger.Debug("✅ SettingMainWindow 實例已創建");
+                    
+                    // 當設置窗口關閉時，恢復工具條的 Topmost 設定
+                    settingsWindow.Closed += (s, args) =>
+                    {
+                        if (mainWindow != null)
+                        {
+                            mainWindow.Topmost = true;
+                            Logger.Info("🔼 恢復工具條 Topmost 設定");
+                        }
+                    };
+                    
+                    // 使用 Show() 而不是 ShowDialog() 以避免阻塞工具條
+                    settingsWindow.Show();
+                    Logger.Info("✅ 設定頁面已顯示，工具條保持可用");
+                }
+                catch (Exception ex)
+                {
+                    // 發生錯誤時也要恢復 Topmost 設定
+                    var mainWindow = Application.Current.MainWindow as MainBarWindow;
+                    if (mainWindow != null)
+                    {
+                        mainWindow.Topmost = true;
+                    }
+                    Logger.Error(ex, "❌ 打開設定頁面時發生錯誤");
+                    MessageBox.Show($"設置功能無法載入！\n錯誤詳情：{ex.Message}", "設置", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             });
 
         // 18. 最小化

@@ -416,14 +416,55 @@ namespace MonLingo.Core.View.Windows
         {
             try
             {
-                // 打開設定視窗
+                Logger.Info("🔧 正在打開設定視窗...");
+                
+                // 暫時禁用工具條的 Topmost 設定，避免與設置窗口衝突
+                this.Topmost = false;
+                Logger.Info("🔽 暫時禁用工具條 Topmost 設定");
+                
+                // 創建設定視窗
                 var settingsWindow = new SettingMainWindow();
-                settingsWindow.Owner = this; // 設定父視窗
+                Logger.Info("✅ 設定視窗物件已創建");
+                
+                // 確保設置窗口在工具條之上，但不是 Topmost
+                settingsWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                
+                // 處理設置窗口的各種關閉事件
+                EventHandler restoreTopmost = (s, args) =>
+                {
+                    this.Topmost = true;
+                    Logger.Info("🔼 恢復工具條 Topmost 設定");
+                };
+                
+                settingsWindow.Closed += restoreTopmost;
+                settingsWindow.Deactivated += (s, args) =>
+                {
+                    // 當設置窗口失去焦點時，確保工具條仍然可用
+                    this.IsEnabled = true;
+                };
+                
+                // 當設置窗口獲得焦點時，確保工具條保持啟用狀態
+                settingsWindow.Activated += (s, args) =>
+                {
+                    this.IsEnabled = true;
+                };
+                
+                // 顯示設置窗口
                 settingsWindow.Show();
+                
+                // 確保工具條始終啟用
+                this.IsEnabled = true;
+                
+                Logger.Info("✅ 設定視窗已顯示，工具條保持啟用狀態");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"無法打開設定視窗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                // 發生錯誤時也要恢復 Topmost 設定
+                this.Topmost = true;
+                this.IsEnabled = true;
+                Logger.Error(ex, "❌ 無法打開設定視窗");
+                MessageBox.Show($"設置窗口無法載入！\n錯誤詳情: {ex.Message}\n\n堆疊追蹤:\n{ex.StackTrace}", 
+                    "設置", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

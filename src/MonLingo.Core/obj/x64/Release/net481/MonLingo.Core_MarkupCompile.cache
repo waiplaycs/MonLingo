@@ -1,7 +1,7 @@
 ﻿MonLingo.Core
 1.0.0.0
 
-winexe
+exe
 C#
 .cs
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Release\net481\
@@ -10,11 +10,11 @@ none
 false
 TRACE;RELEASE;NETFRAMEWORK;NET481;
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\App.xaml
-5-2094495271
+111741168340
 426305813
-20314900895
-170-1486648388
-Resources\Styles\CommonStyles.xaml;View\Windows\CaptureRegionWindow.xaml;View\Windows\MainBarWindow.xaml;View\Windows\SettingMainWindow.xaml;View\Windows\TranslationPopupWindow.xaml;
+96-2038213190
+187638812498
+Resources\Styles\CommonStyles.xaml;UI\ForgotPasswordDialog.xaml;UI\LoginWindow.xaml;UI\SimpleLoginWindow.xaml;UI\SmsLoginDialog.xaml;View\Windows\CaptureRegionWindow.xaml;View\Windows\MainBarWindow.xaml;View\Windows\SettingMainWindow.xaml;View\Windows\SubtitleWindow.xaml;View\Windows\TestMainBarWindow.xaml;View\Windows\TranslationResultWindow.xaml;
 
 False
 
