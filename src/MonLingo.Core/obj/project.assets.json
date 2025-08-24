@@ -907,6 +907,25 @@
           }
         }
       },
+      "PaddleOCRSharp/3.0.0": {
+        "type": "package",
+        "dependencies": {
+          "Newtonsoft.Json": "12.0.1"
+        },
+        "compile": {
+          "lib/net481/PaddleOCRSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net481/PaddleOCRSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "build/PaddleOCRSharp.targets": {}
+        }
+      },
       "System.Buffers/4.5.1": {
         "type": "package",
         "frameworkAssemblies": [
@@ -2211,6 +2230,25 @@
         },
         "build": {
           "build/net48/OpenCvSharp4.runtime.win.props": {}
+        }
+      },
+      "PaddleOCRSharp/3.0.0": {
+        "type": "package",
+        "dependencies": {
+          "Newtonsoft.Json": "12.0.1"
+        },
+        "compile": {
+          "lib/net481/PaddleOCRSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net481/PaddleOCRSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "build/PaddleOCRSharp.targets": {}
         }
       },
       "System.Buffers/4.5.1": {
@@ -3794,6 +3832,102 @@
         "runtimes/win-x86/native/opencv_videoio_ffmpeg480.dll"
       ]
     },
+    "PaddleOCRSharp/3.0.0": {
+      "sha512": "Baa4DMbDGIAnl8UnYnsJnHhEeQWjZRxsto5lIbGc+WrjbGppUNyrJxYm1iWSmvtxIftqHypbIqEboy1+s63PqA==",
+      "type": "package",
+      "path": "paddleocrsharp/3.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "build/PaddleOCRLib/PaddleOCR.dll",
+        "build/PaddleOCRLib/concrt140.dll",
+        "build/PaddleOCRLib/inference/PaddleOCR.config.json",
+        "build/PaddleOCRLib/inference/PaddleOCRStructure.config.json",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/._inference.pdiparams",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/._inference.pdiparams.info",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/._inference.pdmodel",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/PaxHeader/inference.pdiparams",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/PaxHeader/inference.pdiparams.info",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/PaxHeader/inference.pdmodel",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/inference.pdiparams",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/inference.pdiparams.info",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/inference.pdmodel",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_rec_infer/inference.pdiparams",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_rec_infer/inference.pdiparams.info",
+        "build/PaddleOCRLib/inference/ch_PP-OCRv3_rec_infer/inference.pdmodel",
+        "build/PaddleOCRLib/inference/ch_ppocr_mobile_v2.0_cls_infer/inference.pdiparams",
+        "build/PaddleOCRLib/inference/ch_ppocr_mobile_v2.0_cls_infer/inference.pdiparams.info",
+        "build/PaddleOCRLib/inference/ch_ppocr_mobile_v2.0_cls_infer/inference.pdmodel",
+        "build/PaddleOCRLib/inference/ch_ppstructure_mobile_v2.0_SLANet_infer/inference.pdiparams",
+        "build/PaddleOCRLib/inference/ch_ppstructure_mobile_v2.0_SLANet_infer/inference.pdiparams.info",
+        "build/PaddleOCRLib/inference/ch_ppstructure_mobile_v2.0_SLANet_infer/inference.pdmodel",
+        "build/PaddleOCRLib/inference/layout_publaynet_dict.txt",
+        "build/PaddleOCRLib/inference/ppocr_keys.txt",
+        "build/PaddleOCRLib/inference/table_structure_dict_ch.txt",
+        "build/PaddleOCRLib/inference/win7_dll/API-MS-Win-Eventing-Provider-L1-1-0.dll",
+        "build/PaddleOCRLib/inference/win7_dll/api-ms-win-core-libraryloader-l1-2-0.dll",
+        "build/PaddleOCRLib/inference/win7_dll/api-ms-win-core-processtopology-obsolete-l1-1-0.dll",
+        "build/PaddleOCRLib/libiomp5md.dll",
+        "build/PaddleOCRLib/mfc140.dll",
+        "build/PaddleOCRLib/mfcm140.dll",
+        "build/PaddleOCRLib/mkldnn.dll",
+        "build/PaddleOCRLib/mklml.dll",
+        "build/PaddleOCRLib/msvcp140.dll",
+        "build/PaddleOCRLib/msvcp140_1.dll",
+        "build/PaddleOCRLib/msvcp140_2.dll",
+        "build/PaddleOCRLib/msvcp140_atomic_wait.dll",
+        "build/PaddleOCRLib/msvcp140_codecvt_ids.dll",
+        "build/PaddleOCRLib/onnxruntime.dll",
+        "build/PaddleOCRLib/opencv_world411.dll",
+        "build/PaddleOCRLib/paddle2onnx.dll",
+        "build/PaddleOCRLib/paddle_inference.dll",
+        "build/PaddleOCRLib/vcamp140.dll",
+        "build/PaddleOCRLib/vccorlib140.dll",
+        "build/PaddleOCRLib/vcomp140.dll",
+        "build/PaddleOCRLib/vcruntime140.dll",
+        "build/PaddleOCRLib/vcruntime140_1.dll",
+        "build/PaddleOCRLib/yt_CPUCheck.dll",
+        "build/PaddleOCRSharp.targets",
+        "lib/net35/PaddleOCRSharp.dll",
+        "lib/net35/PaddleOCRSharp.xml",
+        "lib/net40/PaddleOCRSharp.dll",
+        "lib/net40/PaddleOCRSharp.xml",
+        "lib/net45/PaddleOCRSharp.dll",
+        "lib/net45/PaddleOCRSharp.xml",
+        "lib/net451/PaddleOCRSharp.dll",
+        "lib/net451/PaddleOCRSharp.xml",
+        "lib/net452/PaddleOCRSharp.dll",
+        "lib/net452/PaddleOCRSharp.xml",
+        "lib/net46/PaddleOCRSharp.dll",
+        "lib/net46/PaddleOCRSharp.xml",
+        "lib/net461/PaddleOCRSharp.dll",
+        "lib/net461/PaddleOCRSharp.xml",
+        "lib/net462/PaddleOCRSharp.dll",
+        "lib/net462/PaddleOCRSharp.xml",
+        "lib/net47/PaddleOCRSharp.dll",
+        "lib/net47/PaddleOCRSharp.xml",
+        "lib/net471/PaddleOCRSharp.dll",
+        "lib/net471/PaddleOCRSharp.xml",
+        "lib/net472/PaddleOCRSharp.dll",
+        "lib/net472/PaddleOCRSharp.xml",
+        "lib/net48/PaddleOCRSharp.dll",
+        "lib/net48/PaddleOCRSharp.xml",
+        "lib/net481/PaddleOCRSharp.dll",
+        "lib/net481/PaddleOCRSharp.xml",
+        "lib/net5.0/PaddleOCRSharp.dll",
+        "lib/net5.0/PaddleOCRSharp.xml",
+        "lib/net6.0/PaddleOCRSharp.dll",
+        "lib/net6.0/PaddleOCRSharp.xml",
+        "lib/net7.0/PaddleOCRSharp.dll",
+        "lib/net7.0/PaddleOCRSharp.xml",
+        "lib/netcoreapp3.1/PaddleOCRSharp.dll",
+        "lib/netcoreapp3.1/PaddleOCRSharp.xml",
+        "lib/netstandard2.0/PaddleOCRSharp.dll",
+        "lib/netstandard2.0/PaddleOCRSharp.xml",
+        "paddleocrsharp.3.0.0.nupkg.sha512",
+        "paddleocrsharp.nuspec"
+      ]
+    },
     "System.Buffers/4.5.1": {
       "sha512": "Rw7ijyl1qqRS0YQD/WycNst8hUUMgrMH4FCn1nNm27M4VxchZ1js3fVjQaANHO5f3sN4isvP4a+Met9Y4YomAg==",
       "type": "package",
@@ -4765,26 +4899,27 @@
       "Newtonsoft.Json >= 13.0.3",
       "OpenCvSharp4 >= 4.8.0.20230708",
       "OpenCvSharp4.runtime.win >= 4.8.0.20230708",
+      "PaddleOCRSharp >= 2.5.0",
       "System.Drawing.Common >= 8.0.0",
       "Whisper.net >= 1.4.7"
     ]
   },
   "packageFolders": {
-    "c:\\Users\\User\\Desktop\\MonLingo2\\packages": {}
+    "C:\\Users\\User\\Desktop\\MonLingo2\\packages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+      "projectUniqueName": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
       "projectName": "MonLingo.Core",
-      "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
-      "packagesPath": "c:\\Users\\User\\Desktop\\MonLingo2\\packages",
-      "outputPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
+      "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+      "packagesPath": "C:\\Users\\User\\Desktop\\MonLingo2\\packages",
+      "outputPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
       "projectStyle": "PackageReference",
       "centralPackageVersionsManagementEnabled": true,
       "CentralPackageTransitivePinningEnabled": true,
       "configFilePaths": [
-        "c:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
+        "C:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
         "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
@@ -4864,6 +4999,11 @@
             "version": "[4.8.0.20230708, )",
             "versionCentrallyManaged": true
           },
+          "PaddleOCRSharp": {
+            "target": "Package",
+            "version": "[2.5.0, )",
+            "versionCentrallyManaged": true
+          },
           "System.Drawing.Common": {
             "target": "Package",
             "version": "[8.0.0, )",
@@ -4894,6 +5034,7 @@
           "NLog.Extensions.Logging": "5.3.2",
           "OpenCvSharp4": "4.8.0.20230708",
           "OpenCvSharp4.runtime.win": "4.8.0.20230708",
+          "PaddleOCRSharp": "2.5.0",
           "Prism.Core": "8.1.97",
           "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
           "StyleCop.Analyzers": "1.1.118",
@@ -4917,6 +5058,17 @@
       "warningLevel": 1,
       "message": "MonLingo.Core 相依於 GuerrillaNtp (>= 1.6.2)，但找不到 GuerrillaNtp 1.6.2。已解析了約略的最佳相符 GuerrillaNtp 2.0.1。",
       "libraryId": "GuerrillaNtp",
+      "targetGraphs": [
+        ".NETFramework,Version=v4.8.1",
+        ".NETFramework,Version=v4.8.1/win7-x64"
+      ]
+    },
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "MonLingo.Core 相依於 PaddleOCRSharp (>= 2.5.0)，但找不到 PaddleOCRSharp 2.5.0。已解析了約略的最佳相符 PaddleOCRSharp 3.0.0。",
+      "libraryId": "PaddleOCRSharp",
       "targetGraphs": [
         ".NETFramework,Version=v4.8.1",
         ".NETFramework,Version=v4.8.1/win7-x64"

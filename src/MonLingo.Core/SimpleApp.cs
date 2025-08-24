@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Windows;
-using MonLingo.View.Windows;
+using MonLingo.Core.View.Windows;
 
 namespace MonLingo.Core
 {

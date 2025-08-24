@@ -416,14 +416,24 @@ namespace MonLingo.Core.View.Windows
         {
             try
             {
+                Logger.Info("🔧 正在打開設定視窗...");
+                
                 // 打開設定視窗
                 var settingsWindow = new SettingMainWindow();
-                settingsWindow.Owner = this; // 設定父視窗
+                Logger.Info("✅ 設定視窗物件已創建");
+                
+                // 移除 Owner 設定，讓設置窗口獨立運行，不受工具條窗口影響
+                // settingsWindow.Owner = this; // 註釋掉這行以避免工具條被禁用
+                Logger.Info("✅ 設定為獨立視窗");
+                
                 settingsWindow.Show();
+                Logger.Info("✅ 設定視窗已顯示");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"無法打開設定視窗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Error(ex, "❌ 無法打開設定視窗");
+                MessageBox.Show($"設置窗口無法載入！\n錯誤詳情: {ex.Message}\n\n堆疊追蹤:\n{ex.StackTrace}", 
+                    "設置", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

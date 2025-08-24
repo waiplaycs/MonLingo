@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows;
 using System.Threading.Tasks;
 using NLog;
+using MonLingo.View.Windows;
 
 namespace MonLingo.ViewModel
 {
@@ -269,7 +270,19 @@ namespace MonLingo.ViewModel
         public ICommand OpenSettingsCommand =>
             _openSettingsCommand ??= new SimpleRelayCommand(() =>
             {
-                MessageBox.Show("設置功能被點擊！\n正在打開設定頁面...", "設置", MessageBoxButton.OK, MessageBoxImage.Information);
+                try
+                {
+                    Logger.Info("⚙️ 設定按鈕被點擊，正在打開設定頁面...");
+                    var settingsWindow = new SettingMainWindow();
+                    Logger.Debug("✅ SettingMainWindow 實例已創建");
+                    settingsWindow.ShowDialog();
+                    Logger.Info("✅ 設定頁面已顯示");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "❌ 打開設定頁面時發生錯誤");
+                    MessageBox.Show($"設置功能無法載入！\n錯誤詳情：{ex.Message}", "設置", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             });
 
         // 18. 最小化
