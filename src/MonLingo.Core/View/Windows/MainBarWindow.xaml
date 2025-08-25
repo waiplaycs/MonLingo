@@ -62,15 +62,22 @@
                                 Height="{TemplateBinding Height}"
                                 Padding="{TemplateBinding Padding}"
                                 x:Name="ButtonBorder">
-                            <Path Data="{TemplateBinding Tag}" 
-                                  Fill="{TemplateBinding Foreground}" 
-                                  Stretch="Uniform"
-                                  x:Name="ButtonIcon"/>
+                                                        <Path Data="{TemplateBinding Tag}" 
+                                                                    Fill="{TemplateBinding Foreground}"
+                                                                    Stroke="{TemplateBinding Foreground}"
+                                                                    StrokeThickness="1.6"
+                                                                    StrokeStartLineCap="Round"
+                                                                    StrokeEndLineCap="Round"
+                                                                    StrokeLineJoin="Round"
+                                                                    SnapsToDevicePixels="True"
+                                                                    Stretch="Uniform"
+                                                                    x:Name="ButtonIcon"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ButtonBorder" Property="Background" Value="#55FFFFFF"/>
-                                <Setter TargetName="ButtonIcon" Property="Fill" Value="#FFD700"/>
+                                                                <Setter TargetName="ButtonIcon" Property="Fill" Value="#FFD700"/>
+                                                                <Setter TargetName="ButtonIcon" Property="Stroke" Value="#FFD700"/>
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
@@ -115,6 +122,7 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="ButtonBorder" Property="Background" Value="#77FFFFFF"/>
                                 <Setter TargetName="ButtonIcon" Property="Fill" Value="#FFA500"/>
+                                <Setter TargetName="ButtonIcon" Property="Stroke" Value="#FFA500"/>
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>

@@ -245,6 +245,8 @@ namespace MonLingo.ViewModel
                         
                         // 這裡可以保存區域信息或觸發其他處理
                         // TODO: 整合實際的翻譯區域處理邏輯
+                        
+                        // 注意：不需要手動關閉窗口，RegionSelectionOverlay 會在選擇完成後自動關閉
                     };
                     
                     // 顯示選擇窗口
@@ -280,6 +282,8 @@ namespace MonLingo.ViewModel
                         
                         // 這裡可以保存區域信息或觸發其他處理
                         // TODO: 整合實際的翻譯區域處理邏輯
+                        
+                        // 注意：不需要手動關閉窗口，RegionSelectionOverlay 會在選擇完成後自動關閉
                     };
                     
                     // 顯示選擇窗口
@@ -373,8 +377,16 @@ namespace MonLingo.ViewModel
         public ICommand MinimizeCommand =>
             _minimizeCommand ??= new SimpleRelayCommand(() =>
             {
-                Application.Current.MainWindow.WindowState = WindowState.Minimized;
-                MessageBox.Show("工具條已最小化", "最小化", MessageBoxButton.OK, MessageBoxImage.Information);
+                try
+                {
+                    // 使用事件讓視圖端 (MainBarWindow) 處理實際的最小化/隱藏行為
+                    OnMinimizeRequested();
+                    Logger.Info("MinimizeCommand: MinimizeRequested event raised");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "MinimizeCommand 執行失敗");
+                }
             });
 
         // 19. 關閉
@@ -382,9 +394,18 @@ namespace MonLingo.ViewModel
         public ICommand ExitCommand =>
             _exitCommand ??= new SimpleRelayCommand(() =>
             {
-                if (MessageBox.Show("確定要退出 MonLingo 嗎？", "退出確認", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                try
                 {
-                    Application.Current.Shutdown();
+                    if (MessageBox.Show("確定要退出 MonLingo 嗎？", "退出確認", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    {
+                        // 使用事件讓 MainBarWindow 處理乾淨的關閉流程
+                        OnExitRequested();
+                        Logger.Info("ExitCommand: ExitRequested event raised");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "ExitCommand 執行失敗");
                 }
             });
 

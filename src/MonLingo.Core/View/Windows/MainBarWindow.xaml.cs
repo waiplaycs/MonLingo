@@ -15,6 +15,7 @@ using System.Windows.Interop;
 using MonLingo.ViewModel;
 using MonLingo.View.Windows;
 using NLog;
+using Forms = System.Windows.Forms;
 
 namespace MonLingo.Core.View.Windows
 {
@@ -31,6 +32,8 @@ namespace MonLingo.Core.View.Windows
         private readonly double _collapsedWidth = 100.0;
         private bool _isCollapsed = false;
         private Geometry _collapseButtonIcon;
+    private Forms.NotifyIcon _trayIcon;
+    private Forms.ContextMenuStrip _trayMenu;
         #endregion
 
         #region 屬性
@@ -85,6 +88,9 @@ namespace MonLingo.Core.View.Windows
 
                 // 確保觸發區域在初始化時可用
                 this.Loaded += (s, e) => EnsureRightTriggerAreaEnabled();
+
+                // 初始化系統匣圖示
+                InitializeTrayIcon();
 
                 Logger.Debug("✅ MainBarWindow 初始化設定完成");
             }
@@ -471,14 +477,37 @@ namespace MonLingo.Core.View.Windows
         private void OnExitRequested(object sender, EventArgs e)
         {
             // 安全關閉應用程式
+            try
+            {
+                if (_trayIcon != null)
+                {
+                    _trayIcon.Visible = false;
+                    _trayIcon.Dispose();
+                    _trayIcon = null;
+                }
+                _trayMenu?.Dispose();
+            }
+            catch { }
             Application.Current.Shutdown();
         }
 
         private void OnMinimizeRequested(object sender, EventArgs e)
         {
-            // 最小化工具條到系統托盤
-            this.WindowState = WindowState.Minimized;
-            this.ShowInTaskbar = false;
+            // 最小化到系統匣（顯示在圖片中的該區域）
+            try
+            {
+                this.ShowInTaskbar = false;
+                this.WindowState = WindowState.Minimized;
+                if (_trayIcon != null)
+                {
+                    _trayIcon.Visible = true;
+                    _trayIcon.ShowBalloonTip(1000, "MonLingo", "已最小化到系統匣，雙擊圖示可還原", Forms.ToolTipIcon.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "最小化到系統匣時發生錯誤");
+            }
         }
         
         private void OnCollapseRequested(object sender, CollapseEventArgs e)
@@ -553,6 +582,77 @@ namespace MonLingo.Core.View.Windows
                 TimeSpan.FromMilliseconds(200));
             fadeOut.Completed += (s, e) => this.Hide();
             this.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        }
+        #endregion
+
+        #region 系統匣（通知區）
+        private void InitializeTrayIcon()
+        {
+            try
+            {
+                // 建立右鍵選單
+                _trayMenu = new Forms.ContextMenuStrip();
+                var showItem = new Forms.ToolStripMenuItem("顯示");
+                var exitItem = new Forms.ToolStripMenuItem("退出");
+                showItem.Click += (s, e) => RestoreFromTray();
+                exitItem.Click += (s, e) => OnExitRequested(this, EventArgs.Empty);
+                _trayMenu.Items.Add(showItem);
+                _trayMenu.Items.Add(new Forms.ToolStripSeparator());
+                _trayMenu.Items.Add(exitItem);
+
+                // 建立 NotifyIcon
+                _trayIcon = new Forms.NotifyIcon
+                {
+                    Text = "MonLingo 翻譯工具",
+                    Visible = false,
+                    ContextMenuStrip = _trayMenu
+                };
+
+                // 嘗試使用內建應用程式圖示；若無，使用預設系統圖示
+                try
+                {
+                    var iconStream = Application.GetResourceStream(new Uri("pack://application:,,,/MonLingo.Core;component/Assets/app.ico"))?.Stream;
+                    if (iconStream != null)
+                    {
+                        _trayIcon.Icon = new System.Drawing.Icon(iconStream);
+                    }
+                    else
+                    {
+                        _trayIcon.Icon = System.Drawing.SystemIcons.Application;
+                    }
+                }
+                catch
+                {
+                    _trayIcon.Icon = System.Drawing.SystemIcons.Application;
+                }
+
+                _trayIcon.DoubleClick += (s, e) => RestoreFromTray();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "初始化系統匣圖示失敗");
+            }
+        }
+
+        private void RestoreFromTray()
+        {
+            try
+            {
+                this.WindowState = WindowState.Normal;
+                this.Show();
+                this.ShowInTaskbar = true;
+                this.Activate();
+                if (_trayIcon != null)
+                {
+                    _trayIcon.Visible = false;
+                }
+                // 展示淡入效果
+                ShowWithAnimation();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "還原視窗時發生錯誤");
+            }
         }
         #endregion
     }

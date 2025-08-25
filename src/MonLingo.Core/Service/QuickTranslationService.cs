@@ -158,9 +158,10 @@ namespace MonLingo.Core.Service
                 var dpiScale = GetDpiScale();
                 
                 // 調整區域座標以適應DPI縮放
+                // 注意：region.X/Y 是相對虛擬桌面的座標（可能含負值），需加上 VirtualScreenLeft/Top 再縮放
                 var scaledRegion = new Rectangle(
-                    (int)(region.X * dpiScale),
-                    (int)(region.Y * dpiScale),
+                    (int)((region.X + SystemParameters.VirtualScreenLeft) * dpiScale),
+                    (int)((region.Y + SystemParameters.VirtualScreenTop) * dpiScale),
                     (int)(region.Width * dpiScale),
                     (int)(region.Height * dpiScale)
                 );
