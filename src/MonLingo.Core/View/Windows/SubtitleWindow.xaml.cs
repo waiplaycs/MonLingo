@@ -25,24 +25,46 @@ namespace MonLingo.Core.View.Windows
 
         public SubtitleWindow()
         {
-            InitializeComponent();
-            
-            // 創建並設置 ViewModel
-            _viewModel = new SubtitleViewModel();
-            DataContext = _viewModel;
-            
-            // 訂閱新行添加事件
-            _viewModel.NewLineAdded += OnNewLineAdded;
-            
-            // 載入時隱藏視窗（初始狀態）
-            Opacity = 0;
-            
-            // 初始化動畫變換
-            InitializeAnimationTransforms();
-            
-            // 設置視窗事件
-            Loaded += OnWindowLoaded;
-            Closed += OnWindowClosed;
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🔨 SubtitleWindow() 建構函數開始");
+                
+                System.Diagnostics.Debug.WriteLine("📦 調用 InitializeComponent()");
+                InitializeComponent();
+                System.Diagnostics.Debug.WriteLine("✅ InitializeComponent() 完成");
+                
+                // 創建並設置 ViewModel
+                System.Diagnostics.Debug.WriteLine("🧠 創建 SubtitleViewModel");
+                _viewModel = new SubtitleViewModel();
+                DataContext = _viewModel;
+                System.Diagnostics.Debug.WriteLine("✅ ViewModel 設置完成");
+                
+                // 訂閱新行添加事件
+                System.Diagnostics.Debug.WriteLine("🔗 訂閱事件");
+                _viewModel.NewLineAdded += OnNewLineAdded;
+                
+                // 載入時隱藏視窗（初始狀態）
+                System.Diagnostics.Debug.WriteLine("👁️ 設置初始透明度");
+                Opacity = 0;
+                
+                // 初始化動畫變換
+                System.Diagnostics.Debug.WriteLine("🎭 初始化動畫變換");
+                InitializeAnimationTransforms();
+                System.Diagnostics.Debug.WriteLine("✅ 動畫變換初始化完成");
+                
+                // 設置視窗事件
+                System.Diagnostics.Debug.WriteLine("📋 設置視窗事件");
+                Loaded += OnWindowLoaded;
+                Closed += OnWindowClosed;
+                
+                System.Diagnostics.Debug.WriteLine("🎊 SubtitleWindow() 建構函數完成");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ SubtitleWindow() 建構函數錯誤: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"📍 錯誤詳情: {ex}");
+                throw;
+            }
         }
 
         /// <summary>
@@ -63,13 +85,29 @@ namespace MonLingo.Core.View.Windows
         /// </summary>
         private void InitializeAnimationTransforms()
         {
-            // 設置初始變換組合
-            var transformGroup = new TransformGroup();
-            transformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
-            transformGroup.Children.Add(new TranslateTransform(0, 10));
-            
-            RenderTransform = transformGroup;
-            RenderTransformOrigin = new Point(0.5, 0.5);
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🎭 開始初始化動畫變換");
+                
+                // 設置初始變換組合 - 應用到根容器而不是視窗
+                var transformGroup = new TransformGroup();
+                transformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
+                transformGroup.Children.Add(new TranslateTransform(0, 10));
+                
+                // 將變換應用到根容器而不是視窗本身
+                RootContainer.RenderTransform = transformGroup;
+                RootContainer.RenderTransformOrigin = new Point(0.5, 0.5);
+                
+                System.Diagnostics.Debug.WriteLine("✅ 動畫變換初始化完成");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ 初始化動畫變換時發生錯誤: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"📍 錯誤詳情: {ex}");
+                
+                // 如果變換失敗，我們可以繼續，只是沒有動畫效果
+                // 不要重新拋出異常，避免影響視窗創建
+            }
         }
 
         #endregion
@@ -355,73 +393,82 @@ namespace MonLingo.Core.View.Windows
         /// </summary>
         private void ShowWithEnhancedAnimation()
         {
-            // 設置初始狀態
-            Opacity = 0;
-            
-            // 確保視窗有 Transform
-            if (RenderTransform == null || RenderTransform == Transform.Identity)
+            try
             {
+                // 設置初始狀態
+                Opacity = 0;
+                
+                // 確保視窗有 Transform
                 var transformGroup = new TransformGroup();
-                transformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
-                transformGroup.Children.Add(new TranslateTransform(0, 10));
+                var scaleTransform = new ScaleTransform(0.95, 0.95);
+                var translateTransform = new TranslateTransform(0, 10);
+                transformGroup.Children.Add(scaleTransform);
+                transformGroup.Children.Add(translateTransform);
                 RenderTransform = transformGroup;
                 RenderTransformOrigin = new Point(0.5, 0.5);
+
+                // 創建動畫組
+                var storyboard = new Storyboard();
+
+                // 1. 淡入動畫
+                var fadeInAnimation = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 1,
+                    Duration = TimeSpan.FromMilliseconds(400),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(fadeInAnimation, this);
+                Storyboard.SetTargetProperty(fadeInAnimation, new PropertyPath(OpacityProperty));
+
+                // 2. 縮放動畫（放大效果）
+                var scaleXAnimation = new DoubleAnimation
+                {
+                    From = 0.95,
+                    To = 1.0,
+                    Duration = TimeSpan.FromMilliseconds(350),
+                    EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
+                };
+                Storyboard.SetTarget(scaleXAnimation, scaleTransform);
+                Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath(ScaleTransform.ScaleXProperty));
+
+                var scaleYAnimation = new DoubleAnimation
+                {
+                    From = 0.95,
+                    To = 1.0,
+                    Duration = TimeSpan.FromMilliseconds(350),
+                    EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
+                };
+                Storyboard.SetTarget(scaleYAnimation, scaleTransform);
+                Storyboard.SetTargetProperty(scaleYAnimation, new PropertyPath(ScaleTransform.ScaleYProperty));
+
+                // 3. 滑入動畫（向上滑入）
+                var slideInAnimation = new DoubleAnimation
+                {
+                    From = 10,
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(400),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(slideInAnimation, translateTransform);
+                Storyboard.SetTargetProperty(slideInAnimation, new PropertyPath(TranslateTransform.YProperty));
+
+                // 添加所有動畫到故事板
+                storyboard.Children.Add(fadeInAnimation);
+                storyboard.Children.Add(scaleXAnimation);
+                storyboard.Children.Add(scaleYAnimation);
+                storyboard.Children.Add(slideInAnimation);
+
+                // 開始動畫
+                storyboard.Begin();
             }
-
-            // 創建動畫組
-            var storyboard = new Storyboard();
-
-            // 1. 淡入動畫
-            var fadeInAnimation = new DoubleAnimation
+            catch (Exception ex)
             {
-                From = 0,
-                To = 1,
-                Duration = TimeSpan.FromMilliseconds(400),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(fadeInAnimation, this);
-            Storyboard.SetTargetProperty(fadeInAnimation, new PropertyPath(OpacityProperty));
-
-            // 2. 縮放動畫（放大效果）
-            var scaleXAnimation = new DoubleAnimation
-            {
-                From = 0.95,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(350),
-                EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
-            };
-            Storyboard.SetTarget(scaleXAnimation, this);
-            Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath("RenderTransform.Children[0].ScaleX"));
-
-            var scaleYAnimation = new DoubleAnimation
-            {
-                From = 0.95,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(350),
-                EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
-            };
-            Storyboard.SetTarget(scaleYAnimation, this);
-            Storyboard.SetTargetProperty(scaleYAnimation, new PropertyPath("RenderTransform.Children[0].ScaleY"));
-
-            // 3. 滑入動畫（向上滑入）
-            var slideInAnimation = new DoubleAnimation
-            {
-                From = 10,
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(400),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(slideInAnimation, this);
-            Storyboard.SetTargetProperty(slideInAnimation, new PropertyPath("RenderTransform.Children[1].Y"));
-
-            // 添加所有動畫到故事板
-            storyboard.Children.Add(fadeInAnimation);
-            storyboard.Children.Add(scaleXAnimation);
-            storyboard.Children.Add(scaleYAnimation);
-            storyboard.Children.Add(slideInAnimation);
-
-            // 開始動畫
-            storyboard.Begin();
+                // 如果動畫失敗，直接顯示視窗
+                Opacity = 1;
+                RenderTransform = Transform.Identity;
+                System.Diagnostics.Debug.WriteLine($"字幕視窗動畫錯誤: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -429,71 +476,103 @@ namespace MonLingo.Core.View.Windows
         /// </summary>
         private void HideWithEnhancedAnimation()
         {
-            // 創建動畫組
-            var storyboard = new Storyboard();
-
-            // 1. 淡出動畫
-            var fadeOutAnimation = new DoubleAnimation
+            try
             {
-                From = 1,
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(250),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            Storyboard.SetTarget(fadeOutAnimation, this);
-            Storyboard.SetTargetProperty(fadeOutAnimation, new PropertyPath(OpacityProperty));
+                // 獲取當前的變換組件
+                var transformGroup = RenderTransform as TransformGroup;
+                ScaleTransform scaleTransform = null;
+                TranslateTransform translateTransform = null;
 
-            // 2. 縮小動畫
-            var scaleXAnimation = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.95,
-                Duration = TimeSpan.FromMilliseconds(200),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            Storyboard.SetTarget(scaleXAnimation, this);
-            Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath("RenderTransform.Children[0].ScaleX"));
+                if (transformGroup != null && transformGroup.Children.Count >= 2)
+                {
+                    scaleTransform = transformGroup.Children[0] as ScaleTransform;
+                    translateTransform = transformGroup.Children[1] as TranslateTransform;
+                }
 
-            var scaleYAnimation = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.95,
-                Duration = TimeSpan.FromMilliseconds(200),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            Storyboard.SetTarget(scaleYAnimation, this);
-            Storyboard.SetTargetProperty(scaleYAnimation, new PropertyPath("RenderTransform.Children[0].ScaleY"));
+                // 如果沒有找到變換，創建新的
+                if (scaleTransform == null || translateTransform == null)
+                {
+                    transformGroup = new TransformGroup();
+                    scaleTransform = new ScaleTransform(1.0, 1.0);
+                    translateTransform = new TranslateTransform(0, 0);
+                    transformGroup.Children.Add(scaleTransform);
+                    transformGroup.Children.Add(translateTransform);
+                    RenderTransform = transformGroup;
+                    RenderTransformOrigin = new Point(0.5, 0.5);
+                }
 
-            // 3. 滑出動畫（向下滑出）
-            var slideOutAnimation = new DoubleAnimation
-            {
-                From = 0,
-                To = 5,
-                Duration = TimeSpan.FromMilliseconds(250),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            Storyboard.SetTarget(slideOutAnimation, this);
-            Storyboard.SetTargetProperty(slideOutAnimation, new PropertyPath("RenderTransform.Children[1].Y"));
+                // 創建動畫組
+                var storyboard = new Storyboard();
 
-            // 動畫完成後隱藏視窗
-            storyboard.Completed += (s, e) =>
+                // 1. 淡出動畫
+                var fadeOutAnimation = new DoubleAnimation
+                {
+                    From = 1,
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(250),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                Storyboard.SetTarget(fadeOutAnimation, this);
+                Storyboard.SetTargetProperty(fadeOutAnimation, new PropertyPath(OpacityProperty));
+
+                // 2. 縮小動畫
+                var scaleXAnimation = new DoubleAnimation
+                {
+                    From = 1.0,
+                    To = 0.95,
+                    Duration = TimeSpan.FromMilliseconds(200),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                Storyboard.SetTarget(scaleXAnimation, scaleTransform);
+                Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath(ScaleTransform.ScaleXProperty));
+
+                var scaleYAnimation = new DoubleAnimation
+                {
+                    From = 1.0,
+                    To = 0.95,
+                    Duration = TimeSpan.FromMilliseconds(200),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                Storyboard.SetTarget(scaleYAnimation, scaleTransform);
+                Storyboard.SetTargetProperty(scaleYAnimation, new PropertyPath(ScaleTransform.ScaleYProperty));
+
+                // 3. 滑出動畫（向下滑出）
+                var slideOutAnimation = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 5,
+                    Duration = TimeSpan.FromMilliseconds(250),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                Storyboard.SetTarget(slideOutAnimation, translateTransform);
+                Storyboard.SetTargetProperty(slideOutAnimation, new PropertyPath(TranslateTransform.YProperty));
+
+                // 動畫完成後隱藏視窗
+                storyboard.Completed += (s, e) =>
+                {
+                    Hide();
+                    // 重置變換為下次顯示做準備
+                    var newTransformGroup = new TransformGroup();
+                    newTransformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
+                    newTransformGroup.Children.Add(new TranslateTransform(0, 10));
+                    RenderTransform = newTransformGroup;
+                };
+
+                // 添加所有動畫到故事板
+                storyboard.Children.Add(fadeOutAnimation);
+                storyboard.Children.Add(scaleXAnimation);
+                storyboard.Children.Add(scaleYAnimation);
+                storyboard.Children.Add(slideOutAnimation);
+
+                // 開始動畫
+                storyboard.Begin();
+            }
+            catch (Exception ex)
             {
+                // 如果動畫失敗，直接隱藏視窗
                 Hide();
-                // 重置變換為下次顯示做準備
-                var transformGroup = new TransformGroup();
-                transformGroup.Children.Add(new ScaleTransform(0.95, 0.95));
-                transformGroup.Children.Add(new TranslateTransform(0, 10));
-                RenderTransform = transformGroup;
-            };
-
-            // 添加所有動畫到故事板
-            storyboard.Children.Add(fadeOutAnimation);
-            storyboard.Children.Add(scaleXAnimation);
-            storyboard.Children.Add(scaleYAnimation);
-            storyboard.Children.Add(slideOutAnimation);
-
-            // 開始動畫
-            storyboard.Begin();
+                System.Diagnostics.Debug.WriteLine($"字幕視窗隱藏動畫錯誤: {ex.Message}");
+            }
         }
 
         #endregion

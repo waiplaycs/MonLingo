@@ -208,7 +208,7 @@
     </Window.Resources>
 
     <!-- 主要內容區域 - 0824 現代化設計 -->
-    <Grid>
+    <Grid x:Name="RootContainer">
         <!-- 主邊框 - 依附模式和分離模式不同樣式，匹配工具條設計風格 -->
         <Border x:Name="MainBorder"
                 BorderBrush="Transparent"

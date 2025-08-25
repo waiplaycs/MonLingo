@@ -257,22 +257,44 @@ namespace MonLingo.Core.Service
         {
             try
             {
+                Logger.Debug("🎯 ShowTranslationResult 開始執行");
+                Logger.Debug($"📝 原文: {originalText}");
+                Logger.Debug($"🌐 譯文: {translatedText}");
+                
                 // ============ PHASE 4: 顯示結果分發 ============
                 // 確保字幕視窗存在並設置 DisplayService
                 if (_subtitleWindow == null)
                 {
                     Logger.Debug("🆕 創建新的字幕視窗");
-                    _subtitleWindow = new SubtitleWindow(_mainBarWindow);
                     
-                    // 設置 DisplayService 的 SubtitleViewModel 引用
-                    if (_displayService != null)
+                    try
                     {
-                        var viewModel = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
-                        _displayService.SetSubtitleViewModel(viewModel);
+                        Logger.Debug("🔨 開始創建 SubtitleWindow 實例");
+                        _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                        Logger.Debug("✅ SubtitleWindow 實例創建成功");
+                        
+                        // 設置 DisplayService 的 SubtitleViewModel 引用
+                        if (_displayService != null)
+                        {
+                            Logger.Debug("🔗 設置 DisplayService 的 SubtitleViewModel 引用");
+                            var viewModel = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                            _displayService.SetSubtitleViewModel(viewModel);
+                            Logger.Debug("✅ DisplayService 設置完成");
+                        }
+                        else
+                        {
+                            Logger.Debug("⚠️ DisplayService 為 null，跳過設置");
+                        }
+                        
+                        Logger.Debug("🎬 開始調用 ShowSubtitle()");
+                        _subtitleWindow.ShowSubtitle();
+                        Logger.Debug("✅ 新字幕視窗已顯示");
                     }
-                    
-                    _subtitleWindow.ShowSubtitle();
-                    Logger.Debug("✅ 新字幕視窗已顯示");
+                    catch (Exception createEx)
+                    {
+                        Logger.Error(createEx, "❌ 創建字幕視窗時發生錯誤");
+                        throw new Exception($"創建字幕視窗失敗: {createEx.Message}", createEx);
+                    }
                 }
                 else
                 {
@@ -292,18 +314,25 @@ namespace MonLingo.Core.Service
                 }
 
                 // 使用 DisplayService 顯示翻譯結果
+                Logger.Debug("📊 檢查 DisplayService 狀態");
                 if (_displayService != null)
                 {
+                    Logger.Debug("✅ 使用 DisplayService 顯示翻譯結果");
                     _displayService.Show(originalText, translatedText);
+                    Logger.Debug("✅ DisplayService.Show() 調用完成");
                 }
                 else
                 {
-                    // 如果 DisplayService 不可用，直接調用字幕視窗
+                    Logger.Debug("🔄 DisplayService 不可用，直接調用字幕視窗");
                     _subtitleWindow.AddSubtitleLine(originalText, translatedText);
+                    Logger.Debug("✅ AddSubtitleLine() 調用完成");
                 }
+                
+                Logger.Debug("🎊 ShowTranslationResult 執行完成");
             }
             catch (Exception ex)
             {
+                Logger.Error(ex, "❌ ShowTranslationResult 執行時發生錯誤");
                 System.Windows.MessageBox.Show($"顯示翻譯結果時出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

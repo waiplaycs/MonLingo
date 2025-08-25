@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using System.Windows;
 using MonLingo.Core.Service;
 
 namespace MonLingo.Core.Service
@@ -88,8 +89,15 @@ namespace MonLingo.Core.Service
             {
                 _notificationService.ShowInfo("正在進行快速截圖翻譯...");
                 
-                // 使用新的快速翻譯服務，支持字幕模式
-                var quickTranslationService = new MonLingo.Core.Services.QuickTranslationService();
+                // 獲取主視窗引用
+                Window mainWindow = null;
+                if (System.Windows.Application.Current?.MainWindow != null)
+                {
+                    mainWindow = System.Windows.Application.Current.MainWindow;
+                }
+                
+                // 使用新的快速翻譯服務，支持字幕模式，並傳入主視窗引用
+                var quickTranslationService = new MonLingo.Core.Service.QuickTranslationService(mainWindow);
                 await quickTranslationService.StartQuickTranslationAsync();
             }
             catch (Exception ex)

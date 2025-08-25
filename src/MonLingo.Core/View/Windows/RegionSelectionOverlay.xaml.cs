@@ -46,6 +46,7 @@ namespace MonLingo.Core.View.Windows
             this.MouseLeftButtonDown += OnMouseLeftButtonDown;
             this.MouseMove += OnMouseMove;
             this.MouseLeftButtonUp += OnMouseLeftButtonUp;
+            this.MouseRightButtonDown += OnMouseRightButtonDown; // 新增右鍵事件
             this.KeyDown += OnKeyDown;
             this.Focusable = true;
             this.Focus();
@@ -123,6 +124,12 @@ namespace MonLingo.Core.View.Windows
                 }
                 _currentSelectionBox = null;
             }
+        }
+
+        private void OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 右鍵退出框選模式
+            this.Close();
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
