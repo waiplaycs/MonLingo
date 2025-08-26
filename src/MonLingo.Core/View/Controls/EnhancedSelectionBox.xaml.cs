@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using NLog;
+using System.Threading.Tasks;
 
 namespace MonLingo.Core.View.Controls
 {
@@ -14,6 +15,7 @@ namespace MonLingo.Core.View.Controls
         private bool _isDragging = false;
         private Point _lastPosition;
         private ResizeDirection _currentResize = ResizeDirection.None;
+    private bool _isFlashing = false;
         
         public event EventHandler<EventArgs> CloseRequested;
         public event EventHandler<EventArgs> HideRequested;
@@ -357,6 +359,53 @@ namespace MonLingo.Core.View.Controls
             this.UpdateLayout();
             
             Logger.Info($"✅ 位置設置完成: ActualWidth={this.ActualWidth}, ActualHeight={this.ActualHeight}");
+        }
+
+        /// <summary>
+        /// 讓選框高亮閃爍幾次（不阻塞 UI）。
+        /// </summary>
+        public async Task FlashAsync(int times = 2, int periodMs = 150)
+        {
+            if (_isFlashing) return;
+            _isFlashing = true;
+            try
+            {
+                var mainBorder = this.FindName("MainBorder") as Shape;
+                if (mainBorder == null)
+                {
+                    Logger.Warn("[EnhancedSelectionBox] 未找到 MainBorder，改用整體透明度閃爍");
+                    for (int i = 0; i < times; i++)
+                    {
+                        this.Opacity = 0.5;
+                        await Task.Delay(periodMs);
+                        this.Opacity = 1.0;
+                        await Task.Delay(periodMs);
+                    }
+                    return;
+                }
+
+                var originalStroke = mainBorder.Stroke;
+                var originalThickness = mainBorder.StrokeThickness;
+                var highlightBrush = new SolidColorBrush(Color.FromRgb(255, 215, 0)); // 金黃
+
+                for (int i = 0; i < times; i++)
+                {
+                    mainBorder.Stroke = highlightBrush;
+                    mainBorder.StrokeThickness = Math.Max(3, originalThickness + 2);
+                    await Task.Delay(periodMs);
+                    mainBorder.Stroke = originalStroke;
+                    mainBorder.StrokeThickness = originalThickness;
+                    await Task.Delay(periodMs);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "[EnhancedSelectionBox] FlashAsync 發生例外");
+            }
+            finally
+            {
+                _isFlashing = false;
+            }
         }
     }
 }

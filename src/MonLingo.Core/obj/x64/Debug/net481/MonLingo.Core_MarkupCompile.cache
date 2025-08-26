@@ -10,11 +10,11 @@ none
 false
 DEBUG;TRACE;DEBUG;NETFRAMEWORK;NET481;
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\App.xaml
-15-279218898
+16856888155
 426305813
-107396335268
+109-915089468
 187638812498
-Resources\Styles\CommonStyles.xaml;UI\ForgotPasswordDialog.xaml;UI\LoginWindow.xaml;UI\SimpleLoginWindow.xaml;UI\SmsLoginDialog.xaml;View\Controls\EnhancedSelectionBox.xaml;View\Windows\CaptureRegionWindow.xaml;View\Windows\MainBarWindow.xaml;View\Windows\RegionSelectionOverlay.xaml;View\Windows\SelectionBoxHostWindow.xaml;View\Windows\SelectionBoxOverlay.xaml;View\Windows\SettingMainWindow.xaml;View\Windows\SubtitleWindow.xaml;View\Windows\TestMainBarWindow.xaml;View\Windows\TranslationResultWindow.xaml;
+Resources\Styles\CommonStyles.xaml;UI\ForgotPasswordDialog.xaml;UI\LoginWindow.xaml;UI\SimpleLoginWindow.xaml;UI\SmsLoginDialog.xaml;View\Controls\EnhancedSelectionBox.xaml;View\Windows\CaptureRegionWindow.xaml;View\Windows\EditWindow.xaml;View\Windows\MainBarWindow.xaml;View\Windows\RegionSelectionOverlay.xaml;View\Windows\SelectionBoxHostWindow.xaml;View\Windows\SelectionBoxOverlay.xaml;View\Windows\SettingMainWindow.xaml;View\Windows\SubtitleWindow.xaml;View\Windows\TestMainBarWindow.xaml;View\Windows\TranslationResultWindow.xaml;
 
 False
 

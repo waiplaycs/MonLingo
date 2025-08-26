@@ -6,6 +6,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -496,8 +497,17 @@ namespace MonLingo.Core.View.Windows
             // 最小化到系統匣（顯示在圖片中的該區域）
             try
             {
+                // 如果有吸附的字幕視窗，也一起隱藏
+                HideAttachedSubtitleWindow();
+                
+                // 直接隱藏，避免視窗出現縮到螢幕角落的動畫
                 this.ShowInTaskbar = false;
-                this.WindowState = WindowState.Minimized;
+                // 確保維持 Normal 狀態，防止系統最小化動畫
+                if (this.WindowState == WindowState.Minimized)
+                {
+                    this.WindowState = WindowState.Normal;
+                }
+                this.Hide();
                 if (_trayIcon != null)
                 {
                     _trayIcon.Visible = true;
@@ -507,6 +517,29 @@ namespace MonLingo.Core.View.Windows
             catch (Exception ex)
             {
                 Logger.Error(ex, "最小化到系統匣時發生錯誤");
+            }
+        }
+
+        protected override void OnStateChanged(EventArgs e)
+        {
+            base.OnStateChanged(e);
+            try
+            {
+                // 無論任何來源觸發最小化，一律改為隱藏到系統匣，避免縮角動畫
+                if (this.WindowState == WindowState.Minimized)
+                {
+                    this.WindowState = WindowState.Normal;
+                    this.ShowInTaskbar = false;
+                    this.Hide();
+                    if (_trayIcon != null)
+                    {
+                        _trayIcon.Visible = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "OnStateChanged 處理最小化到系統匣時發生錯誤");
             }
         }
         
@@ -556,6 +589,58 @@ namespace MonLingo.Core.View.Windows
             
             base.OnClosed(e);
         }
+        #endregion
+
+        #region 字幕視窗管理
+
+        /// <summary>
+        /// 隱藏吸附的字幕視窗
+        /// </summary>
+        private void HideAttachedSubtitleWindow()
+        {
+            try
+            {
+                var subtitleWindow = Application.Current.Windows.OfType<SubtitleWindow>().FirstOrDefault();
+                if (subtitleWindow?.DataContext is MonLingo.Core.ViewModel.SubtitleViewModel vm)
+                {
+                    // 只有在吸附狀態下才隱藏
+                    if (!vm.IsDetached)
+                    {
+                        subtitleWindow.Hide();
+                        Logger.Info("Hidden attached subtitle window during minimize");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error hiding attached subtitle window");
+            }
+        }
+
+        /// <summary>
+        /// 顯示吸附的字幕視窗
+        /// </summary>
+        private void ShowAttachedSubtitleWindow()
+        {
+            try
+            {
+                var subtitleWindow = Application.Current.Windows.OfType<SubtitleWindow>().FirstOrDefault();
+                if (subtitleWindow?.DataContext is MonLingo.Core.ViewModel.SubtitleViewModel vm)
+                {
+                    // 只有在吸附狀態下才顯示
+                    if (!vm.IsDetached)
+                    {
+                        subtitleWindow.Show();
+                        Logger.Info("Shown attached subtitle window after restore");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error showing attached subtitle window");
+            }
+        }
+
         #endregion
 
         #region 視窗動畫和視覺效果
@@ -646,6 +731,10 @@ namespace MonLingo.Core.View.Windows
                 {
                     _trayIcon.Visible = false;
                 }
+                
+                // 恢復吸附的字幕視窗
+                ShowAttachedSubtitleWindow();
+                
                 // 展示淡入效果
                 ShowWithAnimation();
             }
@@ -655,8 +744,30 @@ namespace MonLingo.Core.View.Windows
             }
         }
         #endregion
+
+        /// <summary>
+        /// 讓 1 號開始按鈕的圖示旋轉一圈（UI效果）
+        /// </summary>
+        public void SpinStartButtonOnce()
+        {
+            try
+            {
+                var storyboard = this.FindResource("StartButtonSpinOnce") as System.Windows.Media.Animation.Storyboard;
+                if (storyboard != null)
+                {
+                    var btn = this.FindName("StartTranslateButton") as System.Windows.Controls.Button;
+                    var rt = btn?.RenderTransform as RotateTransform;
+                    if (rt != null) rt.Angle = 0; // 重置角度，避免累積
+                    // 由於 Storyboard 在 XAML 已指定 TargetName，這裡直接 Begin 即可
+                    storyboard.Begin(this, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "StartButton 旋轉動畫觸發失敗");
+            }
+        }
     }
-}
 
 /* ============================================================ */
 /* 21按鈕功能完整列表 */
@@ -768,3 +879,5 @@ namespace MonLingo.Core.View.Windows
     - MouseLeftButtonDown: Window_MouseLeftButtonDown
     - 拖拽移動工具條功能
 */
+
+}

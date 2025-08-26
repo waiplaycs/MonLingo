@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows.Input;
 using System.Windows;
 using System.Threading.Tasks;
+using System.Linq;
 using NLog;
 using MonLingo.View.Windows;
 using MonLingo.Core.View.Windows;
@@ -135,10 +136,57 @@ namespace MonLingo.ViewModel
         // 1. 開始翻譯
         private ICommand _startTranslationCommand;
         public ICommand StartTranslationCommand =>
-            _startTranslationCommand ??= new SimpleRelayCommand(() =>
+            _startTranslationCommand ??= new AsyncRelayCommand(async () =>
             {
-                MessageBox.Show("開始翻譯功能被點擊！\n狀態: 翻譯會話已啟動", "翻譯功能", MessageBoxButton.OK, MessageBoxImage.Information);
+                try
+                {
+                    Logger.Info("▶️ StartTranslationCommand 觸發：收集既有區域並開始翻譯");
+
+                    // 觸發 UI 轉動動畫（如果視圖端有實作 Storyboard，透過事件聚合或直接調方法）
+                    TrySpinStartIconOnce();
+
+                    // 取得目前框選區域（10/11 號建立），包含隱藏框
+                    var regionsInfo = MonLingo.Core.View.Windows.SelectionBoxOverlay.Instance.GetAllRegions(includeHidden: true);
+                    if (regionsInfo == null || regionsInfo.Count == 0)
+                    {
+                        MessageBox.Show("尚未建立任何翻譯區域，請先使用 10 或 11 號按鈕框選區域。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+
+                    // 轉為 Rect 清單（忽略編號，順序已排序）
+                    var regions = new System.Collections.Generic.List<System.Windows.Rect>();
+                    foreach (var (rect, number) in regionsInfo)
+                    {
+                        regions.Add(rect);
+                    }
+
+                    // 準備/重用快速翻譯服務（共用字幕視窗）
+                    if (_globalQuickTranslationService == null)
+                    {
+                        _globalQuickTranslationService = new MonLingo.Core.Service.QuickTranslationService(_mainBarWindow);
+                    }
+
+                    await _globalQuickTranslationService.StartRegionTranslationAsync(regions);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "StartTranslationCommand 執行失敗");
+                    MessageBox.Show($"開始翻譯時發生錯誤：{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             });
+
+        // 嘗試讓 1 號按鈕動畫轉一圈（視圖端可透過名稱查找並啟動 Storyboard，或發事件讓視圖端處理）
+        private void TrySpinStartIconOnce()
+        {
+            try
+            {
+                if (_mainBarWindow is MonLingo.Core.View.Windows.MainBarWindow view)
+                {
+                    (view as MonLingo.Core.View.Windows.MainBarWindow)?.SpinStartButtonOnce();
+                }
+            }
+            catch { }
+        }
 
         // 2. 升級到PRO
         private ICommand _upgradeToProCommand;
@@ -227,21 +275,59 @@ namespace MonLingo.ViewModel
 
         // 10. 翻譯區域選擇
         private ICommand _selectRegionCommand;
+        private bool _isRegion1Processing = false;
         public ICommand SelectRegionCommand =>
-            _selectRegionCommand ??= new SimpleRelayCommand(() =>
+            _selectRegionCommand ??= new SimpleRelayCommand(async () =>
             {
                 try
                 {
-                    Logger.Info("SelectRegionCommand 被觸發 - 創建1號區域選擇框");
-                    
-                    // 創建1號區域選擇窗口
+                    // 防抖：避免連續點擊導致重複處理
+                    if (_isRegion1Processing)
+                    {
+                        Logger.Info("[Toolbar10] 正在處理中，忽略重複點擊");
+                        return;
+                    }
+                    _isRegion1Processing = true;
+
+                    Logger.Info("[Toolbar10] SelectRegionCommand 觸發");
+
+                    var overlayHost = MonLingo.Core.View.Windows.SelectionBoxOverlay.Instance;
+                    var allRegions = overlayHost?.GetAllRegions(includeHidden: true) ?? new System.Collections.Generic.List<(System.Windows.Rect rect, int number)>();
+                    Logger.Info($"[Toolbar10] 目前已存在框數量(含隱藏)={allRegions.Count}; 編號列表=[{string.Join(",", allRegions.ConvertAll(r => r.number.ToString()))}]");
+
+                    bool has1 = overlayHost != null && overlayHost.HasBox(1);
+                    Logger.Info($"[Toolbar10] HasBox(1)={has1}");
+                    if (has1)
+                    {
+                        bool visible1 = overlayHost.IsBoxVisible(1);
+                        Logger.Info($"[Toolbar10] IsBoxVisible(1)={visible1}");
+                        if (visible1)
+                        {
+                            Logger.Info("[Toolbar10] 分支=Visible→Flash");
+                            await overlayHost.FlashBoxByNumberAsync(1);
+                            return;
+                        }
+                        bool showOk = overlayHost.ShowBoxByNumber(1);
+                        Logger.Info($"[Toolbar10] 分支=Hidden→Show 結果={showOk}");
+                        if (showOk)
+                        {
+                            return;
+                        }
+                        else
+                        {
+                            Logger.Warn("[Toolbar10] Hidden→Show 失敗，將回退為創建新框");
+                        }
+                    }
+
+                    // 否則創建1號區域選擇窗口
+                    Logger.Info("[Toolbar10] 分支=Create 新建 1 號框（進入十字游標模式）");
                     var overlay = new RegionSelectionOverlay(1);
                     
                     // 訂閱區域選擇事件
                     overlay.RegionSelected += (sender, args) =>
                     {
                         var (region, number) = args;
-                        Logger.Info($"區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
+                        Logger.Info($"[Toolbar10] 區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
                         
                         // 這裡可以保存區域信息或觸發其他處理
                         // TODO: 整合實際的翻譯區域處理邏輯
@@ -253,32 +339,74 @@ namespace MonLingo.ViewModel
                     overlay.Show();
                     overlay.Activate();
                     overlay.Focus();
-                    Logger.Info("RegionSelectionOverlay 窗口已顯示");
+                    Logger.Info("[Toolbar10] RegionSelectionOverlay 窗口已顯示");
                 }
                 catch (Exception ex)
                 {
                     Logger.Error(ex, "啟動區域選擇時發生錯誤");
                     MessageBox.Show($"啟動區域選擇失敗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+                finally
+                {
+                    _isRegion1Processing = false;
+                }
             });
 
         // 11. 翻譯區域2選擇
         private ICommand _selectRegion2Command;
+        private bool _isRegion2Processing = false;
         public ICommand SelectRegion2Command =>
-            _selectRegion2Command ??= new SimpleRelayCommand(() =>
+            _selectRegion2Command ??= new SimpleRelayCommand(async () =>
             {
                 try
                 {
-                    Logger.Info("SelectRegion2Command 被觸發 - 創建2號區域選擇框");
-                    
-                    // 創建2號區域選擇窗口
+                    // 防抖：避免連續點擊導致重複處理
+                    if (_isRegion2Processing)
+                    {
+                        Logger.Info("[Toolbar11] 正在處理中，忽略重複點擊");
+                        return;
+                    }
+                    _isRegion2Processing = true;
+
+                    Logger.Info("[Toolbar11] SelectRegion2Command 觸發");
+
+                    var overlayHost = MonLingo.Core.View.Windows.SelectionBoxOverlay.Instance;
+                    var allRegions = overlayHost?.GetAllRegions(includeHidden: true) ?? new System.Collections.Generic.List<(System.Windows.Rect rect, int number)>();
+                    Logger.Info($"[Toolbar11] 目前已存在框數量(含隱藏)={allRegions.Count}; 編號列表=[{string.Join(",", allRegions.ConvertAll(r => r.number.ToString()))}]");
+
+                    bool has2 = overlayHost != null && overlayHost.HasBox(2);
+                    Logger.Info($"[Toolbar11] HasBox(2)={has2}");
+                    if (has2)
+                    {
+                        bool visible2 = overlayHost.IsBoxVisible(2);
+                        Logger.Info($"[Toolbar11] IsBoxVisible(2)={visible2}");
+                        if (visible2)
+                        {
+                            Logger.Info("[Toolbar11] 分支=Visible→Flash");
+                            await overlayHost.FlashBoxByNumberAsync(2);
+                            return;
+                        }
+                        bool showOk = overlayHost.ShowBoxByNumber(2);
+                        Logger.Info($"[Toolbar11] 分支=Hidden→Show 結果={showOk}");
+                        if (showOk)
+                        {
+                            return;
+                        }
+                        else
+                        {
+                            Logger.Warn("[Toolbar11] Hidden→Show 失敗，將回退為創建新框");
+                        }
+                    }
+
+                    // 否則創建2號區域選擇窗口
+                    Logger.Info("[Toolbar11] 分支=Create 新建 2 號框（進入十字游標模式）");
                     var overlay = new RegionSelectionOverlay(2);
                     
                     // 訂閱區域選擇事件
                     overlay.RegionSelected += (sender, args) =>
                     {
                         var (region, number) = args;
-                        Logger.Info($"區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
+                        Logger.Info($"[Toolbar11] 區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
                         
                         // 這裡可以保存區域信息或觸發其他處理
                         // TODO: 整合實際的翻譯區域處理邏輯
@@ -290,12 +418,16 @@ namespace MonLingo.ViewModel
                     overlay.Show();
                     overlay.Activate();
                     overlay.Focus();
-                    Logger.Info("RegionSelectionOverlay 窗口已顯示");
+                    Logger.Info("[Toolbar11] RegionSelectionOverlay 窗口已顯示");
                 }
                 catch (Exception ex)
                 {
                     Logger.Error(ex, "啟動區域選擇2時發生錯誤");
                     MessageBox.Show($"啟動區域選擇2失敗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally
+                {
+                    _isRegion2Processing = false;
                 }
             });
 
@@ -313,7 +445,8 @@ namespace MonLingo.ViewModel
         public ICommand OpenEditorCommand =>
             _openEditorCommand ??= new SimpleRelayCommand(() =>
             {
-                MessageBox.Show("編輯窗口功能被點擊！\n正在打開文字編輯器...", "編輯器", MessageBoxButton.OK, MessageBoxImage.Information);
+                Logger.Info("[Button15] 編輯窗口功能被點擊");
+                ExecuteOpenEditorCommand();
             });
 
         // 16. 更多工具
@@ -472,6 +605,137 @@ namespace MonLingo.ViewModel
         protected virtual void OnMinimizeRequested()
         {
             MinimizeRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// 執行編輯窗口命令 (按鈕15)
+        /// </summary>
+        private void ExecuteOpenEditorCommand()
+        {
+            try
+            {
+                Logger.Info("[Button15] 開始執行編輯窗口命令");
+
+                // 獲取當前翻譯結果
+                var currentResults = GetCurrentTranslationResults();
+                if (!currentResults.HasValue || (string.IsNullOrEmpty(currentResults.Value.OriginalText) && string.IsNullOrEmpty(currentResults.Value.TranslatedText)))
+                {
+                    Logger.Warn("[Button15] 沒有找到當前回合的翻譯結果");
+                    MessageBox.Show("沒有可編輯的翻譯結果。\n請先執行翻譯功能（按鈕1）。", "編輯器", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                Logger.Info($"[Button15] 找到翻譯結果 - 原文長度: {currentResults.Value.OriginalText?.Length ?? 0}, 譯文長度: {currentResults.Value.TranslatedText?.Length ?? 0}");
+
+                // 創建並顯示編輯窗口
+                var editWindow = new MonLingo.Core.View.Windows.EditWindow(
+                    currentResults.Value.OriginalText ?? string.Empty,
+                    currentResults.Value.TranslatedText ?? string.Empty,
+                    "中文", // 默認源語言
+                    "英文"  // 默認目標語言
+                );
+
+                // 設置窗口所有者
+                if (_mainBarWindow != null)
+                {
+                    editWindow.Owner = _mainBarWindow;
+                }
+
+                Logger.Info("[Button15] 顯示編輯窗口");
+                var result = editWindow.ShowDialog();
+
+                if (result == true)
+                {
+                    Logger.Info("[Button15] 用戶確認編輯");
+                    var editResult = editWindow.GetEditResult();
+                    
+                    // 更新翻譯結果
+                    UpdateTranslationResults(editResult.OriginalText, editResult.TranslatedText);
+                    Logger.Info("[Button15] 編輯結果已更新到字幕窗口");
+                }
+                else
+                {
+                    Logger.Info("[Button15] 用戶取消編輯");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "[Button15] 執行編輯窗口命令時發生錯誤");
+                MessageBox.Show($"編輯功能發生錯誤：\n{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 獲取當前翻譯結果
+        /// </summary>
+        private (string OriginalText, string TranslatedText)? GetCurrentTranslationResults()
+        {
+            try
+            {
+                Logger.Debug("[Button15] 嘗試獲取當前翻譯結果");
+
+                // 檢查當前是否有活動的字幕窗口和內容
+                var subtitleWindow = Application.Current.Windows.Cast<Window>().OfType<MonLingo.Core.View.Windows.SubtitleWindow>().FirstOrDefault();
+                if (subtitleWindow?.DataContext is MonLingo.Core.ViewModel.SubtitleViewModel vm)
+                {
+                    Logger.Debug($"[Button15] 找到字幕窗口，當前有 {vm.SubtitleLines.Count} 行字幕");
+                    
+                    if (vm.SubtitleLines.Count > 0)
+                    {
+                        // 獲取最後一行（最新的翻譯結果）
+                        var lastLine = vm.SubtitleLines.Last();
+                        Logger.Debug($"[Button15] 最後一行 - 原文: '{lastLine.OriginalText}', 譯文: '{lastLine.TranslatedText}'");
+                        return (lastLine.OriginalText, lastLine.TranslatedText);
+                    }
+                }
+
+                Logger.Debug("[Button15] 沒有找到有效的翻譯結果");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "[Button15] 獲取當前翻譯結果時發生錯誤");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 更新翻譯結果到字幕窗口
+        /// </summary>
+        private void UpdateTranslationResults(string originalText, string translatedText)
+        {
+            try
+            {
+                Logger.Info($"[Button15] 更新翻譯結果 - 原文: '{originalText}', 譯文: '{translatedText}'");
+
+                // 查找字幕窗口並更新最後一行
+                var subtitleWindow = Application.Current.Windows.Cast<Window>().OfType<MonLingo.Core.View.Windows.SubtitleWindow>().FirstOrDefault();
+                if (subtitleWindow?.DataContext is MonLingo.Core.ViewModel.SubtitleViewModel vm && vm.SubtitleLines.Count > 0)
+                {
+                    Logger.Debug("[Button15] 更新字幕窗口的最後一行");
+                    
+                    // 以替換方式更新最後一行，確保 UI 收到 Collection 變更通知
+                    var lastIndex = vm.SubtitleLines.Count - 1;
+                    var oldItem = vm.SubtitleLines[lastIndex];
+                    var newItem = new MonLingo.Core.ViewModel.SubtitleLineItem
+                    {
+                        OriginalText = originalText,
+                        TranslatedText = translatedText,
+                        Timestamp = oldItem.Timestamp
+                    };
+                    vm.SubtitleLines[lastIndex] = newItem;
+
+                    Logger.Info("[Button15] 字幕窗口內容已更新");
+                }
+                else
+                {
+                    Logger.Warn("[Button15] 沒有找到可更新的字幕窗口");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "[Button15] 更新翻譯結果時發生錯誤");
+            }
         }
 
         #endregion

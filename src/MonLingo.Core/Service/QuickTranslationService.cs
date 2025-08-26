@@ -54,6 +54,29 @@ namespace MonLingo.Core.Service
                 Logger.Info("🔧 確保服務已初始化");
                 EnsureServicesInitialized();
                 
+                // 在回合開始時清空舊輸出（只清一次）
+                if (_subtitleWindow == null)
+                {
+                    Logger.Debug("🆕 [Round] 創建字幕視窗以顯示結果（預先，用於一鍵截圖回合清理）");
+                    _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                    if (_displayService != null)
+                    {
+                        var vm = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                        _displayService.SetSubtitleViewModel(vm);
+                    }
+                    _subtitleWindow.ShowSubtitle();
+                }
+                if (_displayService != null)
+                {
+                    Logger.Info("[Round] StartNewRound via DisplayService (Quick)");
+                    _displayService.StartNewRound();
+                }
+                else
+                {
+                    Logger.Info("[Round] ClearSubtitles via SubtitleWindow (Quick)");
+                    _subtitleWindow.ClearSubtitles();
+                }
+                
                 // 步驟1: 顯示區域選擇視窗
                 Logger.Info("📐 開始顯示區域選擇");
                 await ShowRegionSelectionAsync();
@@ -65,6 +88,73 @@ namespace MonLingo.Core.Service
                 Logger.Error($"🔍 異常詳情: {ex.Message}");
                 Logger.Error($"📍 異常堆疊: {ex.StackTrace}");
                 System.Windows.MessageBox.Show($"快速翻譯出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 針對已存在的選擇框區域，直接進行 OCR → 翻譯 → 字幕顯示（不再彈出選擇視窗）。
+        /// </summary>
+        /// <param name="regions">一組相對虛擬桌面座標的區域</param>
+    public async Task StartRegionTranslationAsync(System.Collections.Generic.IEnumerable<System.Windows.Rect> regions)
+        {
+            Logger.Info("🎯 StartRegionTranslationAsync(Service) 開始執行");
+            try
+            {
+                if (regions == null)
+                {
+                    Logger.Warn("StartRegionTranslationAsync 收到空的 regions");
+                    return;
+                }
+
+                // 初始化服務
+                EnsureServicesInitialized();
+
+                // 先確保字幕視窗存在（共用快速翻譯的字幕視窗）
+                if (_subtitleWindow == null)
+                {
+                    Logger.Debug("🆕 創建字幕視窗以顯示結果（預先）");
+                    _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                    if (_displayService != null)
+                    {
+                        var vm = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                        _displayService.SetSubtitleViewModel(vm);
+                    }
+                    _subtitleWindow.ShowSubtitle();
+                }
+
+                // 在回合開始時清空舊輸出（只清一次）
+                if (_displayService != null)
+                {
+                    Logger.Info("[Round] StartNewRound via DisplayService (Regions)");
+                    _displayService.StartNewRound();
+                }
+                else
+                {
+                    Logger.Info("[Round] ClearSubtitles via SubtitleWindow (Regions)");
+                    _subtitleWindow.ClearSubtitles();
+                }
+
+                var regionList = new System.Collections.Generic.List<System.Windows.Rect>(regions);
+                Logger.Info($"[Regions] 本回合共 {regionList.Count} 個區域");
+                for (int i = 0; i < regionList.Count; i++)
+                {
+                    var region = regionList[i];
+                    try
+                    {
+                        Logger.Info($"[Regions] 開始處理第 {i+1}/{regionList.Count} 個區域: X={region.X}, Y={region.Y}, W={region.Width}, H={region.Height}");
+                        await ProcessSelectedRegionAsync(region);
+                        Logger.Info($"[Regions] 完成處理第 {i+1}/{regionList.Count} 個區域");
+                    }
+                    catch (Exception exOne)
+                    {
+                        Logger.Error(exOne, $"區域處理失敗: {region}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "❌ StartRegionTranslationAsync 發生異常");
+                System.Windows.MessageBox.Show($"區域翻譯出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -318,7 +408,7 @@ namespace MonLingo.Core.Service
                 Logger.Debug("📊 檢查 DisplayService 狀態");
                 if (_displayService != null)
                 {
-                    Logger.Debug("✅ 使用 DisplayService 顯示翻譯結果");
+                    Logger.Debug("✅ 使用 DisplayService 顯示翻譯結果 (SubtitleMode)");
                     _displayService.Show(originalText, translatedText);
                     Logger.Debug("✅ DisplayService.Show() 調用完成");
                 }

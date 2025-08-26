@@ -192,6 +192,17 @@
             </Setter>
         </Style>
 
+        <!-- 1號按鈕旋轉一次的動畫 -->
+        <Storyboard x:Key="StartButtonSpinOnce">
+            <DoubleAnimation Storyboard.TargetName="StartTranslateButton"
+                             Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                             By="360" Duration="0:0:0.6">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
     </Window.Resources>
 
     <!-- 主容器，使用 Border 實現圓角、邊框和背景 - 支持拖拽 -->

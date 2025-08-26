@@ -1,10 +1,14 @@
 using System;
+using System.Linq;
+using System.Media;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Media;
 using MonLingo.Core.ViewModel;
+using NLog;
 
 namespace MonLingo.Core.View.Windows
 {
@@ -14,10 +18,13 @@ namespace MonLingo.Core.View.Windows
     /// </summary>
     public partial class SubtitleWindow : Window
     {
+    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         #region Fields
 
         private SubtitleViewModel _viewModel;
         private bool _isAnimating = false;
+        private Point _dragStartPosition; // 記錄拖拽開始位置
+        private readonly double _minMovementThreshold = 5.0; // 最小移動閾值（像素）
 
         #endregion
 
@@ -28,20 +35,26 @@ namespace MonLingo.Core.View.Windows
             try
             {
                 System.Diagnostics.Debug.WriteLine("🔨 SubtitleWindow() 建構函數開始");
+                Logger.Info("SubtitleWindow ctor start");
                 
                 System.Diagnostics.Debug.WriteLine("📦 調用 InitializeComponent()");
                 InitializeComponent();
                 System.Diagnostics.Debug.WriteLine("✅ InitializeComponent() 完成");
+                Logger.Debug("InitializeComponent completed");
                 
                 // 創建並設置 ViewModel
                 System.Diagnostics.Debug.WriteLine("🧠 創建 SubtitleViewModel");
                 _viewModel = new SubtitleViewModel();
                 DataContext = _viewModel;
                 System.Diagnostics.Debug.WriteLine("✅ ViewModel 設置完成");
+                Logger.Debug("ViewModel created and set as DataContext");
                 
                 // 訂閱新行添加事件
                 System.Diagnostics.Debug.WriteLine("🔗 訂閱事件");
                 _viewModel.NewLineAdded += OnNewLineAdded;
+                
+                // 訂閱視窗狀態變化事件
+                this.StateChanged += OnWindowStateChanged;
                 
                 // 載入時隱藏視窗（初始狀態）
                 System.Diagnostics.Debug.WriteLine("👁️ 設置初始透明度");
@@ -51,6 +64,7 @@ namespace MonLingo.Core.View.Windows
                 System.Diagnostics.Debug.WriteLine("🎭 初始化動畫變換");
                 InitializeAnimationTransforms();
                 System.Diagnostics.Debug.WriteLine("✅ 動畫變換初始化完成");
+                Logger.Debug("Animation transforms initialized");
                 
                 // 設置視窗事件
                 System.Diagnostics.Debug.WriteLine("📋 設置視窗事件");
@@ -58,11 +72,13 @@ namespace MonLingo.Core.View.Windows
                 Closed += OnWindowClosed;
                 
                 System.Diagnostics.Debug.WriteLine("🎊 SubtitleWindow() 建構函數完成");
+                Logger.Info("SubtitleWindow ctor end");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ SubtitleWindow() 建構函數錯誤: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"📍 錯誤詳情: {ex}");
+                Logger.Error(ex, "SubtitleWindow ctor error");
                 throw;
             }
         }
@@ -95,8 +111,12 @@ namespace MonLingo.Core.View.Windows
                 transformGroup.Children.Add(new TranslateTransform(0, 10));
                 
                 // 將變換應用到根容器而不是視窗本身
-                RootContainer.RenderTransform = transformGroup;
-                RootContainer.RenderTransformOrigin = new Point(0.5, 0.5);
+                var root = this.FindName("RootContainer") as UIElement;
+                if (root != null)
+                {
+                    root.RenderTransform = transformGroup;
+                    root.RenderTransformOrigin = new Point(0.5, 0.5);
+                }
                 
                 System.Diagnostics.Debug.WriteLine("✅ 動畫變換初始化完成");
             }
@@ -168,6 +188,15 @@ namespace MonLingo.Core.View.Windows
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
             // 初始化完成
+            try
+            {
+                var dpi = VisualTreeHelper.GetDpi(this);
+                Logger.Info($"SubtitleWindow loaded: DPIScale=({dpi.DpiScaleX:F2},{dpi.DpiScaleY:F2}), IsDetached={_viewModel?.IsDetached}, IsLocked={_viewModel?.IsLocked}, L={Left}, T={Top}, W={ActualWidth}, H={ActualHeight}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "OnWindowLoaded logging failed");
+            }
         }
 
         /// <summary>
@@ -179,6 +208,111 @@ namespace MonLingo.Core.View.Windows
             if (_viewModel != null)
             {
                 _viewModel.NewLineAdded -= OnNewLineAdded;
+            }
+            this.StateChanged -= OnWindowStateChanged;
+            Logger.Info("SubtitleWindow closed");
+        }
+
+        /// <summary>
+        /// 視窗狀態變化事件處理
+        /// </summary>
+        private void OnWindowStateChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                Logger.Debug($"SubtitleWindow state changed to: {this.WindowState}");
+                
+                // 如果字幕視窗在吸附狀態下被最小化，則一起最小化主工具條
+                if (this.WindowState == WindowState.Minimized && 
+                    _viewModel != null && 
+                    !_viewModel.IsDetached)
+                {
+                    Logger.Info("SubtitleWindow minimized in attached state, minimizing MainBarWindow too");
+                    
+                    // 尋找主工具條視窗並最小化
+                    var mainBarWindow = Application.Current.Windows.OfType<MainBarWindow>().FirstOrDefault();
+                    if (mainBarWindow?.DataContext is MonLingo.ViewModel.WorkingMainBarWindowViewModel mainViewModel)
+                    {
+                        // 觸發主工具條的最小化命令
+                        if (mainViewModel.MinimizeCommand?.CanExecute(null) == true)
+                        {
+                            mainViewModel.MinimizeCommand.Execute(null);
+                            Logger.Debug("MainBarWindow minimize command executed");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error handling window state change");
+            }
+        }
+
+        /// <summary>
+    /// 一鍵複製所有譯文至剪貼簿
+        /// </summary>
+        private void CopyAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+        if (_viewModel == null || _viewModel.SubtitleLines == null || _viewModel.SubtitleLines.Count == 0)
+            return;
+
+                var all = string.Join(Environment.NewLine,
+                    _viewModel.SubtitleLines
+                        .Where(line => !string.IsNullOrWhiteSpace(line.TranslatedText))
+                        .Select(line => line.TranslatedText));
+
+                if (string.IsNullOrWhiteSpace(all))
+                    return;
+
+                Clipboard.SetText(all);
+
+                // 顯示置中 1 秒的提示
+                ShowCenterToast("✓複製成功", TimeSpan.FromSeconds(1));
+            }
+            catch
+            {
+                // ignore minimal errors
+            }
+        }
+
+        private bool _toastShowing = false;
+        private async void ShowCenterToast(string message, TimeSpan duration)
+        {
+            try
+            {
+                if (_toastShowing) return;
+                _toastShowing = true;
+
+                var toastText = this.FindName("CenterToastText") as TextBlock;
+                var toast = this.FindName("CenterToast") as UIElement;
+                if (toastText != null) toastText.Text = message;
+                if (toast is FrameworkElement toastFe) toastFe.Visibility = Visibility.Visible;
+
+                var fadeIn = new DoubleAnimation(0, 1, new Duration(TimeSpan.FromMilliseconds(150)))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                toast?.BeginAnimation(OpacityProperty, fadeIn);
+
+                await System.Threading.Tasks.Task.Delay(duration);
+
+                var fadeOut = new DoubleAnimation(1, 0, new Duration(TimeSpan.FromMilliseconds(200)))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+                };
+
+                fadeOut.Completed += (s, e) =>
+                {
+                    if (toast is FrameworkElement fe) fe.Visibility = Visibility.Collapsed;
+                    _toastShowing = false;
+                };
+                toast?.BeginAnimation(OpacityProperty, fadeOut);
+            }
+            catch
+            {
+                _toastShowing = false;
             }
         }
 
@@ -201,33 +335,70 @@ namespace MonLingo.Core.View.Windows
         /// </summary>
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Left && _viewModel?.IsDetached == true)
+            if (e.ChangedButton == MouseButton.Left)
             {
+                if (_viewModel?.IsLocked == true) return; // 鎖定時不可拖移
+                // 若點擊在互動元件上，則不啟動拖移
+                if (IsInteractiveElement(e.OriginalSource as DependencyObject)) return;
                 try
                 {
+                    Logger.Debug($"DragStart Window: L={Left}, T={Top}, W={ActualWidth}, H={ActualHeight}, IsDetached={_viewModel?.IsDetached}, IsLocked={_viewModel?.IsLocked}");
+                    var oldLeft = Left;
+                    var oldTop = Top;
                     DragMove();
+
+                    // 拖移結束後嘗試吸附到工具條底部（需接近）
+                    TrySnapAttachToToolbarBottom(oldLeft, oldTop);
+                    Logger.Debug($"DragEnd Window: L={Left}, T={Top}, IsDetached={_viewModel?.IsDetached}");
                 }
-                catch
+                catch (Exception ex)
                 {
                     // 忽略拖拽異常
+                    Logger.Warn(ex, "DragMove exception (Window_MouseDown)");
                 }
             }
         }
 
+        // 判斷點擊目標是否為互動元件（按鈕、輸入、滾動條、拖拽手把等）
+        private bool IsInteractiveElement(DependencyObject d)
+        {
+            while (d != null)
+            {
+                // 只檢查真正的互動控件，不包括一般的容器
+                if (d is Button || d is TextBox || d is PasswordBox || d is ComboBox || d is Slider)
+                    return true;
+                
+                // 特別檢查縮放手把區域
+                if (d is FrameworkElement fe && fe.Name == "ResizeGrip")
+                    return true;
+                    
+                d = VisualTreeHelper.GetParent(d);
+            }
+            return false;
+        }
+
         /// <summary>
-        /// 視窗雙擊事件 - 切換分離/依附模式
+        /// 視窗雙擊事件 - 智慧切換模式
+        /// 吸附時：分離+解鎖 (一步到位)
+        /// 分離且解鎖時：鎖定
+        /// 分離且鎖定時：解鎖
         /// </summary>
         private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (_viewModel != null)
             {
-                if (_viewModel.IsDetached)
+                if (!_viewModel.IsDetached)
                 {
-                    _viewModel.ReattachSubtitleWindow();
+                    // 目前為吸附狀態 -> 分離+解鎖 (一步到位)
+                    _viewModel.DetachSubtitleWindow();
+                    _viewModel.IsLocked = false;
+                    Logger.Info("Double-click while attached -> Detach + Unlock");
                 }
                 else
                 {
-                    _viewModel.DetachSubtitleWindow();
+                    // 目前為分離狀態 -> 切換鎖定狀態
+                    _viewModel.IsLocked = !_viewModel.IsLocked;
+                    Logger.Info($"Double-click while detached -> Toggle lock to {_viewModel.IsLocked}");
                 }
             }
         }
@@ -245,10 +416,15 @@ namespace MonLingo.Core.View.Windows
                 // 開始視窗縮放拖拽
                 try
                 {
+                    // 只有分離且鎖定時才不可縮放，吸附狀態允許縮放
+                    if (_viewModel?.IsLocked == true && _viewModel?.IsDetached == true) return; 
                     // 記錄初始狀態
                     var startPoint = PointToScreen(e.GetPosition(this));
                     var startWidth = Width;
                     var startHeight = Height;
+                    var startLeft = Left;  // 記錄初始左邊位置
+                    var startTop = Top;    // 記錄初始頂部位置
+            Logger.Debug($"ResizeStart: W={startWidth}, H={startHeight}, L={startLeft}, T={startTop}");
                     
                     // 捕獲滑鼠
                     CaptureMouse();
@@ -269,15 +445,20 @@ namespace MonLingo.Core.View.Windows
                             var newWidth = Math.Max(MinWidth, startWidth + deltaX);
                             var newHeight = Math.Max(MinHeight, startHeight + deltaY);
                             
-                            // 直接設置視窗大小，避免綁定延遲
+                            // 固定左上角位置，只調整右下角
+                            Left = startLeft;
+                            Top = startTop;
                             Width = newWidth;
                             Height = newHeight;
                             
-                            // 同步更新 ViewModel 中的大小
+                            // 同步更新 ViewModel 中的大小和位置
                             if (_viewModel != null)
                             {
+                                _viewModel.WindowLeft = startLeft;
+                                _viewModel.WindowTop = startTop;
                                 _viewModel.WindowWidth = newWidth;
                                 _viewModel.WindowHeight = newHeight;
+                Logger.Trace($"Resizing: W={newWidth}, H={newHeight}, L={startLeft}, T={startTop}");
                             }
                         }
                     };
@@ -288,17 +469,77 @@ namespace MonLingo.Core.View.Windows
                         MouseMove -= mouseMoveHandler;
                         MouseUp -= mouseUpHandler;
                         ReleaseMouseCapture();
+            Logger.Debug($"ResizeEnd: W={Width}, H={Height}, L={Left}, T={Top}");
                     };
                     
                     // 註冊事件處理器
                     MouseMove += mouseMoveHandler;
                     MouseUp += mouseUpHandler;
                 }
-                catch
+        catch (Exception ex)
                 {
                     // 忽略拖拽異常，確保滑鼠釋放
                     ReleaseMouseCapture();
+            Logger.Warn(ex, "Resize exception");
                 }
+            }
+        }
+
+        // 嘗試吸附至工具條底部：僅當視窗底邊接近工具條底邊一定閾值且水平重疊足夠時
+        private void TrySnapAttachToToolbarBottom(double oldLeft, double oldTop)
+        {
+            try
+            {
+                if (_viewModel == null || _viewModel.MainBarWindow == null) return;
+                if (_viewModel.IsLocked) return;
+
+                var toolbar = _viewModel.MainBarWindow;
+                // 視窗和工具條的矩形
+                Rect winRect = new Rect(Left, Top, ActualWidth, ActualHeight);
+                Rect barRect = new Rect(toolbar.Left, toolbar.Top, toolbar.ActualWidth, toolbar.ActualHeight);
+
+                // 擴大吸附條件：
+                // 1) 與工具條有任何垂直方向重疊，且水平至少有 1px 重疊 -> 直接吸附
+                // 2) 否則沿用「距離底邊 16px 內且水平重疊 ≥ 40px」規則
+                const double verticalThreshold = 16;
+                const double horizontalOverlapMin = 40;
+
+                // 垂直重疊（任意交集）
+                double verticalOverlap = Math.Min(winRect.Bottom, barRect.Bottom) - Math.Max(winRect.Top, barRect.Top);
+                double horizontalOverlap = Math.Min(winRect.Right, barRect.Right) - Math.Max(winRect.Left, barRect.Left);
+
+                bool hasAnyOverlap = verticalOverlap > 0 && horizontalOverlap > 0;
+
+                // 距離條件
+                double distanceToBarBottom = Math.Abs(winRect.Top - (barRect.Bottom));
+                Logger.Debug($"SnapCheck: vOverlap={verticalOverlap}, hOverlap={horizontalOverlap}, distBottom={distanceToBarBottom}");
+
+                if (hasAnyOverlap || (distanceToBarBottom <= verticalThreshold && horizontalOverlap >= horizontalOverlapMin))
+                {
+                    // 進行依附：對齊寬度與工具條一致，位置緊貼工具條底部（完全無縫隙）
+                    _viewModel.IsDetached = false;
+                    _viewModel.IsLocked = true; // 吸附時自動鎖定
+                    _viewModel.WindowLeft = toolbar.Left;
+                    _viewModel.WindowTop = toolbar.Top + toolbar.ActualHeight - 10; // 向上調整10px增加重疊
+                    _viewModel.WindowWidth = toolbar.ActualWidth;
+                    Logger.Info($"Snapped to toolbar bottom and auto-locked: L={_viewModel.WindowLeft}, T={_viewModel.WindowTop}, W={_viewModel.WindowWidth}");
+                    // 高度使用依附標準高度（由 VM 控制）
+                }
+                else
+                {
+                    // 沒有吸附：切換為分離狀態，並同步目前位置與大小
+                    _viewModel.IsDetached = true;
+                    _viewModel.WindowLeft = Left;
+                    _viewModel.WindowTop = Top;
+                    _viewModel.WindowWidth = ActualWidth;
+                    _viewModel.WindowHeight = ActualHeight;
+                    Logger.Debug("Not snapped: conditions not met -> set IsDetached=true and keep current position/size");
+                }
+            }
+            catch (Exception ex)
+            {
+                // 安全失敗，不做任何事
+                Logger.Warn(ex, "Snap attach check failed");
             }
         }
 
@@ -311,11 +552,37 @@ namespace MonLingo.Core.View.Windows
             {
                 try
                 {
+                    // 若點擊在互動元件上，則不啟動拖移（避免按鈕被誤當拖移）
+                    if (IsInteractiveElement(e.OriginalSource as DependencyObject)) return;
+                    if (_viewModel?.IsLocked == true) return; // 鎖定時不可拖移
+                    
+                    // 記錄拖拽開始位置
+                    _dragStartPosition = new Point(Left, Top);
+                    Logger.Debug($"TitleBar drag start from: L={_dragStartPosition.X}, T={_dragStartPosition.Y}");
+                    
+                    var oldLeft = Left;
+                    var oldTop = Top;
                     DragMove();
+                    
+                    // 計算移動距離
+                    var moveDistance = Math.Sqrt(Math.Pow(Left - _dragStartPosition.X, 2) + Math.Pow(Top - _dragStartPosition.Y, 2));
+                    Logger.Debug($"TitleBar drag end: L={Left}, T={Top}, MoveDistance={moveDistance:F2}px");
+                    
+                    // 只有在真正移動了足夠距離時才嘗試吸附
+                    if (moveDistance >= _minMovementThreshold)
+                    {
+                        TrySnapAttachToToolbarBottom(oldLeft, oldTop);
+                        Logger.Debug($"Movement threshold met, snap attempted. IsDetached={_viewModel?.IsDetached}");
+                    }
+                    else
+                    {
+                        Logger.Debug("Movement too small, snap skipped to prevent unwanted re-attachment");
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
                     // 忽略拖拽異常
+                    Logger.Warn(ex, "DragMove exception (TitleBar)");
                 }
             }
         }
@@ -330,7 +597,7 @@ namespace MonLingo.Core.View.Windows
         private void ScrollToBottom()
         {
             // 使用動畫滾動到底部
-            var scrollViewer = SubtitleScrollViewer;
+            var scrollViewer = this.FindName("SubtitleScrollViewer") as ScrollViewer;
             
             if (scrollViewer != null)
             {

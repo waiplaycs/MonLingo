@@ -6,6 +6,62 @@ using System.Windows.Data;
 namespace MonLingo.Core.Converters
 {
     /// <summary>
+    /// Boolean 反轉轉換器
+    /// true -> false, false -> true
+    /// </summary>
+    public class InvertBooleanConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool boolValue)
+            {
+                return !boolValue;
+            }
+
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is bool boolValue)
+            {
+                return !boolValue;
+            }
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// 多個 Boolean 值到 Visibility 的轉換器
+    /// 所有值都為 true 時 -> Visible，否則 -> Collapsed
+    /// </summary>
+    public class MultiBooleanToVisibilityConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values == null || values.Length == 0)
+                return Visibility.Collapsed;
+
+            // 檢查所有值是否都為 true
+            foreach (var value in values)
+            {
+                if (!(value is bool boolValue) || !boolValue)
+                {
+                    return Visibility.Collapsed;
+                }
+            }
+
+            return Visibility.Visible;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException("MultiBooleanToVisibilityConverter 不支援反向轉換");
+        }
+    }
+
+    /// <summary>
     /// Boolean 到 Visibility 的轉換器
     /// true -> Visible, false -> Collapsed
     /// </summary>

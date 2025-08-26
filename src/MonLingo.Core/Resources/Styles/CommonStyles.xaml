@@ -7,6 +7,8 @@
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
     <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
     <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
+    <converters:InvertBooleanConverter x:Key="InvertBooleanConverter" />
+    <converters:MultiBooleanToVisibilityConverter x:Key="MultiBooleanToVisibilityConverter" />
 
     <!-- 通用樣式 -->
     <Style x:Key="ModernButtonStyle" TargetType="Button">

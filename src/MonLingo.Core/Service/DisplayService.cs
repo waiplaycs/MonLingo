@@ -12,6 +12,7 @@ namespace MonLingo.Core.Service
     {
         private readonly IConfigService _configService;
         private SubtitleViewModel _subtitleViewModel;
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
         
         public DisplayService(IConfigService configService)
         {
@@ -35,6 +36,7 @@ namespace MonLingo.Core.Service
         /// <param name="translatedText">譯文</param>
         public void Show(string originalText, string translatedText)
         {
+            Logger.Debug($"[DisplayService] Show called. mode={GetCurrentDisplayMode()}, hasVM={_subtitleViewModel!=null}");
             // 根據設定決定要更新哪個 ViewModel
             var currentMode = GetCurrentDisplayMode();
             
@@ -56,6 +58,33 @@ namespace MonLingo.Core.Service
                     // 默認使用字幕模式
                     ShowInSubtitleMode(originalText, translatedText);
                     break;
+            }
+        }
+
+        /// <summary>
+        /// 開始新的顯示回合：清空字幕面板一次
+        /// </summary>
+        public void StartNewRound()
+        {
+            Logger.Info("[DisplayService] StartNewRound() invoked");
+            if (_subtitleViewModel == null)
+            {
+                Logger.Warn("[DisplayService] StartNewRound skipped: SubtitleViewModel is null");
+                return;
+            }
+
+            if (Application.Current?.Dispatcher != null)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    Logger.Info("[DisplayService] StartNewRound -> VM.StartNewRound()");
+                    _subtitleViewModel.StartNewRound();
+                });
+            }
+            else
+            {
+                Logger.Info("[DisplayService] StartNewRound -> VM.StartNewRound() (no dispatcher)");
+                _subtitleViewModel.StartNewRound();
             }
         }
         
