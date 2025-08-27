@@ -101,9 +101,16 @@ namespace MonLingo.Core.Service
                     if (File.Exists(alt)) keysFile = alt;
                 }
 
-                if (!Directory.Exists(detDir) || !Directory.Exists(recDir))
+                bool hasV5 = Directory.Exists(detDir) && Directory.Exists(recDir);
+
+                // 2.1) 若找不到 v5，嘗試使用 v3 作為臨時備援
+                string detDirV3 = Path.Combine(modelsDir, "ch_PP-OCRv3_det_infer");
+                string recDirV3 = Path.Combine(modelsDir, "ch_PP-OCRv3_rec_infer");
+                bool hasV3 = Directory.Exists(detDirV3) && Directory.Exists(recDirV3);
+
+                if (!hasV5 && !hasV3)
                 {
-                    // 沒有 v5 模型，跳過
+                    // 沒有可用模型，跳過
                     return;
                 }
 
@@ -118,15 +125,28 @@ namespace MonLingo.Core.Service
                     SafeCopyFile(keysFile, destKeys);
                 }
 
-                // 複製 det/rec/cls 模型資料夾
-                SafeCopyDirectory(detDir, Path.Combine(inferenceDir, Path.GetFileName(detDir)));
-                SafeCopyDirectory(recDir, Path.Combine(inferenceDir, Path.GetFileName(recDir)));
-                if (Directory.Exists(clsDir))
+                if (hasV5)
                 {
-                    SafeCopyDirectory(clsDir, Path.Combine(inferenceDir, Path.GetFileName(clsDir)));
+                    // 複製 v5 det/rec/cls 模型資料夾
+                    SafeCopyDirectory(detDir, Path.Combine(inferenceDir, Path.GetFileName(detDir)));
+                    SafeCopyDirectory(recDir, Path.Combine(inferenceDir, Path.GetFileName(recDir)));
+                    if (Directory.Exists(clsDir))
+                    {
+                        SafeCopyDirectory(clsDir, Path.Combine(inferenceDir, Path.GetFileName(clsDir)));
+                    }
+                    Console.WriteLine("📦 已部署 PP-OCRv5 模型至執行目錄的 inference 資料夾");
                 }
-
-                Console.WriteLine("📦 已部署 PP-OCRv5 模型至執行目錄的 inference 資料夾");
+                else if (hasV3)
+                {
+                    // 備援：複製 v3 模型，以確保可立即運行（待日後換成 v5）
+                    SafeCopyDirectory(detDirV3, Path.Combine(inferenceDir, Path.GetFileName(detDirV3)));
+                    SafeCopyDirectory(recDirV3, Path.Combine(inferenceDir, Path.GetFileName(recDirV3)));
+                    if (Directory.Exists(clsDir))
+                    {
+                        SafeCopyDirectory(clsDir, Path.Combine(inferenceDir, Path.GetFileName(clsDir)));
+                    }
+                    Console.WriteLine("📦 未找到 v5，已暫時部署 PP-OCRv3 模型至 inference 作為備援");
+                }
             }
             catch (Exception ex)
             {
