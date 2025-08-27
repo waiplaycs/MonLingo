@@ -89,6 +89,26 @@
                  Margin="0,0,-4,-4" Cursor="SizeNWSE" Panel.ZIndex="1000"
                  IsHitTestVisible="True"/>
         
-       <!-- 四邊中點控制點已移除（僅保留四角） -->
+       <!-- 四邊縮放熱區（透明薄條，ZIndex 低於頂部 UI，避免擋住設定/拖拽） -->
+       <!-- 上邊 -->
+       <Rectangle x:Name="TopEdgeResize"
+                  Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Top"
+                  Margin="0,-4,0,0" Fill="#01000000" Cursor="SizeNS" Panel.ZIndex="999"
+                  IsHitTestVisible="True"/>
+       <!-- 下邊 -->
+       <Rectangle x:Name="BottomEdgeResize"
+                  Height="8" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
+                  Margin="0,0,0,-4" Fill="#01000000" Cursor="SizeNS" Panel.ZIndex="999"
+                  IsHitTestVisible="True"/>
+       <!-- 左邊 -->
+       <Rectangle x:Name="LeftEdgeResize"
+                  Width="8" VerticalAlignment="Stretch" HorizontalAlignment="Left"
+                  Margin="-4,0,0,0" Fill="#01000000" Cursor="SizeWE" Panel.ZIndex="999"
+                  IsHitTestVisible="True"/>
+       <!-- 右邊 -->
+       <Rectangle x:Name="RightEdgeResize"
+                  Width="8" VerticalAlignment="Stretch" HorizontalAlignment="Right"
+                  Margin="0,0,-4,0" Fill="#01000000" Cursor="SizeWE" Panel.ZIndex="999"
+                  IsHitTestVisible="True"/>
     </Grid>
 </UserControl>

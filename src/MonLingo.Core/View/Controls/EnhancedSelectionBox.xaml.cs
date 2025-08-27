@@ -155,7 +155,39 @@ namespace MonLingo.Core.View.Controls
                 Logger.Info("✅ BottomRightResize 事件處理器已設置");
             }
 
-            // 中點控制點已移除，僅保留四角
+            // 四邊薄條熱區 - 支援四邊縮放
+            var topEdgeResize = this.FindName("TopEdgeResize") as FrameworkElement;
+            if (topEdgeResize != null)
+            {
+                topEdgeResize.MouseLeftButtonDown += (s, e) => {
+                    Logger.Info("🖱️ TopEdgeResize 點擊");
+                    StartResize(ResizeDirection.Top, e);
+                };
+            }
+            var bottomEdgeResize = this.FindName("BottomEdgeResize") as FrameworkElement;
+            if (bottomEdgeResize != null)
+            {
+                bottomEdgeResize.MouseLeftButtonDown += (s, e) => {
+                    Logger.Info("🖱️ BottomEdgeResize 點擊");
+                    StartResize(ResizeDirection.Bottom, e);
+                };
+            }
+            var leftEdgeResize = this.FindName("LeftEdgeResize") as FrameworkElement;
+            if (leftEdgeResize != null)
+            {
+                leftEdgeResize.MouseLeftButtonDown += (s, e) => {
+                    Logger.Info("🖱️ LeftEdgeResize 點擊");
+                    StartResize(ResizeDirection.Left, e);
+                };
+            }
+            var rightEdgeResize = this.FindName("RightEdgeResize") as FrameworkElement;
+            if (rightEdgeResize != null)
+            {
+                rightEdgeResize.MouseLeftButtonDown += (s, e) => {
+                    Logger.Info("🖱️ RightEdgeResize 點擊");
+                    StartResize(ResizeDirection.Right, e);
+                };
+            }
 
             // 統一的結束和移動事件
             this.MouseLeftButtonUp += EnhancedSelectionBox_MouseLeftButtonUp;

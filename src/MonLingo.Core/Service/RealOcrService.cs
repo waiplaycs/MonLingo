@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using PaddleOCRSharp;
+using System.Reflection;
 
 namespace MonLingo.Core.Service
 {
@@ -35,6 +36,9 @@ namespace MonLingo.Core.Service
             {
                 return await Task.Run(() =>
                 {
+                    // 若專案的 models 目錄下有 PP-OCRv5 模型，先部署到執行時的 inference 目錄
+                    TryDeployPPOCRv5Models();
+
                     // 初始化PaddleOCR引擎，配置為CPU模式
                     var parameter = new OCRParameter
                     {
@@ -59,6 +63,118 @@ namespace MonLingo.Core.Service
                 Console.WriteLine($"❌ PaddleOCR引擎初始化失敗: {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 檢查並在可用時部署 PP-OCRv5 模型到執行時 inference 目錄。
+        /// 不存在時安靜跳過，沿用套件內建模型。
+        /// </summary>
+        private void TryDeployPPOCRv5Models()
+        {
+            try
+            {
+                // 1) 探測 models 目錄（優先環境變數、其次相對於執行目錄、再嘗試開發模式路徑）
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string modelsDir = Environment.GetEnvironmentVariable("MONLINGO_MODELS_DIR");
+                if (string.IsNullOrWhiteSpace(modelsDir))
+                {
+                    var candidate1 = Path.Combine(baseDir, "models");
+                    var candidate2 = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "models"));
+                    if (Directory.Exists(candidate1)) modelsDir = candidate1;
+                    else if (Directory.Exists(candidate2)) modelsDir = candidate2;
+                }
+
+                if (string.IsNullOrWhiteSpace(modelsDir) || !Directory.Exists(modelsDir))
+                {
+                    return; // 沒有 models 目錄，直接返回
+                }
+
+                // 2) 確認 PP-OCRv5 模型資料夾是否存在（檢/識），分類模型沿用 v2.0（若存在則一併部署）
+                string detDir = Path.Combine(modelsDir, "ch_PP-OCRv5_det_infer");
+                string recDir = Path.Combine(modelsDir, "ch_PP-OCRv5_rec_infer");
+                string clsDir = Path.Combine(modelsDir, "ch_ppocr_mobile_v2.0_cls_infer");
+                string keysFile = Path.Combine(modelsDir, "ppocr_keys.txt");
+                if (!File.Exists(keysFile))
+                {
+                    // 兼容常見命名
+                    var alt = Path.Combine(modelsDir, "ppocr_keys_v1.txt");
+                    if (File.Exists(alt)) keysFile = alt;
+                }
+
+                if (!Directory.Exists(detDir) || !Directory.Exists(recDir))
+                {
+                    // 沒有 v5 模型，跳過
+                    return;
+                }
+
+                // 3) 部署到執行時 inference 目錄（PaddleOCRSharp 預設從此處載入）
+                string inferenceDir = Path.Combine(baseDir, "inference");
+                Directory.CreateDirectory(inferenceDir);
+
+                // 複製 keys 檔（如存在）
+                if (File.Exists(keysFile))
+                {
+                    var destKeys = Path.Combine(inferenceDir, "ppocr_keys.txt");
+                    SafeCopyFile(keysFile, destKeys);
+                }
+
+                // 複製 det/rec/cls 模型資料夾
+                SafeCopyDirectory(detDir, Path.Combine(inferenceDir, Path.GetFileName(detDir)));
+                SafeCopyDirectory(recDir, Path.Combine(inferenceDir, Path.GetFileName(recDir)));
+                if (Directory.Exists(clsDir))
+                {
+                    SafeCopyDirectory(clsDir, Path.Combine(inferenceDir, Path.GetFileName(clsDir)));
+                }
+
+                Console.WriteLine("📦 已部署 PP-OCRv5 模型至執行目錄的 inference 資料夾");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ 部署 PP-OCRv5 模型時發生錯誤：{ex.Message}");
+            }
+        }
+
+        private static void SafeCopyDirectory(string sourceDir, string destDir)
+        {
+            if (!Directory.Exists(sourceDir)) return;
+            if (Directory.Exists(destDir))
+            {
+                // 先嘗試刪除舊資料夾，避免殘留舊版本檔案
+                try { Directory.Delete(destDir, true); } catch { /* ignore */ }
+            }
+            Directory.CreateDirectory(destDir);
+
+            foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                // .NET Framework 4.8 無 Path.GetRelativePath，改用 Uri 方式計算相對路徑
+                var baseUri = new Uri(AppendDirectorySeparatorChar(sourceDir));
+                var fileUri = new Uri(file);
+                var relative = Uri.UnescapeDataString(baseUri.MakeRelativeUri(fileUri).ToString().Replace('/', Path.DirectorySeparatorChar));
+                var target = Path.Combine(destDir, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                SafeCopyFile(file, target);
+            }
+        }
+
+        private static void SafeCopyFile(string sourceFile, string destFile)
+        {
+            try
+            {
+                File.Copy(sourceFile, destFile, true);
+            }
+            catch
+            {
+                // 忽略單檔複製錯誤，避免影響整體流程
+            }
+        }
+
+        private static string AppendDirectorySeparatorChar(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            char lastChar = path[path.Length - 1];
+            if (lastChar == Path.DirectorySeparatorChar || lastChar == Path.AltDirectorySeparatorChar)
+                return path;
+            return path + Path.DirectorySeparatorChar;
         }
 
         /// <summary>

@@ -7,6 +7,7 @@ using System.Linq;
 using NLog;
 using MonLingo.View.Windows;
 using MonLingo.Core.View.Windows;
+using MonLingo.Core.Models;
 
 namespace MonLingo.ViewModel
 {
@@ -218,8 +219,54 @@ namespace MonLingo.ViewModel
         public ICommand LanguageSettingsCommand =>
             _languageSettingsCommand ??= new SimpleRelayCommand(() =>
             {
-                MessageBox.Show("語言設置功能被點擊！\n正在打開語言設定...", "語言設置", MessageBoxButton.OK, MessageBoxImage.Information);
+                try
+                {
+                    // 打開設定視窗並直接切換到「翻譯語言」頁
+                    var win = new SettingMainWindow();
+                    win.OpenTranslationLanguagePage();
+
+                    // 同步使用者的語言選擇到工具條 7 號按鈕顯示
+                    win.LanguageSelectionChanged += (srcDisplay, tgtDisplay) =>
+                    {
+                        SourceLanguage = ToShortLabelFromDisplay(srcDisplay, isSource: true);
+                        TargetLanguage = ToShortLabelFromDisplay(tgtDisplay, isSource: false);
+                    };
+
+                    win.Show();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"打開語言設定頁時發生錯誤：{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             });
+
+        // 依據語言顯示名稱 → 語言代碼 → 轉短標籤 (給 7 號按鈕 UI 使用)
+        private string ToShortLabelFromDisplay(string displayName, bool isSource)
+        {
+            try
+            {
+                var code = LanguageSettings.GetLanguageCodeByDisplayName(displayName, isSource);
+                if (string.IsNullOrWhiteSpace(code)) return displayName;
+
+                code = code.ToLowerInvariant();
+                // 特殊映射
+                if (code == "auto") return "AUTO";
+                if (code.StartsWith("zh")) return "中文"; // 包含 zh, zh-tw
+                if (code == "uk") return "UA"; // 烏克蘭語
+
+                // 兩段式代碼轉為較短顯示，例如 zh-tw -> ZH-TW (已由中文特判處理)
+                if (code.Contains('-'))
+                    return code.ToUpperInvariant();
+
+                // 否則直接回傳大寫語言代碼
+                return code.ToUpperInvariant();
+            }
+            catch
+            {
+                // 回退到原字串（完整顯示名）
+                return displayName;
+            }
+        }
 
         // 6. 翻譯引擎對比
         private ICommand _compareEnginesCommand;

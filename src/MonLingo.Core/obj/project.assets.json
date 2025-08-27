@@ -4899,7 +4899,7 @@
       "Newtonsoft.Json >= 13.0.3",
       "OpenCvSharp4 >= 4.8.0.20230708",
       "OpenCvSharp4.runtime.win >= 4.8.0.20230708",
-      "PaddleOCRSharp >= 2.5.0",
+      "PaddleOCRSharp >= 3.0.0",
       "System.Drawing.Common >= 8.0.0",
       "Whisper.net >= 1.4.7"
     ]
@@ -5001,7 +5001,7 @@
           },
           "PaddleOCRSharp": {
             "target": "Package",
-            "version": "[2.5.0, )",
+            "version": "[3.0.0, )",
             "versionCentrallyManaged": true
           },
           "System.Drawing.Common": {
@@ -5034,7 +5034,7 @@
           "NLog.Extensions.Logging": "5.3.2",
           "OpenCvSharp4": "4.8.0.20230708",
           "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-          "PaddleOCRSharp": "2.5.0",
+          "PaddleOCRSharp": "3.0.0",
           "Prism.Core": "8.1.97",
           "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
           "StyleCop.Analyzers": "1.1.118",
@@ -5058,17 +5058,6 @@
       "warningLevel": 1,
       "message": "MonLingo.Core 相依於 GuerrillaNtp (>= 1.6.2)，但找不到 GuerrillaNtp 1.6.2。已解析了約略的最佳相符 GuerrillaNtp 2.0.1。",
       "libraryId": "GuerrillaNtp",
-      "targetGraphs": [
-        ".NETFramework,Version=v4.8.1",
-        ".NETFramework,Version=v4.8.1/win7-x64"
-      ]
-    },
-    {
-      "code": "NU1603",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "MonLingo.Core 相依於 PaddleOCRSharp (>= 2.5.0)，但找不到 PaddleOCRSharp 2.5.0。已解析了約略的最佳相符 PaddleOCRSharp 3.0.0。",
-      "libraryId": "PaddleOCRSharp",
       "targetGraphs": [
         ".NETFramework,Version=v4.8.1",
         ".NETFramework,Version=v4.8.1/win7-x64"
