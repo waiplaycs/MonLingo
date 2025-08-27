@@ -8,6 +8,8 @@ using NLog;
 using MonLingo.View.Windows;
 using MonLingo.Core.View.Windows;
 using MonLingo.Core.Models;
+using MonLingo.Core.Service;
+using MonLingo.Core.Infrastructure;
 
 namespace MonLingo.ViewModel
 {
@@ -18,13 +20,76 @@ namespace MonLingo.ViewModel
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private Window _mainBarWindow;
+        private readonly ILanguageConfigService _languageConfigService;
         
         public WorkingMainBarWindowViewModel(Window mainBarWindow = null)
         {
             Logger.Info("🔧 WorkingMainBarWindowViewModel 建構函數開始");
             Logger.Debug($"📋 傳入的主視窗: {(mainBarWindow != null ? mainBarWindow.GetType().Name : "null")}");
             _mainBarWindow = mainBarWindow;
+            
+            // 初始化語言配置服務
+            _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
+            
+            // 異步初始化語言設置
+            _ = InitializeLanguageSettingsAsync();
+            
+            // 訂閱語言設定變更事件，確保 7 號按鈕即時更新
+            if (_languageConfigService != null)
+            {
+                _languageConfigService.LanguageConfigChanged += OnLanguageConfigChanged;
+            }
+            
             Logger.Info("✅ WorkingMainBarWindowViewModel 建構完成");
+        }
+
+        /// <summary>
+        /// 異步初始化語言設置
+        /// </summary>
+        private async Task InitializeLanguageSettingsAsync()
+        {
+            try
+            {
+                if (_languageConfigService != null)
+                {
+                    var sourceLanguage = await _languageConfigService.GetSourceLanguageAsync();
+                    var targetLanguage = await _languageConfigService.GetTargetLanguageAsync();
+                    
+                    // 將語言代碼轉換為顯示文字
+                    SourceLanguage = ConvertLanguageCodeToDisplay(sourceLanguage);
+                    TargetLanguage = ConvertLanguageCodeToDisplay(targetLanguage);
+                    
+                    Logger.Info($"語言設置初始化完成: {SourceLanguage} → {TargetLanguage}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "初始化語言設置時發生錯誤");
+                // 使用默認值
+                SourceLanguage = "EN";
+                TargetLanguage = "中文";
+            }
+        }
+
+        /// <summary>
+        /// 將語言代碼轉換為顯示文字
+        /// </summary>
+        private string ConvertLanguageCodeToDisplay(string languageCode)
+        {
+            return languageCode switch
+            {
+                "auto" => "AUTO",
+                "en" => "EN",
+                "zh-cn" => "中文",
+                "zh-tw" => "繁體",
+                "ja" => "日語",
+                "ko" => "韓語",
+                "fr" => "FR",
+                "de" => "DE",
+                "es" => "ES",
+                "ru" => "RU",
+                _ => languageCode?.ToUpper() ?? "EN"
+            };
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -221,24 +286,105 @@ namespace MonLingo.ViewModel
             {
                 try
                 {
-                    // 打開設定視窗並直接切換到「翻譯語言」頁
-                    var win = new SettingMainWindow();
-                    win.OpenTranslationLanguagePage();
+                    Logger.Info("� 7號按鈕被點擊，打開設定並跳轉至『翻譯語言』頁");
 
-                    // 同步使用者的語言選擇到工具條 7 號按鈕顯示
-                    win.LanguageSelectionChanged += (srcDisplay, tgtDisplay) =>
+                    // 暫時關閉工具條 Topmost，避免遮擋設定視窗
+                    var mainWindow = Application.Current.MainWindow as MainBarWindow;
+                    if (mainWindow != null)
                     {
-                        SourceLanguage = ToShortLabelFromDisplay(srcDisplay, isSource: true);
-                        TargetLanguage = ToShortLabelFromDisplay(tgtDisplay, isSource: false);
+                        mainWindow.Topmost = false;
+                    }
+
+                    var settingsWindow = new SettingMainWindow();
+                    // 直接定位至『翻譯語言』頁
+                    settingsWindow.OpenTranslationLanguagePage();
+
+                    // 關閉時恢復 Topmost
+                    settingsWindow.Closed += (s, e) =>
+                    {
+                        if (mainWindow != null)
+                        {
+                            mainWindow.Topmost = true;
+                        }
                     };
 
-                    win.Show();
+                    // 使用非模態顯示以便即時回饋
+                    settingsWindow.Show();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"打開語言設定頁時發生錯誤：{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                    var mainWindow = Application.Current.MainWindow as MainBarWindow;
+                    if (mainWindow != null)
+                    {
+                        mainWindow.Topmost = true;
+                    }
+                    MessageBox.Show($"打開語言設定時發生錯誤：{ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             });
+
+        /// <summary>
+        /// 刷新語言顯示
+        /// </summary>
+        private async Task RefreshLanguageDisplayAsync()
+        {
+            try
+            {
+                if (_languageConfigService != null)
+                {
+                    var sourceLanguage = await _languageConfigService.GetSourceLanguageAsync();
+                    var targetLanguage = await _languageConfigService.GetTargetLanguageAsync();
+                    
+                    // 將語言代碼轉換為顯示文字
+                    var src = ConvertLanguageCodeToDisplay(sourceLanguage);
+                    var tgt = ConvertLanguageCodeToDisplay(targetLanguage);
+
+                    // 確保在 UI 執行緒更新
+                    if (Application.Current?.Dispatcher != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            SourceLanguage = src;
+                            TargetLanguage = tgt;
+                        });
+                    }
+                    else
+                    {
+                        SourceLanguage = src;
+                        TargetLanguage = tgt;
+                    }
+                    
+                    Logger.Info($"語言顯示已刷新: {SourceLanguage} → {TargetLanguage}");
+                }
+                else
+                {
+                    // 如果服務不可用，觸發屬性更新
+                    OnPropertyChanged(nameof(SourceLanguage));
+                    OnPropertyChanged(nameof(TargetLanguage));
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"刷新語言顯示失敗: {ex.Message}");
+                // 觸發屬性更新以確保UI響應
+                OnPropertyChanged(nameof(SourceLanguage));
+                OnPropertyChanged(nameof(TargetLanguage));
+            }
+        }
+
+        /// <summary>
+        /// 語言設定變更事件處理：即時更新 7 號按鈕顯示
+        /// </summary>
+        private async void OnLanguageConfigChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                await RefreshLanguageDisplayAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"OnLanguageConfigChanged 更新顯示失敗: {ex.Message}");
+            }
+        }
 
         // 依據語言顯示名稱 → 語言代碼 → 轉短標籤 (給 7 號按鈕 UI 使用)
         private string ToShortLabelFromDisplay(string displayName, bool isSource)

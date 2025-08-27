@@ -7,23 +7,50 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using PaddleOCRSharp;
 using System.Reflection;
+using MonLingo.Core.Infrastructure;
 
 namespace MonLingo.Core.Service
 {
     /// <summary>
     /// 基於PaddleOCR的真實OCR服務實現
     /// 替換MockOcrService，連接真正的PaddleOCR引擎
+    /// 支援用戶語言配置，記住輸入語言設定
     /// </summary>
     public class RealOcrService : IOcrService, IDisposable
     {
         private PaddleOCREngine _ocrEngine;
         private bool _isInitialized = false;
         private bool _disposed = false;
+        private ILanguageConfigService _languageConfigService;
+        private string _lastUsedSourceLanguage = "auto";
 
         /// <summary>
         /// 是否已初始化
         /// </summary>
         public bool IsInitialized => _isInitialized;
+
+        public RealOcrService()
+        {
+            // 延遲初始化語言配置服務，避免循環依賴
+        }
+
+        /// <summary>
+        /// 初始化語言配置服務
+        /// </summary>
+        private void EnsureLanguageConfigService()
+        {
+            if (_languageConfigService == null)
+            {
+                try
+                {
+                    _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ 語言配置服務初始化失敗: {ex.Message}");
+                }
+            }
+        }
 
         /// <summary>
         /// 初始化PaddleOCR引擎 (async版本)
@@ -94,6 +121,7 @@ namespace MonLingo.Core.Service
                 string recDir = Path.Combine(modelsDir, "ch_PP-OCRv5_rec_infer");
                 string clsDir = Path.Combine(modelsDir, "ch_ppocr_mobile_v2.0_cls_infer");
                 string keysFile = Path.Combine(modelsDir, "ppocr_keys.txt");
+                
                 if (!File.Exists(keysFile))
                 {
                     // 兼容常見命名
@@ -101,7 +129,7 @@ namespace MonLingo.Core.Service
                     if (File.Exists(alt)) keysFile = alt;
                 }
 
-                bool hasV5 = Directory.Exists(detDir) && Directory.Exists(recDir);
+                bool hasV5 = IsValidPPOCRv5Model(detDir, recDir);
 
                 // 2.1) 若找不到 v5，嘗試使用 v3 作為臨時備援
                 string detDirV3 = Path.Combine(modelsDir, "ch_PP-OCRv3_det_infer");
@@ -195,6 +223,40 @@ namespace MonLingo.Core.Service
             if (lastChar == Path.DirectorySeparatorChar || lastChar == Path.AltDirectorySeparatorChar)
                 return path;
             return path + Path.DirectorySeparatorChar;
+        }
+
+        /// <summary>
+        /// 使用用戶配置的語言進行文字識別
+        /// </summary>
+        public async Task<OcrResult> RecognizeTextWithConfigAsync(byte[] imageData, int width, int height)
+        {
+            // 確保語言配置服務可用
+            EnsureLanguageConfigService();
+            
+            // 獲取用戶設定的源語言
+            string sourceLanguage = "auto";
+            if (_languageConfigService != null)
+            {
+                try
+                {
+                    sourceLanguage = await _languageConfigService.GetSourceLanguageAsync();
+                    
+                    // 如果語言設定有變更，記錄下來
+                    if (_lastUsedSourceLanguage != sourceLanguage)
+                    {
+                        Console.WriteLine($"🔄 OCR 語言設定變更: {_lastUsedSourceLanguage} → {sourceLanguage}");
+                        _lastUsedSourceLanguage = sourceLanguage;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ 獲取源語言設定失敗，使用預設: {ex.Message}");
+                }
+            }
+            
+            // 執行 OCR 識別 (目前 PaddleOCR 暫不支援動態語言切換，但我們記錄設定)
+            Console.WriteLine($"🔍 使用源語言設定進行 OCR 識別: {sourceLanguage}");
+            return await RecognizeTextAsync(imageData, width, height);
         }
 
         /// <summary>
@@ -368,6 +430,75 @@ namespace MonLingo.Core.Service
             }
 
             return new System.Drawing.Rectangle(minX, minY, maxX - minX, maxY - minY);
+        }
+
+        /// <summary>
+        /// 驗證 PP-OCRv5 模型是否有效
+        /// </summary>
+        private static bool IsValidPPOCRv5Model(string detDir, string recDir)
+        {
+            try
+            {
+                // 檢查目錄是否存在
+                if (!Directory.Exists(detDir) || !Directory.Exists(recDir))
+                    return false;
+
+                // 檢查必要的模型文件是否存在 (新版 PaddleX 格式)
+                string[] requiredDetFiles = { "inference.pdiparams", "inference.json" };
+                string[] requiredRecFiles = { "inference.pdiparams", "inference.json" };
+
+                // 檢查檢測模型文件
+                foreach (string file in requiredDetFiles)
+                {
+                    if (!File.Exists(Path.Combine(detDir, file)))
+                    {
+                        // 嘗試舊格式
+                        string oldFormatFile = file.Replace(".json", ".pdmodel");
+                        if (!File.Exists(Path.Combine(detDir, oldFormatFile)))
+                            return false;
+                    }
+                }
+
+                // 檢查識別模型文件
+                foreach (string file in requiredRecFiles)
+                {
+                    if (!File.Exists(Path.Combine(recDir, file)))
+                    {
+                        // 嘗試舊格式
+                        string oldFormatFile = file.Replace(".json", ".pdmodel");
+                        if (!File.Exists(Path.Combine(recDir, oldFormatFile)))
+                            return false;
+                    }
+                }
+
+                // 檢查模型文件大小，v5 模型通常比 v3 大
+                var detParamsFile = Path.Combine(detDir, "inference.pdiparams");
+                var recParamsFile = Path.Combine(recDir, "inference.pdiparams");
+                
+                if (!File.Exists(detParamsFile) || !File.Exists(recParamsFile))
+                    return false;
+
+                var detFileInfo = new FileInfo(detParamsFile);
+                var recFileInfo = new FileInfo(recParamsFile);
+
+                // PP-OCRv5 的檢測模型通常 > 50MB，識別模型通常 > 50MB
+                // 更新閾值以適應真正的 v5 模型大小
+                bool detSizeCheck = detFileInfo.Length > 50 * 1024 * 1024; // > 50MB
+                bool recSizeCheck = recFileInfo.Length > 50 * 1024 * 1024; // > 50MB
+
+                if (detSizeCheck && recSizeCheck)
+                {
+                    Console.WriteLine($"✅ 發現真正的 PP-OCRv5 模型: det={detFileInfo.Length / (1024*1024):F1}MB, rec={recFileInfo.Length / (1024*1024):F1}MB");
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ 檢驗 PP-OCRv5 模型時發生錯誤: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>

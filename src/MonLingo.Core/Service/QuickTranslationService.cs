@@ -27,6 +27,7 @@ namespace MonLingo.Core.Service
         private IOcrService _ocrService;
         private ITranslateService _translateService;
         private IDisplayService _displayService;
+        private ILanguageConfigService _languageConfigService;
 
         /// <summary>
         /// 建構函式
@@ -169,6 +170,7 @@ namespace MonLingo.Core.Service
                 _ocrService = Phase5ServiceContainer.GetService<IOcrService>();
                 _translateService = Phase5ServiceContainer.GetService<ITranslateService>();
                 _displayService = Phase5ServiceContainer.GetService<IDisplayService>();
+                _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
             }
         }
 
@@ -299,8 +301,21 @@ namespace MonLingo.Core.Service
                 }
                 
                 // ============ PHASE 1: OCR 處理 ============
-                var ocrResult = await _ocrService.RecognizeTextAsync(
-                    imageData, image.Width, image.Height);
+                // 🎯 優先使用OCR服務的語言配置功能，自動記住用戶語言設定
+                OcrResult ocrResult;
+                
+                if (_ocrService is RealOcrService configAwareOcrService)
+                {
+                    // 使用配置感知的OCR方法，自動記住語言設定
+                    ocrResult = await configAwareOcrService.RecognizeTextWithConfigAsync(
+                        imageData, image.Width, image.Height);
+                }
+                else
+                {
+                    // 後備方案：使用原有的OCR方法
+                    ocrResult = await _ocrService.RecognizeTextAsync(
+                        imageData, image.Width, image.Height);
+                }
                 
                 if (ocrResult == null || ocrResult.Lines == null || ocrResult.Lines.Length == 0)
                 {
@@ -328,13 +343,21 @@ namespace MonLingo.Core.Service
                     return string.Empty;
                 }
                 
-                // 使用真正的翻譯服務
-                // TODO: 從配置服務獲取語言設定
-                var sourceLanguage = "auto"; // 自動檢測
-                var targetLanguage = "zh-TW"; // 繁體中文
+                // 🎯 優先使用翻譯服務的語言配置功能，自動記住用戶語言設定
+                string translatedText;
                 
-                var translatedText = await _translateService.TranslateAsync(
-                    text, sourceLanguage, targetLanguage);
+                if (_translateService is TranslateService configAwareService)
+                {
+                    // 使用配置感知的翻譯方法，自動記住語言設定
+                    translatedText = await configAwareService.TranslateWithConfigAsync(text);
+                }
+                else
+                {
+                    // 後備方案：手動獲取語言配置
+                    var sourceLanguage = await _languageConfigService.GetSourceLanguageAsync();
+                    var targetLanguage = await _languageConfigService.GetTargetLanguageAsync();
+                    translatedText = await _translateService.TranslateAsync(text, sourceLanguage, targetLanguage);
+                }
                 
                 return translatedText ?? string.Empty;
             }

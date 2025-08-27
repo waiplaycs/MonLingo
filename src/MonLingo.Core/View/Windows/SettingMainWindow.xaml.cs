@@ -1,9 +1,12 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Data;
+using MonLingo.Core.Service;
+using MonLingo.Core.Infrastructure;
 
 namespace MonLingo.View.Windows
 {
@@ -14,19 +17,40 @@ namespace MonLingo.View.Windows
     public partial class SettingMainWindow : Window
     {
         private Button _currentSelectedButton;
-    // 翻譯語言頁：保存清單參考，便於外部對接事件
-    private ListBox _sourceLangListBox;
-    private ListBox _targetLangListBox;
+        // 翻譯語言頁：保存清單參考，便於外部對接事件
+        private ListBox _sourceLangListBox;
+        private ListBox _targetLangListBox;
+        
+        // 語言配置服務
+        private ILanguageConfigService _languageConfigService;
 
-    // 對外事件：當使用者在翻譯語言頁更改選擇時觸發
-    public event Action<string, string> LanguageSelectionChanged;
+        // 對外事件：當使用者在翻譯語言頁更改選擇時觸發
+        public event Action<string, string> LanguageSelectionChanged;
 
         public SettingMainWindow()
         {
             InitializeComponent();
             
+            // 初始化語言配置服務
+            InitializeLanguageConfigService();
+            
             // 設置預設選中的按鈕
             SetDefaultSelection();
+        }
+
+        /// <summary>
+        /// 初始化語言配置服務
+        /// </summary>
+        private void InitializeLanguageConfigService()
+        {
+            try
+            {
+                _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"語言配置服務初始化失敗: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -887,9 +911,9 @@ namespace MonLingo.View.Windows
         /// <summary>
         /// 載入翻譯語言設置
         /// </summary>
-        private void LoadTranslationLanguageSettings()
+        private async void LoadTranslationLanguageSettings()
         {
-            CreateSettingsContent("翻譯語言", "🌏", CreateTranslationLanguageContent());
+            CreateSettingsContent("翻譯語言", "🌏", await CreateTranslationLanguageContentAsync());
         }
 
         /// <summary>
@@ -937,6 +961,43 @@ namespace MonLingo.View.Windows
         private void LoadAboutUs()
         {
             CreateSettingsContent("關於我們", "ℹ️", CreateAboutUsContent());
+        }
+
+        /// <summary>
+        /// 創建翻譯語言內容（雙欄清單樣式：輸入語言 | 輸出語言）- 異步版本
+        /// </summary>
+        private async Task<FrameworkElement> CreateTranslationLanguageContentAsync()
+        {
+            var content = CreateTranslationLanguageContent();
+            
+            // 載入保存的語言設定
+            if (_languageConfigService != null)
+            {
+                try
+                {
+                    var config = await _languageConfigService.GetLanguageConfigAsync();
+                    
+                    // 設定源語言選擇
+                    var sourceDisplayName = MonLingo.Core.Models.LanguageSettings.GetDisplayNameByLanguageCode(config.SourceLanguage, true);
+                    if (_sourceLangListBox != null && !string.IsNullOrEmpty(sourceDisplayName))
+                    {
+                        _sourceLangListBox.SelectedItem = sourceDisplayName;
+                    }
+                    
+                    // 設定目標語言選擇
+                    var targetDisplayName = MonLingo.Core.Models.LanguageSettings.GetDisplayNameByLanguageCode(config.TargetLanguage, false);
+                    if (_targetLangListBox != null && !string.IsNullOrEmpty(targetDisplayName))
+                    {
+                        _targetLangListBox.SelectedItem = targetDisplayName;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"載入語言設定失敗: {ex.Message}");
+                }
+            }
+            
+            return content;
         }
 
         /// <summary>
@@ -1061,18 +1122,34 @@ namespace MonLingo.View.Windows
         /// <summary>
         /// 觸發對外語言變更事件
         /// </summary>
-        private void RaiseLanguageSelectionChanged()
+        private async void RaiseLanguageSelectionChanged()
         {
             try
             {
-                var src = _sourceLangListBox?.SelectedItem?.ToString();
-                var tgt = _targetLangListBox?.SelectedItem?.ToString();
-                if (!string.IsNullOrWhiteSpace(src) && !string.IsNullOrWhiteSpace(tgt))
+                var sourceDisplayName = _sourceLangListBox?.SelectedItem?.ToString();
+                var targetDisplayName = _targetLangListBox?.SelectedItem?.ToString();
+                
+                if (!string.IsNullOrWhiteSpace(sourceDisplayName) && !string.IsNullOrWhiteSpace(targetDisplayName))
                 {
-                    LanguageSelectionChanged?.Invoke(src, tgt);
+                    // 將顯示名稱轉換為語言代碼
+                    var sourceCode = MonLingo.Core.Models.LanguageSettings.GetLanguageCodeByDisplayName(sourceDisplayName, true);
+                    var targetCode = MonLingo.Core.Models.LanguageSettings.GetLanguageCodeByDisplayName(targetDisplayName, false);
+                    
+                    // 保存到語言配置服務
+                    if (_languageConfigService != null)
+                    {
+                        await _languageConfigService.SetSourceLanguageAsync(sourceCode);
+                        await _languageConfigService.SetTargetLanguageAsync(targetCode);
+                    }
+                    
+                    // 觸發對外事件
+                    LanguageSelectionChanged?.Invoke(sourceDisplayName, targetDisplayName);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"語言選擇變更處理失敗: {ex.Message}");
+            }
         }
 
         /// <summary>

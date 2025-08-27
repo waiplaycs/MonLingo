@@ -57,7 +57,8 @@ namespace MonLingo.Tests.EndToEnd
         {
             // Arrange
             var captureService = new CaptureService(null);
-            var translateService = new MonLingo.Core.Service.TranslateService();
+            // 使用回傳 TranslationResult 的服務實作
+            var translateService = new MonLingo.Core.Services.Implementations.TranslateService();
             
             var testRegion = new System.Drawing.Rectangle(100, 100, 300, 100);
             
@@ -85,7 +86,8 @@ namespace MonLingo.Tests.EndToEnd
         public async Task MultilingualWorkflow_ShouldHandleVariousLanguages()
         {
             // Arrange
-            var translateService = new MonLingo.Core.Service.TranslateService();
+            // 使用回傳 TranslationResult 的服務實作
+            var translateService = new MonLingo.Core.Services.Implementations.TranslateService();
             var languageDetectionService = new LanguageDetectionService();
             
             var testTexts = new Dictionary<string, string>
