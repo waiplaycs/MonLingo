@@ -28,8 +28,12 @@ namespace MonLingo.Core.View.Windows
 
         private void InitializeWindow()
         {
-            // 設定視窗為全螢幕覆蓋
-            this.WindowState = WindowState.Maximized;
+            // 設定視窗為虛擬桌面全覆蓋（支援多螢幕）
+            this.WindowState = WindowState.Normal;
+            this.Left = SystemParameters.VirtualScreenLeft;
+            this.Top = SystemParameters.VirtualScreenTop;
+            this.Width = SystemParameters.VirtualScreenWidth;
+            this.Height = SystemParameters.VirtualScreenHeight;
             this.WindowStyle = WindowStyle.None;
             this.AllowsTransparency = true;
             this.Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)); // 幾乎透明
@@ -43,6 +47,7 @@ namespace MonLingo.Core.View.Windows
             this.MouseLeftButtonDown += OnMouseLeftButtonDown;
             this.MouseMove += OnMouseMove;
             this.MouseLeftButtonUp += OnMouseLeftButtonUp;
+            this.MouseRightButtonDown += OnMouseRightButtonDown; // 新增右鍵事件
             this.KeyDown += OnKeyDown;
 
             // 確保能接收鍵盤事件
@@ -110,6 +115,12 @@ namespace MonLingo.Core.View.Windows
                 // 關閉視窗
                 this.Close();
             }
+        }
+
+        private void OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 右鍵退出框選模式
+            this.Close();
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)

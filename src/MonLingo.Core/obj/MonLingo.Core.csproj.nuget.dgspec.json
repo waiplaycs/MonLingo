@@ -98,7 +98,7 @@
             },
             "PaddleOCRSharp": {
               "target": "Package",
-              "version": "[2.5.0, )",
+              "version": "[3.0.0, )",
               "versionCentrallyManaged": true
             },
             "System.Drawing.Common": {
@@ -131,7 +131,7 @@
             "NLog.Extensions.Logging": "5.3.2",
             "OpenCvSharp4": "4.8.0.20230708",
             "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-            "PaddleOCRSharp": "2.5.0",
+            "PaddleOCRSharp": "3.0.0",
             "Prism.Core": "8.1.97",
             "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
             "StyleCop.Analyzers": "1.1.118",

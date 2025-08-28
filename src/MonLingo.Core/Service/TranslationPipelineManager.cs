@@ -22,6 +22,7 @@ namespace MonLingo.Core.Service
         private readonly INotificationService _notificationService;
         private readonly IConfigService _configService;
         private readonly IDisplayService _displayService;
+        private readonly ILanguageConfigService _languageConfigService;
         
         // 工作流程狀態管理
         private bool _isCapturing = false;
@@ -39,7 +40,8 @@ namespace MonLingo.Core.Service
             ITranslateService translateService,
             INotificationService notificationService,
             IConfigService configService,
-            IDisplayService displayService)
+            IDisplayService displayService,
+            ILanguageConfigService languageConfigService)
         {
             _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
             _ocrService = ocrService ?? throw new ArgumentNullException(nameof(ocrService));
@@ -47,6 +49,7 @@ namespace MonLingo.Core.Service
             _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _displayService = displayService ?? throw new ArgumentNullException(nameof(displayService));
+            _languageConfigService = languageConfigService ?? throw new ArgumentNullException(nameof(languageConfigService));
         }
         
         /// <summary>
@@ -125,8 +128,21 @@ namespace MonLingo.Core.Service
                 }
 
                 // ============ PHASE 1: OCR 處理 ============
-                var ocrResult = await _ocrService.RecognizeTextAsync(
-                    frame.ImageData, frame.Width, frame.Height);
+                // 🎯 優先使用OCR服務的語言配置功能，自動記住用戶語言設定
+                OcrResult ocrResult;
+                
+                if (_ocrService is RealOcrService configAwareOcrService)
+                {
+                    // 使用配置感知的OCR方法，自動記住語言設定
+                    ocrResult = await configAwareOcrService.RecognizeTextWithConfigAsync(
+                        frame.ImageData, frame.Width, frame.Height);
+                }
+                else
+                {
+                    // 後備方案：使用原有的OCR方法
+                    ocrResult = await _ocrService.RecognizeTextAsync(
+                        frame.ImageData, frame.Width, frame.Height);
+                }
                 
                 if (ocrResult == null || ocrResult.Lines == null || !ocrResult.Lines.Any())
                 {
@@ -143,11 +159,21 @@ namespace MonLingo.Core.Service
                 }
                 
                 // ============ PHASE 3: 翻譯處理 ============
-                var sourceLanguage = await _configService.GetAsync<string>("SourceLanguage") ?? "auto";
-                var targetLanguage = await _configService.GetAsync<string>("TargetLanguage") ?? "zh-TW";
+                // 🎯 使用翻譯服務的語言配置功能，自動記住用戶語言設定
+                string translationResult;
                 
-                var translationResult = await _translateService.TranslateAsync(
-                    mergedText, sourceLanguage, targetLanguage);
+                // 優先使用TranslateWithConfigAsync，自動使用用戶配置的語言
+                if (_translateService is TranslateService configAwareService)
+                {
+                    translationResult = await configAwareService.TranslateWithConfigAsync(mergedText);
+                }
+                else
+                {
+                    // 後備方案：手動獲取語言設定
+                    var sourceLanguage = await _languageConfigService.GetSourceLanguageAsync();
+                    var targetLanguage = await _languageConfigService.GetTargetLanguageAsync();
+                    translationResult = await _translateService.TranslateAsync(mergedText, sourceLanguage, targetLanguage);
+                }
                 
                 if (string.IsNullOrWhiteSpace(translationResult))
                 {
@@ -159,14 +185,18 @@ namespace MonLingo.Core.Service
                 _displayService.Show(mergedText, translationResult);
                 
                 // ============ PHASE 5: 事件通知 ============
+                // 獲取當前語言設定用於結果記錄
+                var currentSourceLanguage = await _languageConfigService.GetSourceLanguageAsync();
+                var currentTargetLanguage = await _languageConfigService.GetTargetLanguageAsync();
+                
                 var result = new TranslationResult
                 {
                     SourceText = mergedText,
                     TranslatedText = translationResult,
                     Timestamp = DateTime.Now,
                     BoundingBox = ocrResult.BoundingBox,
-                    SourceLanguage = sourceLanguage,
-                    TargetLanguage = targetLanguage,
+                    SourceLanguage = currentSourceLanguage,
+                    TargetLanguage = currentTargetLanguage,
                     Confidence = ocrResult.Confidence
                 };
                 

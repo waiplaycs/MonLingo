@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "668fIEXJB5M=",
+  "dgSpecHash": "8+04KWjj+2o=",
   "success": true,
   "projectFilePath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
   "expectedPackageFiles": [
@@ -77,17 +77,6 @@
       "warningLevel": 1,
       "message": "MonLingo.Core 相依於 GuerrillaNtp (>= 1.6.2)，但找不到 GuerrillaNtp 1.6.2。已解析了約略的最佳相符 GuerrillaNtp 2.0.1。",
       "libraryId": "GuerrillaNtp",
-      "targetGraphs": [
-        ".NETFramework,Version=v4.8.1",
-        ".NETFramework,Version=v4.8.1/win7-x64"
-      ]
-    },
-    {
-      "code": "NU1603",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "MonLingo.Core 相依於 PaddleOCRSharp (>= 2.5.0)，但找不到 PaddleOCRSharp 2.5.0。已解析了約略的最佳相符 PaddleOCRSharp 3.0.0。",
-      "libraryId": "PaddleOCRSharp",
       "targetGraphs": [
         ".NETFramework,Version=v4.8.1",
         ".NETFramework,Version=v4.8.1/win7-x64"

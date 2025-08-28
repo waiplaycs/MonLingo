@@ -50,6 +50,9 @@ namespace MonLingo.Core.Infrastructure
             services.AddSingleton<MonLingo.Core.Service.INotificationService, MonLingo.Core.Service.NotificationService>();
             services.AddSingleton<MonLingo.Core.Service.IConfigService, MonLingo.Core.Service.ConfigService>();
             
+            // 註冊語言配置服務
+            services.AddSingleton<MonLingo.Core.Service.ILanguageConfigService, MonLingo.Core.Service.LanguageConfigService>();
+            
             // 註冊顯示服務
             services.AddSingleton<MonLingo.Core.Service.IDisplayService, MonLingo.Core.Service.DisplayService>();
             

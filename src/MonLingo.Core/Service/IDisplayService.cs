@@ -19,5 +19,10 @@ namespace MonLingo.Core.Service
         /// <param name="originalText">原文</param>
         /// <param name="translatedText">譯文</param>
         void Show(string originalText, string translatedText);
+
+    /// <summary>
+    /// 開始新的顯示回合（在一次完整的識別→翻譯開始前呼叫，用於清空舊內容）
+    /// </summary>
+    void StartNewRound();
     }
 }

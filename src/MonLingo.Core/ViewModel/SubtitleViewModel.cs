@@ -16,6 +16,7 @@ namespace MonLingo.Core.ViewModel
     public class SubtitleViewModel : INotifyPropertyChanged
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private int _roundNumber = 0;
         
         #region Properties
 
@@ -23,6 +24,14 @@ namespace MonLingo.Core.ViewModel
         /// 字幕行集合，最多顯示指定行數
         /// </summary>
         public ObservableCollection<SubtitleLineItem> SubtitleLines { get; }
+
+        // 將所有輸出以空格分隔合併為單行顯示
+        private string _combinedTranslatedText = string.Empty;
+        public string CombinedTranslatedText
+        {
+            get => _combinedTranslatedText;
+            private set => SetProperty(ref _combinedTranslatedText, value);
+        }
 
         private int _maxLines = 5; // 最多顯示5行字幕
         public int MaxLines
@@ -35,14 +44,34 @@ namespace MonLingo.Core.ViewModel
         public double WindowWidth
         {
             get => _windowWidth;
-            set => SetProperty(ref _windowWidth, value);
+            set
+            {
+                if (SetProperty(ref _windowWidth, value))
+                {
+                    // 在分離模式下，記住最後使用的尺寸
+                    if (IsDetached)
+                    {
+                        _lastDetachedWidth = value;
+                    }
+                }
+            }
         }
 
         private double _windowHeight = 120;
         public double WindowHeight
         {
             get => _windowHeight;
-            set => SetProperty(ref _windowHeight, value);
+            set
+            {
+                if (SetProperty(ref _windowHeight, value))
+                {
+                    // 在分離模式下，記住最後使用的尺寸
+                    if (IsDetached)
+                    {
+                        _lastDetachedHeight = value;
+                    }
+                }
+            }
         }
 
         private double _windowLeft = 100; // 預設左邊距
@@ -59,7 +88,7 @@ namespace MonLingo.Core.ViewModel
             set => SetProperty(ref _windowTop, value);
         }
 
-        private bool _isDetached = false; // 是否分離模式
+    private bool _isDetached = true; // 是否分離模式（預設為分離）
         public bool IsDetached
         {
             get => _isDetached;
@@ -71,6 +100,30 @@ namespace MonLingo.Core.ViewModel
                 }
             }
         }
+        
+        // 鎖定狀態：鎖定時不允許移動/縮放，也不進行自動依附
+    private bool _isLocked = false; // 初始狀態為解鎖
+        public bool IsLocked
+        {
+            get => _isLocked;
+            set
+            {
+                if (SetProperty(ref _isLocked, value))
+                {
+                    // 無論鎖定或非鎖定，保持目前尺寸一致
+                    if (IsDetached)
+                    {
+                        // 更新分離尺寸為當前值，之後切換狀態都使用這一份
+                        _lastDetachedWidth = WindowWidth;
+                        _lastDetachedHeight = WindowHeight;
+                    }
+                }
+            }
+        }
+
+    // 記錄分離模式下的最後尺寸，避免雙擊切換時尺寸跳變
+    private double _lastDetachedWidth = 400;
+    private double _lastDetachedHeight = 120;
 
         private Window _mainBarWindow;
         public Window MainBarWindow
@@ -122,9 +175,7 @@ namespace MonLingo.Core.ViewModel
         /// <param name="translatedText">譯文</param>
         public void AddNewLine(string originalText, string translatedText)
         {
-            // 先清洗舊顯示內容
-            SubtitleLines.Clear();
-
+            Logger.Info($"[SubtitleVM] AddNewLine: round=#{_roundNumber}, beforeCount={SubtitleLines.Count}, original='{originalText}', translated='{translatedText}'");
             // 創建新的字幕行項目
             var newLine = new SubtitleLineItem
             {
@@ -133,8 +184,24 @@ namespace MonLingo.Core.ViewModel
                 Timestamp = DateTime.Now
             };
 
+            // 若達到行數上限，移除最舊的行，改為滾動視窗顯示
+            while (SubtitleLines.Count >= MaxLines)
+            {
+                SubtitleLines.RemoveAt(0);
+            }
+
             // 添加到集合
             SubtitleLines.Add(newLine);
+            Logger.Info($"[SubtitleVM] AddNewLine: afterCount={SubtitleLines.Count}");
+
+            // 更新合併輸出（以空格分隔，無換行）
+            var part = newLine.TranslatedText ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(part))
+            {
+                CombinedTranslatedText = string.IsNullOrWhiteSpace(CombinedTranslatedText)
+                    ? part
+                    : CombinedTranslatedText + " " + part;
+            }
 
             // 觸發滾動事件
             OnNewLineAdded();
@@ -145,7 +212,19 @@ namespace MonLingo.Core.ViewModel
         /// </summary>
         public void ClearLines()
         {
+            Logger.Info($"[SubtitleVM] ClearLines: clearing {SubtitleLines.Count} lines");
             SubtitleLines.Clear();
+            CombinedTranslatedText = string.Empty;
+        }
+
+        /// <summary>
+        /// 開始新的顯示回合：僅在回合開始時清空一次
+        /// </summary>
+        public void StartNewRound()
+        {
+            _roundNumber++;
+            Logger.Info($"[SubtitleVM] StartNewRound: round=#{_roundNumber}, clearing previous lines={SubtitleLines.Count}");
+            ClearLines();
         }
 
         /// <summary>
@@ -165,13 +244,7 @@ namespace MonLingo.Core.ViewModel
             IsDetached = true;
         }
 
-        /// <summary>
-        /// 重新依附到主工具條
-        /// </summary>
-        public void ReattachSubtitleWindow()
-        {
-            IsDetached = false;
-        }
+    // 不再支援依附模式
 
         #endregion
 
@@ -179,9 +252,6 @@ namespace MonLingo.Core.ViewModel
 
         private RelayCommand _detachCommand;
         public RelayCommand DetachCommand => _detachCommand ??= new RelayCommand(DetachSubtitleWindow);
-
-        private RelayCommand _reattachCommand;
-        public RelayCommand ReattachCommand => _reattachCommand ??= new RelayCommand(ReattachSubtitleWindow);
 
         private RelayCommand _closeCommand;
         public RelayCommand CloseCommand => _closeCommand ??= new RelayCommand(() =>
@@ -245,6 +315,7 @@ namespace MonLingo.Core.ViewModel
         {
             if (!IsDetached)
             {
+                // 吸附狀態時，無論是否鎖定都要跟隨工具條移動
                 UpdateWindowPositionFromMainBar();
             }
         }
@@ -256,6 +327,7 @@ namespace MonLingo.Core.ViewModel
         {
             if (!IsDetached)
             {
+                // 吸附狀態時，無論是否鎖定都要跟隨工具條尺寸變化
                 UpdateWindowPositionFromMainBar();
             }
         }
@@ -267,23 +339,9 @@ namespace MonLingo.Core.ViewModel
         {
             if (IsDetached)
             {
-                // 分離模式：保持與依附模式完全相同的尺寸
-                // 不改變位置，只確保尺寸一致
-                if (_mainBarWindow != null)
-                {
-                    // 使用與依附模式完全相同的尺寸
-                    WindowWidth = _mainBarWindow.ActualWidth;
-                    WindowHeight = 120; // 與依附模式相同的高度
-                }
-                else
-                {
-                    // 默認尺寸
-                    WindowWidth = 400;
-                    WindowHeight = 120;
-                }
-                
-                // 完全不移動視窗位置，保持用戶當前的視窗位置
-                // 這樣雙擊分離時視窗會停留在原地
+                // 分離模式：不重設尺寸，只記住當前尺寸作為分離尺寸
+                _lastDetachedWidth = WindowWidth;
+                _lastDetachedHeight = WindowHeight;
             }
             else
             {
@@ -308,8 +366,8 @@ namespace MonLingo.Core.ViewModel
             // 設置左邊距與主工具條一致
             WindowLeft = _mainBarWindow.Left;
             
-            // 設置頂部位置在主工具條下方
-            WindowTop = _mainBarWindow.Top + _mainBarWindow.ActualHeight;
+            // 設置頂部位置在主工具條下方，有 10px 重疊以增強視覺連續性
+            WindowTop = _mainBarWindow.Top + _mainBarWindow.ActualHeight - 10;
         }
 
         /// <summary>

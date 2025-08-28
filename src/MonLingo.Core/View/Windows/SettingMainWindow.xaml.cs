@@ -1,8 +1,12 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Data;
+using MonLingo.Core.Service;
+using MonLingo.Core.Infrastructure;
 
 namespace MonLingo.View.Windows
 {
@@ -13,13 +17,40 @@ namespace MonLingo.View.Windows
     public partial class SettingMainWindow : Window
     {
         private Button _currentSelectedButton;
+        // 翻譯語言頁：保存清單參考，便於外部對接事件
+        private ListBox _sourceLangListBox;
+        private ListBox _targetLangListBox;
+        
+        // 語言配置服務
+        private ILanguageConfigService _languageConfigService;
+
+        // 對外事件：當使用者在翻譯語言頁更改選擇時觸發
+        public event Action<string, string> LanguageSelectionChanged;
 
         public SettingMainWindow()
         {
             InitializeComponent();
             
+            // 初始化語言配置服務
+            InitializeLanguageConfigService();
+            
             // 設置預設選中的按鈕
             SetDefaultSelection();
+        }
+
+        /// <summary>
+        /// 初始化語言配置服務
+        /// </summary>
+        private void InitializeLanguageConfigService()
+        {
+            try
+            {
+                _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"語言配置服務初始化失敗: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -880,9 +911,24 @@ namespace MonLingo.View.Windows
         /// <summary>
         /// 載入翻譯語言設置
         /// </summary>
-        private void LoadTranslationLanguageSettings()
+        private async void LoadTranslationLanguageSettings()
         {
-            CreateSettingsContent("翻譯語言", "🌏", CreateTranslationLanguageContent());
+            CreateSettingsContent("翻譯語言", "🌏", await CreateTranslationLanguageContentAsync());
+        }
+
+        /// <summary>
+        /// 對外公開：直接切換到「翻譯語言」頁
+        /// </summary>
+        public void OpenTranslationLanguagePage()
+        {
+            try
+            {
+                LoadTranslationLanguageSettings();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打開翻譯語言頁失敗: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         /// <summary>
@@ -918,26 +964,253 @@ namespace MonLingo.View.Windows
         }
 
         /// <summary>
-        /// 創建翻譯語言內容
+        /// 創建翻譯語言內容（雙欄清單樣式：輸入語言 | 輸出語言）- 異步版本
+        /// </summary>
+        private async Task<FrameworkElement> CreateTranslationLanguageContentAsync()
+        {
+            var content = CreateTranslationLanguageContent();
+            
+            // 載入保存的語言設定
+            if (_languageConfigService != null)
+            {
+                try
+                {
+                    var config = await _languageConfigService.GetLanguageConfigAsync();
+                    
+                    // 設定源語言選擇
+                    var sourceDisplayName = MonLingo.Core.Models.LanguageSettings.GetDisplayNameByLanguageCode(config.SourceLanguage, true);
+                    if (_sourceLangListBox != null && !string.IsNullOrEmpty(sourceDisplayName))
+                    {
+                        _sourceLangListBox.SelectedItem = sourceDisplayName;
+                    }
+                    
+                    // 設定目標語言選擇
+                    var targetDisplayName = MonLingo.Core.Models.LanguageSettings.GetDisplayNameByLanguageCode(config.TargetLanguage, false);
+                    if (_targetLangListBox != null && !string.IsNullOrEmpty(targetDisplayName))
+                    {
+                        _targetLangListBox.SelectedItem = targetDisplayName;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"載入語言設定失敗: {ex.Message}");
+                }
+            }
+            
+            return content;
+        }
+
+        /// <summary>
+        /// 創建翻譯語言內容（雙欄清單樣式：輸入語言 | 輸出語言）
         /// </summary>
         private FrameworkElement CreateTranslationLanguageContent()
         {
-            var panel = new StackPanel();
+            // 外層容器
+            var root = new StackPanel();
 
-            // 源語言設置
-            panel.Children.Add(CreateSubtitleText("源語言設置"));
-            panel.Children.Add(CreateComboBoxSetting("檢測源語言", new[] { "自動檢測", "中文", "英文", "日文", "韓文", "法文", "德文", "西班牙文" }));
-            
-            // 目標語言設置
-            panel.Children.Add(CreateSubtitleText("目標語言設置"));
-            panel.Children.Add(CreateComboBoxSetting("翻譯目標語言", new[] { "中文(繁體)", "中文(簡體)", "英文", "日文", "韓文", "法文", "德文", "西班牙文" }));
-            
-            // 語言偏好
-            panel.Children.Add(CreateSubtitleText("語言偏好"));
-            panel.Children.Add(CreateToggleSetting("智能語言檢測", true));
-            panel.Children.Add(CreateToggleSetting("記住語言偏好", true));
+            // 標題由 CreateSettingsContent 統一生成，此處不再單獨建立
 
-            return panel;
+            // 主要區塊：左右雙欄清單（不再是移動項目的 Transfer List，而是各自獨立選擇）
+            var grid = new Grid { Margin = new Thickness(0, 12, 0, 16) };
+            // 左 | 中(箭頭) | 右
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 標題列
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(360) }); // 清單列
+
+            // 左側：輸入語言（來源語言）
+            var leftHeader = new TextBlock
+            {
+                Text = "輸入語言",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            Grid.SetColumn(leftHeader, 0);
+            Grid.SetRow(leftHeader, 0);
+            grid.Children.Add(leftHeader);
+
+            var leftList = new ListBox
+            {
+                SelectionMode = SelectionMode.Single,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            
+            // 為左側 ListBox 創建 ItemTemplate 來顯示 ✓
+            leftList.ItemTemplate = CreateCheckmarkItemTemplate();
+            
+            // 左側清單：所有可選輸入語言（包含「自動檢測」）
+            foreach (var kv in MonLingo.Core.Models.LanguageSettings.SourceLanguages)
+            {
+                leftList.Items.Add(kv.Value);
+            }
+            // 預設選擇：自動檢測
+            leftList.SelectedIndex = 0;
+            // 保存引用並綁定事件
+            _sourceLangListBox = leftList;
+            leftList.SelectionChanged += (s, e) => RaiseLanguageSelectionChanged();
+            Grid.SetColumn(leftList, 0);
+            Grid.SetRow(leftList, 1);
+            grid.Children.Add(leftList);
+
+            // 中間箭頭
+            var middleArrow = new TextBlock
+            {
+                Text = "->",
+                FontSize = 20,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 8, 0)
+            };
+            Grid.SetColumn(middleArrow, 1);
+            Grid.SetRow(middleArrow, 0);
+            Grid.SetRowSpan(middleArrow, 2);
+            grid.Children.Add(middleArrow);
+
+            // 右側：輸出語言（翻譯目標語言）
+            var rightHeader = new TextBlock
+            {
+                Text = "輸出語言",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(55, 65, 81)),
+                Margin = new Thickness(8, 0, 0, 8)
+            };
+            Grid.SetColumn(rightHeader, 2);
+            Grid.SetRow(rightHeader, 0);
+            grid.Children.Add(rightHeader);
+
+            var rightList = new ListBox
+            {
+                SelectionMode = SelectionMode.Single,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            
+            // 為右側 ListBox 創建 ItemTemplate 來顯示 ✓
+            rightList.ItemTemplate = CreateCheckmarkItemTemplate();
+            
+            // 右側清單：所有可選輸出語言（更多語種）
+            foreach (var kv in MonLingo.Core.Models.LanguageSettings.TargetLanguages)
+            {
+                rightList.Items.Add(kv.Value);
+            }
+            // 預設選擇：中文(繁體)
+            var defaultTarget = MonLingo.Core.Models.LanguageSettings.GetDisplayNameByLanguageCode("zh-tw", false);
+            rightList.SelectedItem = defaultTarget;
+            // 保存引用並綁定事件
+            _targetLangListBox = rightList;
+            rightList.SelectionChanged += (s, e) => RaiseLanguageSelectionChanged();
+
+            Grid.SetColumn(rightList, 2);
+            Grid.SetRow(rightList, 1);
+            grid.Children.Add(rightList);
+
+            root.Children.Add(grid);
+
+            return root;
+        }
+
+        /// <summary>
+        /// 觸發對外語言變更事件
+        /// </summary>
+        private async void RaiseLanguageSelectionChanged()
+        {
+            try
+            {
+                var sourceDisplayName = _sourceLangListBox?.SelectedItem?.ToString();
+                var targetDisplayName = _targetLangListBox?.SelectedItem?.ToString();
+                
+                if (!string.IsNullOrWhiteSpace(sourceDisplayName) && !string.IsNullOrWhiteSpace(targetDisplayName))
+                {
+                    // 將顯示名稱轉換為語言代碼
+                    var sourceCode = MonLingo.Core.Models.LanguageSettings.GetLanguageCodeByDisplayName(sourceDisplayName, true);
+                    var targetCode = MonLingo.Core.Models.LanguageSettings.GetLanguageCodeByDisplayName(targetDisplayName, false);
+                    
+                    // 保存到語言配置服務
+                    if (_languageConfigService != null)
+                    {
+                        await _languageConfigService.SetSourceLanguageAsync(sourceCode);
+                        await _languageConfigService.SetTargetLanguageAsync(targetCode);
+                    }
+                    
+                    // 觸發對外事件
+                    LanguageSelectionChanged?.Invoke(sourceDisplayName, targetDisplayName);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"語言選擇變更處理失敗: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 創建帶有選中標記的 ItemTemplate
+        /// </summary>
+        private static DataTemplate CreateCheckmarkItemTemplate()
+        {
+            var template = new DataTemplate();
+            
+            // 創建 StackPanel 來水平排列文字和勾勾
+            var stackPanelFactory = new FrameworkElementFactory(typeof(StackPanel));
+            stackPanelFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            
+            // 語言文字
+            var textBlockFactory = new FrameworkElementFactory(typeof(TextBlock));
+            textBlockFactory.SetBinding(TextBlock.TextProperty, new Binding());
+            textBlockFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            stackPanelFactory.AppendChild(textBlockFactory);
+            
+            // 勾勾標記
+            var checkMarkFactory = new FrameworkElementFactory(typeof(TextBlock));
+            checkMarkFactory.SetValue(TextBlock.TextProperty, "  ✓");
+            checkMarkFactory.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(Color.FromRgb(16, 185, 129)));
+            checkMarkFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+            checkMarkFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            
+            // 使用 Binding 直接綁定到 IsSelected 屬性，使用 Converter 來控制顯示
+            var binding = new Binding("IsSelected")
+            {
+                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1),
+                Converter = new BooleanToVisibilityConverter()
+            };
+            checkMarkFactory.SetBinding(UIElement.VisibilityProperty, binding);
+            
+            stackPanelFactory.AppendChild(checkMarkFactory);
+            template.VisualTree = stackPanelFactory;
+            
+            return template;
+        }
+
+        /// <summary>
+        /// 更新 ListBox 項目，為選中項添加 ✓ 標記
+        /// </summary>
+        private void UpdateListItemsWithCheckmark(ListBox listBox)
+        {
+            if (listBox == null) return;
+
+            // 更新所有項目的顯示文字
+            for (int i = 0; i < listBox.Items.Count; i++)
+            {
+                var item = listBox.Items[i].ToString();
+                var isSelected = listBox.SelectedIndex == i;
+                
+                // 移除現有的 ✓ 標記
+                var cleanItem = item.Replace("  ✓", "").Trim();
+                
+                // 為選中項添加 ✓ 標記
+                var displayText = isSelected ? cleanItem + "  ✓" : cleanItem;
+                
+                listBox.Items[i] = displayText;
+            }
         }
 
         /// <summary>

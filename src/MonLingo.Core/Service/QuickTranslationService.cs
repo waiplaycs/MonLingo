@@ -27,6 +27,7 @@ namespace MonLingo.Core.Service
         private IOcrService _ocrService;
         private ITranslateService _translateService;
         private IDisplayService _displayService;
+        private ILanguageConfigService _languageConfigService;
 
         /// <summary>
         /// 建構函式
@@ -54,6 +55,29 @@ namespace MonLingo.Core.Service
                 Logger.Info("🔧 確保服務已初始化");
                 EnsureServicesInitialized();
                 
+                // 在回合開始時清空舊輸出（只清一次）
+                if (_subtitleWindow == null)
+                {
+                    Logger.Debug("🆕 [Round] 創建字幕視窗以顯示結果（預先，用於一鍵截圖回合清理）");
+                    _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                    if (_displayService != null)
+                    {
+                        var vm = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                        _displayService.SetSubtitleViewModel(vm);
+                    }
+                    _subtitleWindow.ShowSubtitle();
+                }
+                if (_displayService != null)
+                {
+                    Logger.Info("[Round] StartNewRound via DisplayService (Quick)");
+                    _displayService.StartNewRound();
+                }
+                else
+                {
+                    Logger.Info("[Round] ClearSubtitles via SubtitleWindow (Quick)");
+                    _subtitleWindow.ClearSubtitles();
+                }
+                
                 // 步驟1: 顯示區域選擇視窗
                 Logger.Info("📐 開始顯示區域選擇");
                 await ShowRegionSelectionAsync();
@@ -69,6 +93,73 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
+        /// 針對已存在的選擇框區域，直接進行 OCR → 翻譯 → 字幕顯示（不再彈出選擇視窗）。
+        /// </summary>
+        /// <param name="regions">一組相對虛擬桌面座標的區域</param>
+    public async Task StartRegionTranslationAsync(System.Collections.Generic.IEnumerable<System.Windows.Rect> regions)
+        {
+            Logger.Info("🎯 StartRegionTranslationAsync(Service) 開始執行");
+            try
+            {
+                if (regions == null)
+                {
+                    Logger.Warn("StartRegionTranslationAsync 收到空的 regions");
+                    return;
+                }
+
+                // 初始化服務
+                EnsureServicesInitialized();
+
+                // 先確保字幕視窗存在（共用快速翻譯的字幕視窗）
+                if (_subtitleWindow == null)
+                {
+                    Logger.Debug("🆕 創建字幕視窗以顯示結果（預先）");
+                    _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                    if (_displayService != null)
+                    {
+                        var vm = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                        _displayService.SetSubtitleViewModel(vm);
+                    }
+                    _subtitleWindow.ShowSubtitle();
+                }
+
+                // 在回合開始時清空舊輸出（只清一次）
+                if (_displayService != null)
+                {
+                    Logger.Info("[Round] StartNewRound via DisplayService (Regions)");
+                    _displayService.StartNewRound();
+                }
+                else
+                {
+                    Logger.Info("[Round] ClearSubtitles via SubtitleWindow (Regions)");
+                    _subtitleWindow.ClearSubtitles();
+                }
+
+                var regionList = new System.Collections.Generic.List<System.Windows.Rect>(regions);
+                Logger.Info($"[Regions] 本回合共 {regionList.Count} 個區域");
+                for (int i = 0; i < regionList.Count; i++)
+                {
+                    var region = regionList[i];
+                    try
+                    {
+                        Logger.Info($"[Regions] 開始處理第 {i+1}/{regionList.Count} 個區域: X={region.X}, Y={region.Y}, W={region.Width}, H={region.Height}");
+                        await ProcessSelectedRegionAsync(region);
+                        Logger.Info($"[Regions] 完成處理第 {i+1}/{regionList.Count} 個區域");
+                    }
+                    catch (Exception exOne)
+                    {
+                        Logger.Error(exOne, $"區域處理失敗: {region}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "❌ StartRegionTranslationAsync 發生異常");
+                System.Windows.MessageBox.Show($"區域翻譯出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
         /// 確保服務已初始化（只在需要時才初始化）
         /// </summary>
         private void EnsureServicesInitialized()
@@ -79,6 +170,7 @@ namespace MonLingo.Core.Service
                 _ocrService = Phase5ServiceContainer.GetService<IOcrService>();
                 _translateService = Phase5ServiceContainer.GetService<ITranslateService>();
                 _displayService = Phase5ServiceContainer.GetService<IDisplayService>();
+                _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
             }
         }
 
@@ -158,9 +250,10 @@ namespace MonLingo.Core.Service
                 var dpiScale = GetDpiScale();
                 
                 // 調整區域座標以適應DPI縮放
+                // 注意：region.X/Y 是相對虛擬桌面的座標（可能含負值），需加上 VirtualScreenLeft/Top 再縮放
                 var scaledRegion = new Rectangle(
-                    (int)(region.X * dpiScale),
-                    (int)(region.Y * dpiScale),
+                    (int)((region.X + SystemParameters.VirtualScreenLeft) * dpiScale),
+                    (int)((region.Y + SystemParameters.VirtualScreenTop) * dpiScale),
                     (int)(region.Width * dpiScale),
                     (int)(region.Height * dpiScale)
                 );
@@ -208,8 +301,21 @@ namespace MonLingo.Core.Service
                 }
                 
                 // ============ PHASE 1: OCR 處理 ============
-                var ocrResult = await _ocrService.RecognizeTextAsync(
-                    imageData, image.Width, image.Height);
+                // 🎯 優先使用OCR服務的語言配置功能，自動記住用戶語言設定
+                OcrResult ocrResult;
+                
+                if (_ocrService is RealOcrService configAwareOcrService)
+                {
+                    // 使用配置感知的OCR方法，自動記住語言設定
+                    ocrResult = await configAwareOcrService.RecognizeTextWithConfigAsync(
+                        imageData, image.Width, image.Height);
+                }
+                else
+                {
+                    // 後備方案：使用原有的OCR方法
+                    ocrResult = await _ocrService.RecognizeTextAsync(
+                        imageData, image.Width, image.Height);
+                }
                 
                 if (ocrResult == null || ocrResult.Lines == null || ocrResult.Lines.Length == 0)
                 {
@@ -237,13 +343,21 @@ namespace MonLingo.Core.Service
                     return string.Empty;
                 }
                 
-                // 使用真正的翻譯服務
-                // TODO: 從配置服務獲取語言設定
-                var sourceLanguage = "auto"; // 自動檢測
-                var targetLanguage = "zh-TW"; // 繁體中文
+                // 🎯 優先使用翻譯服務的語言配置功能，自動記住用戶語言設定
+                string translatedText;
                 
-                var translatedText = await _translateService.TranslateAsync(
-                    text, sourceLanguage, targetLanguage);
+                if (_translateService is TranslateService configAwareService)
+                {
+                    // 使用配置感知的翻譯方法，自動記住語言設定
+                    translatedText = await configAwareService.TranslateWithConfigAsync(text);
+                }
+                else
+                {
+                    // 後備方案：手動獲取語言配置
+                    var sourceLanguage = await _languageConfigService.GetSourceLanguageAsync();
+                    var targetLanguage = await _languageConfigService.GetTargetLanguageAsync();
+                    translatedText = await _translateService.TranslateAsync(text, sourceLanguage, targetLanguage);
+                }
                 
                 return translatedText ?? string.Empty;
             }
@@ -257,22 +371,44 @@ namespace MonLingo.Core.Service
         {
             try
             {
+                Logger.Debug("🎯 ShowTranslationResult 開始執行");
+                Logger.Debug($"📝 原文: {originalText}");
+                Logger.Debug($"🌐 譯文: {translatedText}");
+                
                 // ============ PHASE 4: 顯示結果分發 ============
                 // 確保字幕視窗存在並設置 DisplayService
                 if (_subtitleWindow == null)
                 {
                     Logger.Debug("🆕 創建新的字幕視窗");
-                    _subtitleWindow = new SubtitleWindow(_mainBarWindow);
                     
-                    // 設置 DisplayService 的 SubtitleViewModel 引用
-                    if (_displayService != null)
+                    try
                     {
-                        var viewModel = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
-                        _displayService.SetSubtitleViewModel(viewModel);
+                        Logger.Debug("🔨 開始創建 SubtitleWindow 實例");
+                        _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                        Logger.Debug("✅ SubtitleWindow 實例創建成功");
+                        
+                        // 設置 DisplayService 的 SubtitleViewModel 引用
+                        if (_displayService != null)
+                        {
+                            Logger.Debug("🔗 設置 DisplayService 的 SubtitleViewModel 引用");
+                            var viewModel = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                            _displayService.SetSubtitleViewModel(viewModel);
+                            Logger.Debug("✅ DisplayService 設置完成");
+                        }
+                        else
+                        {
+                            Logger.Debug("⚠️ DisplayService 為 null，跳過設置");
+                        }
+                        
+                        Logger.Debug("🎬 開始調用 ShowSubtitle()");
+                        _subtitleWindow.ShowSubtitle();
+                        Logger.Debug("✅ 新字幕視窗已顯示");
                     }
-                    
-                    _subtitleWindow.ShowSubtitle();
-                    Logger.Debug("✅ 新字幕視窗已顯示");
+                    catch (Exception createEx)
+                    {
+                        Logger.Error(createEx, "❌ 創建字幕視窗時發生錯誤");
+                        throw new Exception($"創建字幕視窗失敗: {createEx.Message}", createEx);
+                    }
                 }
                 else
                 {
@@ -292,18 +428,25 @@ namespace MonLingo.Core.Service
                 }
 
                 // 使用 DisplayService 顯示翻譯結果
+                Logger.Debug("📊 檢查 DisplayService 狀態");
                 if (_displayService != null)
                 {
+                    Logger.Debug("✅ 使用 DisplayService 顯示翻譯結果 (SubtitleMode)");
                     _displayService.Show(originalText, translatedText);
+                    Logger.Debug("✅ DisplayService.Show() 調用完成");
                 }
                 else
                 {
-                    // 如果 DisplayService 不可用，直接調用字幕視窗
+                    Logger.Debug("🔄 DisplayService 不可用，直接調用字幕視窗");
                     _subtitleWindow.AddSubtitleLine(originalText, translatedText);
+                    Logger.Debug("✅ AddSubtitleLine() 調用完成");
                 }
+                
+                Logger.Debug("🎊 ShowTranslationResult 執行完成");
             }
             catch (Exception ex)
             {
+                Logger.Error(ex, "❌ ShowTranslationResult 執行時發生錯誤");
                 System.Windows.MessageBox.Show($"顯示翻譯結果時出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

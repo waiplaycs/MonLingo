@@ -16,6 +16,8 @@
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="True"
+    UseLayoutRounding="True"
+    SnapsToDevicePixels="True"
         ShowInTaskbar="{Binding IsDetached}"
         ResizeMode="CanResize"
         MinWidth="350"
@@ -30,8 +32,14 @@
 
     <!-- 視窗資源 - 0824 設計優化 -->
     <Window.Resources>
-        <!-- 轉換器 -->
-        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <ResourceDictionary>
+            <!-- 合併共用樣式資源 -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../Resources/Styles/CommonStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- 轉換器 -->
+            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         
         <!-- 現代化淡入動畫 - 匹配工具條動畫風格 -->
         <Storyboard x:Key="FadeInAnimation">
@@ -170,16 +178,16 @@
             </Setter>
         </Style>
 
-        <!-- 標題列按鈕樣式 - 匹配工具條按鈕設計 -->
+        <!-- 標題列按鈕樣式 - 精簡厚度 -->
         <Style x:Key="TitleBarButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Width" Value="32"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="6"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -205,26 +213,71 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- 浮動圓形小按鈕 (黑底白圖標) -->
+        <Style x:Key="FloatingCircleButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Background" Value="#AA000000"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="14"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="#CC000000"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="#FF111111"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        </ResourceDictionary>
     </Window.Resources>
 
     <!-- 主要內容區域 - 0824 現代化設計 -->
-    <Grid>
+    <Grid x:Name="RootContainer" SnapsToDevicePixels="True" Margin="0">
         <!-- 主邊框 - 依附模式和分離模式不同樣式，匹配工具條設計風格 -->
         <Border x:Name="MainBorder"
                 BorderBrush="Transparent"
-                BorderThickness="0">
+                BorderThickness="0"
+                Margin="0"
+                Padding="0">
             
             <!-- 邊框樣式根據是否分離來決定，採用工具條相同的圓角設計 -->
             <Border.Style>
                 <Style TargetType="Border">
                     <!-- 預設：依附模式 - 與工具條連接的無縫設計 -->
                     <Setter Property="CornerRadius" Value="0,0,22,22"/>
-                    <Setter Property="Margin" Value="0,0,0,0"/>
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="BorderThickness" Value="0"/>
                     <Style.Triggers>
                         <!-- 分離模式 - 全圓角，與工具條保持一致 -->
                         <DataTrigger Binding="{Binding IsDetached}" Value="True">
                             <Setter Property="CornerRadius" Value="22"/>
                             <Setter Property="Margin" Value="8"/>
+                            <Setter Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="Black" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.5"/>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <!-- 依附狀態確保無陰影、無邊距、無邊框 -->
+                        <DataTrigger Binding="{Binding IsDetached}" Value="False">
+                            <Setter Property="Effect" Value="{x:Null}"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="BorderThickness" Value="0"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -240,14 +293,7 @@
                 </LinearGradientBrush>
             </Border.Background>
 
-            <!-- 添加陰影效果，但依附模式時減少陰影以增強連接感 -->
-            <Border.Effect>
-                <DropShadowEffect Color="Black" 
-                                  Direction="270" 
-                                  ShadowDepth="2" 
-                                  BlurRadius="8" 
-                                  Opacity="0.5"/>
-            </Border.Effect>
+            
 
             <Grid>
                 <Grid.RowDefinitions>
@@ -257,21 +303,20 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- 標題列 - 0824 現代化設計，僅在分離模式顯示 -->
-                <Border Grid.Row="0" 
+                <!-- 標題列 - 0824 現代化設計，僅在分離且非鎖定模式顯示 -->
+        <Border Grid.Row="0" 
                         CornerRadius="22,22,0,0"
-                        Padding="20,12"
+            Padding="14,6"
                         MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                     <!-- 黑色標題欄背景，與工具條風格保持一致 -->
                     <Border.Background>
                         <SolidColorBrush Color="Black" Opacity="0.9"/>
                     </Border.Background>
                     <Border.Visibility>
-                        <Binding Path="IsDetached">
-                            <Binding.Converter>
-                                <converters:BooleanToVisibilityConverter/>
-                            </Binding.Converter>
-                        </Binding>
+                        <MultiBinding Converter="{StaticResource MultiBooleanToVisibilityConverter}">
+                            <Binding Path="IsDetached"/>
+                            <Binding Path="IsLocked" Converter="{StaticResource InvertBooleanConverter}"/>
+                        </MultiBinding>
                     </Border.Visibility>
                     
                     <!-- 標題列內容 -->
@@ -279,33 +324,23 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- 標題文字 - 採用工具條相同的現代化字體 -->
+                        <!-- 標題文字 - 精簡尺寸 -->
                         <TextBlock Grid.Column="0" 
                                    Text="MonLingo 字幕視窗" 
                                    Foreground="White" 
                                    FontWeight="SemiBold"
-                                   FontSize="14"
+                                   FontSize="12"
                                    FontFamily="Segoe UI, Microsoft YaHei UI, 微軟雅黑"
                                    VerticalAlignment="Center"/>
 
-                        <!-- 依附按鈕 - 採用現代化圖標設計 -->
+            <!-- 關閉按鈕 -->
                         <Button Grid.Column="1" 
-                                Content="📌" 
-                                ToolTip="重新依附到工具條"
-                                Style="{StaticResource TitleBarButtonStyle}"
-                                Margin="8,0"
-                                FontSize="16"
-                                Command="{Binding ReattachCommand}"/>
-
-                        <!-- 關閉按鈕 - 採用現代化設計 -->
-                        <Button Grid.Column="2" 
                                 Content="✕" 
                                 ToolTip="關閉字幕視窗"
                                 Style="{StaticResource TitleBarButtonStyle}"
-                                FontSize="14"
+                FontSize="12"
                                 Command="{Binding CloseCommand}"/>
                     </Grid>
                 </Border>
@@ -313,10 +348,11 @@
                 <!-- 0824 現代化滾動檢視器 -->
                 <ScrollViewer Grid.Row="1"
                               x:Name="SubtitleScrollViewer"
-                              VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
                               CanContentScroll="True"
-                              Padding="0,16,8,16">
+                              Padding="12,16,28,12"
+                              ClipToBounds="True">
                     
                     <!-- 滾動條樣式 -->
                     <ScrollViewer.Resources>
@@ -345,61 +381,50 @@
                         </Style>
                     </ScrollViewer.Resources>
                     
-                    <!-- 0824 字幕行列表 - 現代化設計 -->
-                    <ItemsControl x:Name="SubtitleItemsControl"
-                                  ItemsSource="{Binding SubtitleLines}">
-                        <!-- 項目容器樣式 -->
-                        <ItemsControl.ItemContainerStyle>
-                            <Style TargetType="ContentPresenter">
-                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                                <Setter Property="Margin" Value="0,0"/>
-                            </Style>
-                        </ItemsControl.ItemContainerStyle>
-
-                        <!-- 項目面板：垂直堆疊 -->
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Vertical" Margin="0"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-
-                        <!-- 0824 現代化項目範本 -->
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <!-- 移除 Border 和分隔效果，讓字幕看起來是一個整體 -->
-                                <Grid Margin="0,4">
-                                    <Grid.RowDefinitions>
-                                        <!-- 主要譯文行 -->
-                                        <RowDefinition Height="Auto"/>
-                                        <!-- 原文行（可選） -->
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-
-                                        <!-- 主要譯文 - 0824 現代化樣式 -->
-                                        <TextBlock Grid.Row="0"
-                                                   Text="{Binding TranslatedText}"
-                                                   Style="{StaticResource SubtitleTextStyle}"/>
-
-                                    <!-- 原文 - 0824 優化樣式 -->
-                                    <TextBlock Grid.Row="1"
-                                               Text="{Binding OriginalText}"
-                                               Style="{StaticResource OriginalTextStyle}"
-                                               Margin="15,0,15,5">
-                                        <TextBlock.Visibility>
-                                            <Binding Path="OriginalText" 
-                                                     Converter="{StaticResource StringToVisibilityConverter}"/>
-                                        </TextBlock.Visibility>
-                                    </TextBlock>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- 單行合併輸出文本，但允許自動換行，以適應視窗寬度並保持內容在界內 -->
+                    <TextBlock Text="{Binding CombinedTranslatedText}"
+                               Style="{StaticResource SubtitleTextStyle}"
+                               TextWrapping="Wrap"
+                               TextTrimming="None"/>
                 </ScrollViewer>
+
+                <!-- 右下角一鍵複製 (小尺寸) - 避開縮放角，黑底白圖標 -->
+        <Button Grid.Row="1"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+            Margin="0,0,8,36"
+                        Style="{StaticResource FloatingCircleButtonStyle}"
+                        ToolTip="複製所有翻譯文字"
+                        Click="CopyAllButton_Click"
+                        Panel.ZIndex="10">
+                    <!-- MDL2 複製圖標 (U+E8C8) -->
+                    <TextBlock Text="&#xE8C8;" FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                </Button>
+
+        <!-- 底部置中小通知：✓複製成功 -->
+        <Border x:Name="CenterToast"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Bottom"
+            Margin="0,0,0,16"
+            Background="#B2000000"
+            CornerRadius="10"
+            Padding="12,8"
+            Opacity="0"
+            Visibility="Collapsed"
+            Panel.ZIndex="20"
+            Grid.RowSpan="2"
+            IsHitTestVisible="False">
+            <TextBlock x:Name="CenterToastText"
+                   Text="✓複製成功"
+                   Foreground="White"
+                   FontSize="14"
+                   FontWeight="SemiBold"/>
+        </Border>
             </Grid>
         </Border>
 
         <!-- 拖拽縮放控制項 - 右下角可見按鈕 -->
-        <Grid HorizontalAlignment="Right" 
+    <Grid x:Name="ResizeGrip" HorizontalAlignment="Right" 
               VerticalAlignment="Bottom" 
               Width="20" Height="20" 
               Margin="0,0,8,8"
