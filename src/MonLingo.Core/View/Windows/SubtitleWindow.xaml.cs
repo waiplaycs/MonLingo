@@ -347,8 +347,15 @@ namespace MonLingo.Core.View.Windows
                     var oldTop = Top;
                     DragMove();
 
-                    // 拖移結束後嘗試吸附到工具條底部（需接近）
-                    TrySnapAttachToToolbarBottom(oldLeft, oldTop);
+                    // 更新 ViewModel 位置與大小（保持分離模式，不吸附）
+                    if (_viewModel != null)
+                    {
+                        _viewModel.IsDetached = true;
+                        _viewModel.WindowLeft = Left;
+                        _viewModel.WindowTop = Top;
+                        _viewModel.WindowWidth = ActualWidth;
+                        _viewModel.WindowHeight = ActualHeight;
+                    }
                     Logger.Debug($"DragEnd Window: L={Left}, T={Top}, IsDetached={_viewModel?.IsDetached}");
                 }
                 catch (Exception ex)
@@ -387,19 +394,8 @@ namespace MonLingo.Core.View.Windows
         {
             if (_viewModel != null)
             {
-                if (!_viewModel.IsDetached)
-                {
-                    // 目前為吸附狀態 -> 分離+解鎖 (一步到位)
-                    _viewModel.DetachSubtitleWindow();
-                    _viewModel.IsLocked = false;
-                    Logger.Info("Double-click while attached -> Detach + Unlock");
-                }
-                else
-                {
-                    // 目前為分離狀態 -> 切換鎖定狀態
-                    _viewModel.IsLocked = !_viewModel.IsLocked;
-                    Logger.Info($"Double-click while detached -> Toggle lock to {_viewModel.IsLocked}");
-                }
+                _viewModel.IsLocked = !_viewModel.IsLocked;
+                Logger.Info($"Double-click -> Toggle lock to {_viewModel.IsLocked}");
             }
         }
 
@@ -486,62 +482,7 @@ namespace MonLingo.Core.View.Windows
         }
 
         // 嘗試吸附至工具條底部：僅當視窗底邊接近工具條底邊一定閾值且水平重疊足夠時
-        private void TrySnapAttachToToolbarBottom(double oldLeft, double oldTop)
-        {
-            try
-            {
-                if (_viewModel == null || _viewModel.MainBarWindow == null) return;
-                if (_viewModel.IsLocked) return;
-
-                var toolbar = _viewModel.MainBarWindow;
-                // 視窗和工具條的矩形
-                Rect winRect = new Rect(Left, Top, ActualWidth, ActualHeight);
-                Rect barRect = new Rect(toolbar.Left, toolbar.Top, toolbar.ActualWidth, toolbar.ActualHeight);
-
-                // 擴大吸附條件：
-                // 1) 與工具條有任何垂直方向重疊，且水平至少有 1px 重疊 -> 直接吸附
-                // 2) 否則沿用「距離底邊 16px 內且水平重疊 ≥ 40px」規則
-                const double verticalThreshold = 16;
-                const double horizontalOverlapMin = 40;
-
-                // 垂直重疊（任意交集）
-                double verticalOverlap = Math.Min(winRect.Bottom, barRect.Bottom) - Math.Max(winRect.Top, barRect.Top);
-                double horizontalOverlap = Math.Min(winRect.Right, barRect.Right) - Math.Max(winRect.Left, barRect.Left);
-
-                bool hasAnyOverlap = verticalOverlap > 0 && horizontalOverlap > 0;
-
-                // 距離條件
-                double distanceToBarBottom = Math.Abs(winRect.Top - (barRect.Bottom));
-                Logger.Debug($"SnapCheck: vOverlap={verticalOverlap}, hOverlap={horizontalOverlap}, distBottom={distanceToBarBottom}");
-
-                if (hasAnyOverlap || (distanceToBarBottom <= verticalThreshold && horizontalOverlap >= horizontalOverlapMin))
-                {
-                    // 進行依附：對齊寬度與工具條一致，位置緊貼工具條底部（完全無縫隙）
-                    _viewModel.IsDetached = false;
-                    _viewModel.IsLocked = true; // 吸附時自動鎖定
-                    _viewModel.WindowLeft = toolbar.Left;
-                    _viewModel.WindowTop = toolbar.Top + toolbar.ActualHeight - 10; // 向上調整10px增加重疊
-                    _viewModel.WindowWidth = toolbar.ActualWidth;
-                    Logger.Info($"Snapped to toolbar bottom and auto-locked: L={_viewModel.WindowLeft}, T={_viewModel.WindowTop}, W={_viewModel.WindowWidth}");
-                    // 高度使用依附標準高度（由 VM 控制）
-                }
-                else
-                {
-                    // 沒有吸附：切換為分離狀態，並同步目前位置與大小
-                    _viewModel.IsDetached = true;
-                    _viewModel.WindowLeft = Left;
-                    _viewModel.WindowTop = Top;
-                    _viewModel.WindowWidth = ActualWidth;
-                    _viewModel.WindowHeight = ActualHeight;
-                    Logger.Debug("Not snapped: conditions not met -> set IsDetached=true and keep current position/size");
-                }
-            }
-            catch (Exception ex)
-            {
-                // 安全失敗，不做任何事
-                Logger.Warn(ex, "Snap attach check failed");
-            }
-        }
+    // 已移除吸附/依附工具條的邏輯
 
         /// <summary>
         /// 標題列滑鼠按下事件 - 拖拽視窗
@@ -571,8 +512,16 @@ namespace MonLingo.Core.View.Windows
                     // 只有在真正移動了足夠距離時才嘗試吸附
                     if (moveDistance >= _minMovementThreshold)
                     {
-                        TrySnapAttachToToolbarBottom(oldLeft, oldTop);
-                        Logger.Debug($"Movement threshold met, snap attempted. IsDetached={_viewModel?.IsDetached}");
+                        // 更新 ViewModel 位置與大小（保持分離模式，不吸附）
+                        if (_viewModel != null)
+                        {
+                            _viewModel.IsDetached = true;
+                            _viewModel.WindowLeft = Left;
+                            _viewModel.WindowTop = Top;
+                            _viewModel.WindowWidth = ActualWidth;
+                            _viewModel.WindowHeight = ActualHeight;
+                        }
+                        Logger.Debug($"Movement threshold met, updated position/size. IsDetached={_viewModel?.IsDetached}");
                     }
                     else
                     {
@@ -615,6 +564,24 @@ namespace MonLingo.Core.View.Windows
 
                 // 應用動畫
                 scrollViewer.BeginAnimation(ScrollViewerBehavior.VerticalOffsetProperty, animation);
+            }
+        }
+
+        /// <summary>
+        /// 單行模式：將水平滾動條移到最右端
+        /// </summary>
+        private void ScrollToRightEnd()
+        {
+            try
+            {
+                var scrollViewer = this.FindName("SubtitleScrollViewer") as ScrollViewer;
+                if (scrollViewer == null) return;
+                scrollViewer.UpdateLayout();
+                scrollViewer.ScrollToRightEnd();
+            }
+            catch
+            {
+                // 忽略小錯誤
             }
         }
 

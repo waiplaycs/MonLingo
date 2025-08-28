@@ -324,7 +324,6 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- 標題文字 - 精簡尺寸 -->
@@ -336,17 +335,8 @@
                                    FontFamily="Segoe UI, Microsoft YaHei UI, 微軟雅黑"
                                    VerticalAlignment="Center"/>
 
-            <!-- 依附按鈕 -->
-                        <Button Grid.Column="1" 
-                                Content="📌" 
-                                ToolTip="重新依附到工具條"
-                                Style="{StaticResource TitleBarButtonStyle}"
-                Margin="6,0"
-                FontSize="12"
-                                Command="{Binding ReattachCommand}"/>
-
             <!-- 關閉按鈕 -->
-                        <Button Grid.Column="2" 
+                        <Button Grid.Column="1" 
                                 Content="✕" 
                                 ToolTip="關閉字幕視窗"
                                 Style="{StaticResource TitleBarButtonStyle}"
@@ -358,10 +348,11 @@
                 <!-- 0824 現代化滾動檢視器 -->
                 <ScrollViewer Grid.Row="1"
                               x:Name="SubtitleScrollViewer"
-                              VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
                               CanContentScroll="True"
-                              Padding="0,16,8,16">
+                              Padding="12,16,28,12"
+                              ClipToBounds="True">
                     
                     <!-- 滾動條樣式 -->
                     <ScrollViewer.Resources>
@@ -390,43 +381,18 @@
                         </Style>
                     </ScrollViewer.Resources>
                     
-                    <!-- 0824 字幕行列表 - 現代化設計 -->
-                    <ItemsControl x:Name="SubtitleItemsControl"
-                                  ItemsSource="{Binding SubtitleLines}">
-                        <!-- 項目容器樣式 -->
-                        <ItemsControl.ItemContainerStyle>
-                            <Style TargetType="ContentPresenter">
-                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                                <Setter Property="Margin" Value="0,0"/>
-                            </Style>
-                        </ItemsControl.ItemContainerStyle>
-
-                        <!-- 項目面板：垂直堆疊 -->
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Vertical" Margin="0"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-
-                        <!-- 0824 現代化項目範本 -->
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <!-- 移除 Border 和分隔效果，讓字幕看起來是一個整體 -->
-                                <Grid Margin="0,4">
-                                    <!-- 僅顯示譯文 -->
-                                    <TextBlock Text="{Binding TranslatedText}"
-                                               Style="{StaticResource SubtitleTextStyle}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- 單行合併輸出文本，但允許自動換行，以適應視窗寬度並保持內容在界內 -->
+                    <TextBlock Text="{Binding CombinedTranslatedText}"
+                               Style="{StaticResource SubtitleTextStyle}"
+                               TextWrapping="Wrap"
+                               TextTrimming="None"/>
                 </ScrollViewer>
 
                 <!-- 右下角一鍵複製 (小尺寸) - 避開縮放角，黑底白圖標 -->
         <Button Grid.Row="1"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Bottom"
-            Margin="0,0,8,28"
+            Margin="0,0,8,36"
                         Style="{StaticResource FloatingCircleButtonStyle}"
                         ToolTip="複製所有翻譯文字"
                         Click="CopyAllButton_Click"
@@ -458,7 +424,7 @@
         </Border>
 
         <!-- 拖拽縮放控制項 - 右下角可見按鈕 -->
-        <Grid HorizontalAlignment="Right" 
+    <Grid x:Name="ResizeGrip" HorizontalAlignment="Right" 
               VerticalAlignment="Bottom" 
               Width="20" Height="20" 
               Margin="0,0,8,8"

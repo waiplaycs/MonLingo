@@ -1,6 +1,8 @@
 using System;
 using System.Windows;
 using MonLingo.Core.ViewModel;
+using System.Linq;
+using MonLingo.View.Windows;
 using NLog;
 
 namespace MonLingo.Core.View.Windows
@@ -12,6 +14,9 @@ namespace MonLingo.Core.View.Windows
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private EditWindowViewModel _viewModel;
+
+    // 非模態確認事件：用於外部取得編輯結果
+    public event EventHandler<EditConfirmedEventArgs> EditConfirmed;
 
         public EditWindow()
         {
@@ -32,8 +37,27 @@ namespace MonLingo.Core.View.Windows
 
         private void OnWindowCloseRequested(object sender, EditWindowCloseEventArgs e)
         {
-            this.DialogResult = e.IsConfirmed;
-            this.Close();
+            try
+            {
+                if (e.IsConfirmed)
+                {
+                    // 先對外發送確認事件（非模態場景使用）
+                    var original = _viewModel?.OriginalText ?? string.Empty;
+                    var translated = _viewModel?.TranslatedText ?? string.Empty;
+                    EditConfirmed?.Invoke(this, new EditConfirmedEventArgs
+                    {
+                        OriginalText = original,
+                        TranslatedText = translated
+                    });
+                }
+
+                // 嘗試設定 DialogResult（若為模態顯示），非模態時會擲出例外，忽略即可
+                try { this.DialogResult = e.IsConfirmed; } catch { /* ignore for modeless */ }
+            }
+            finally
+            {
+                this.Close();
+            }
         }
 
         /// <summary>
@@ -53,5 +77,40 @@ namespace MonLingo.Core.View.Windows
             }
             base.OnClosed(e);
         }
+
+        private void Header_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            try
+            {
+                // 聚焦或開啟設定視窗，定位至翻譯語言
+                var existing = Application.Current.Windows.OfType<SettingMainWindow>().FirstOrDefault();
+                if (existing != null)
+                {
+                    if (existing.WindowState == WindowState.Minimized)
+                        existing.WindowState = WindowState.Normal;
+                    existing.Activate();
+                    existing.Topmost = true; existing.Topmost = false;
+                    existing.OpenTranslationLanguagePage();
+                    return;
+                }
+
+                var settingsWindow = new SettingMainWindow
+                {
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen
+                };
+                settingsWindow.OpenTranslationLanguagePage();
+                settingsWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "EditWindow header click failed to open settings");
+            }
+        }
+    }
+
+    public class EditConfirmedEventArgs : EventArgs
+    {
+        public string OriginalText { get; set; }
+        public string TranslatedText { get; set; }
     }
 }

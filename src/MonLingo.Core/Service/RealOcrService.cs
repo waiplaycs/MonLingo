@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using PaddleOCRSharp;
 using System.Reflection;
 using MonLingo.Core.Infrastructure;
+using System.Collections.Generic;
 
 namespace MonLingo.Core.Service
 {
@@ -279,56 +280,114 @@ namespace MonLingo.Core.Service
                     // 執行OCR識別
                     var ocrResult = _ocrEngine.DetectText(bitmap);
                     
-                    // 轉換為我們的OcrResult格式
+                    // 轉換為我們的OcrResult格式（加入幾何排序，確保閱讀順序：自上而下、由左至右）
                     if (ocrResult?.TextBlocks != null && ocrResult.TextBlocks.Count > 0)
                     {
-                        var lines = new OcrLine[ocrResult.TextBlocks.Count];
+                        // 1) 將 TextBlocks 轉成中間結構並計算穩定的 BoundingBox（由四個點取 min/max）
+                        var blocks = new List<(string Text, float Score, System.Drawing.Rectangle Rect)>();
+                        foreach (var tb in ocrResult.TextBlocks)
+                        {
+                            // BoxPoints 可能不是固定順序，取四點的 min/max 生成軸對齊矩形
+                            int minX = (int)Math.Floor(tb.BoxPoints.Min(p => (double)p.X));
+                            int minY = (int)Math.Floor(tb.BoxPoints.Min(p => (double)p.Y));
+                            int maxX = (int)Math.Ceiling(tb.BoxPoints.Max(p => (double)p.X));
+                            int maxY = (int)Math.Ceiling(tb.BoxPoints.Max(p => (double)p.Y));
+                            var rect = new System.Drawing.Rectangle(minX, minY, Math.Max(1, maxX - minX), Math.Max(1, maxY - minY));
+                            blocks.Add((tb.Text, tb.Score, rect));
+                        }
+
+                        if (blocks.Count == 0)
+                        {
+                            return new OcrResult
+                            {
+                                Text = string.Empty,
+                                Confidence = 0.0,
+                                Lines = new OcrLine[0],
+                                BoundingBox = new System.Drawing.Rectangle()
+                            };
+                        }
+
+                        // 2) 估算平均行高，用於同列（row）分組閾值
+                        double avgHeight = blocks.Select(b => (double)b.Rect.Height).OrderBy(h => h).Skip(Math.Max(0, blocks.Count / 4)).Take(Math.Max(1, blocks.Count / 2)).DefaultIfEmpty(20).Average();
+                        double rowThreshold = Math.Max(10.0, avgHeight * 0.6); // 同一行的中心Y相差不超過該值
+
+                        // 3) 先按 Y 初步排序，再做行分組（以中心Y接近或垂直重疊判斷）
+                        var prelim = blocks.OrderBy(b => b.Rect.Top).ThenBy(b => b.Rect.Left).ToList();
+                        var rows = new List<List<(string Text, float Score, System.Drawing.Rectangle Rect)>>();
+
+                        bool IsSameRow(System.Drawing.Rectangle a, System.Drawing.Rectangle b)
+                        {
+                            double cyA = a.Top + a.Height / 2.0;
+                            double cyB = b.Top + b.Height / 2.0;
+                            if (Math.Abs(cyA - cyB) <= rowThreshold) return true;
+                            // 補充：若垂直重疊比例足夠，也視為同一行
+                            int top = Math.Max(a.Top, b.Top);
+                            int bottom = Math.Min(a.Bottom, b.Bottom);
+                            int overlap = Math.Max(0, bottom - top);
+                            double minH = Math.Max(1.0, Math.Min(a.Height, b.Height));
+                            return (overlap / minH) >= 0.5;
+                        }
+
+                        foreach (var blk in prelim)
+                        {
+                            bool placed = false;
+                            for (int i = 0; i < rows.Count; i++)
+                            {
+                                // 與當前行的代表框比較（用該行的中位數中心Y更穩定）
+                                var row = rows[i];
+                                var mid = row[row.Count / 2].Rect; // 行中位框
+                                if (IsSameRow(mid, blk.Rect))
+                                {
+                                    row.Add(blk);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed)
+                            {
+                                rows.Add(new List<(string Text, float Score, System.Drawing.Rectangle Rect)> { blk });
+                            }
+                        }
+
+                        // 4) 依行自上而下排序；行內由左至右排序
+                        rows = rows
+                            .OrderBy(r => r.Min(b => b.Rect.Top))
+                            .Select(r => r.OrderBy(b => b.Rect.Left).ToList())
+                            .ToList();
+
+                        // 5) 生成 OcrLine（維持一個 TextBlock 一行，保證穩定的輸出順序）
+                        var ordered = rows.SelectMany(r => r).ToList();
+                        var lines = new OcrLine[ordered.Count];
                         var allText = new System.Text.StringBuilder();
                         double totalConfidence = 0.0;
-                        
-                        for (int i = 0; i < ocrResult.TextBlocks.Count; i++)
+
+                        for (int i = 0; i < ordered.Count; i++)
                         {
-                            var textBlock = ocrResult.TextBlocks[i];
-                            
-                            var boundingBox = new System.Drawing.Rectangle(
-                                (int)textBlock.BoxPoints[0].X,
-                                (int)textBlock.BoxPoints[0].Y,
-                                (int)(textBlock.BoxPoints[2].X - textBlock.BoxPoints[0].X),
-                                (int)(textBlock.BoxPoints[2].Y - textBlock.BoxPoints[0].Y)
-                            );
-                            
-                            // 創建詞語數組
+                            var b = ordered[i];
                             var words = new OcrWord[]
                             {
-                                new OcrWord
-                                {
-                                    Text = textBlock.Text,
-                                    Confidence = textBlock.Score,
-                                    BoundingBox = boundingBox
-                                }
+                                new OcrWord { Text = b.Text, Confidence = b.Score, BoundingBox = b.Rect }
                             };
-                            
                             lines[i] = new OcrLine
                             {
-                                Text = textBlock.Text,
-                                Confidence = textBlock.Score,
-                                BoundingBox = boundingBox,
+                                Text = b.Text,
+                                Confidence = b.Score,
+                                BoundingBox = b.Rect,
                                 Words = words
                             };
-                            
-                            allText.AppendLine(textBlock.Text);
-                            totalConfidence += textBlock.Score;
+                            allText.AppendLine(b.Text);
+                            totalConfidence += b.Score;
                         }
-                        
+
                         var result = new OcrResult
                         {
                             Text = allText.ToString().Trim(),
-                            Confidence = totalConfidence / ocrResult.TextBlocks.Count,
+                            Confidence = totalConfidence / Math.Max(1, ordered.Count),
                             Lines = lines,
                             BoundingBox = CalculateOverallBoundingBox(lines)
                         };
-                        
-                        Console.WriteLine($"🔍 OCR識別完成: 找到 {lines.Length} 行文字");
+
+                        Console.WriteLine($"🔍 OCR識別完成: 找到 {lines.Length} 行文字（已依行排序）");
                         return result;
                     }
                     else

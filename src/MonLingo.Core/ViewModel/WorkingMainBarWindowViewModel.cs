@@ -286,29 +286,39 @@ namespace MonLingo.ViewModel
             {
                 try
                 {
-                    Logger.Info("� 7號按鈕被點擊，打開設定並跳轉至『翻譯語言』頁");
+                    Logger.Info("[Button7] 打開/聚焦設定，跳轉至『翻譯語言』頁");
 
-                    // 暫時關閉工具條 Topmost，避免遮擋設定視窗
-                    var mainWindow = Application.Current.MainWindow as MainBarWindow;
-                    if (mainWindow != null)
+                    // 嘗試尋找已開啟的設定視窗
+                    var existing = Application.Current.Windows
+                        .OfType<SettingMainWindow>()
+                        .FirstOrDefault();
+
+                    if (existing != null)
                     {
-                        mainWindow.Topmost = false;
+                        // 已存在：還原並置頂到前景，並跳轉到翻譯語言
+                        if (existing.WindowState == WindowState.Minimized)
+                            existing.WindowState = WindowState.Normal;
+                        existing.Activate();
+                        existing.Topmost = true; // 暫時置頂以確保可見
+                        existing.Topmost = false;
+                        existing.OpenTranslationLanguagePage();
+                        Logger.Debug("[Button7] 已聚焦現有設定視窗並跳轉頁面");
+                        return;
                     }
 
-                    var settingsWindow = new SettingMainWindow();
-                    // 直接定位至『翻譯語言』頁
-                    settingsWindow.OpenTranslationLanguagePage();
+                    // 不存在：建立新的設定視窗
+                    var mainWindow = Application.Current.MainWindow as MainBarWindow;
+                    if (mainWindow != null) mainWindow.Topmost = false; // 避免遮擋
 
-                    // 關閉時恢復 Topmost
+                    var settingsWindow = new SettingMainWindow
+                    {
+                        WindowStartupLocation = WindowStartupLocation.CenterScreen
+                    };
+                    settingsWindow.OpenTranslationLanguagePage();
                     settingsWindow.Closed += (s, e) =>
                     {
-                        if (mainWindow != null)
-                        {
-                            mainWindow.Topmost = true;
-                        }
+                        if (mainWindow != null) mainWindow.Topmost = true;
                     };
-
-                    // 使用非模態顯示以便即時回饋
                     settingsWindow.Show();
                 }
                 catch (Exception ex)
@@ -803,7 +813,7 @@ namespace MonLingo.ViewModel
         /// <summary>
         /// 執行編輯窗口命令 (按鈕15)
         /// </summary>
-        private void ExecuteOpenEditorCommand()
+    private void ExecuteOpenEditorCommand()
         {
             try
             {
@@ -820,36 +830,28 @@ namespace MonLingo.ViewModel
 
                 Logger.Info($"[Button15] 找到翻譯結果 - 原文長度: {currentResults.Value.OriginalText?.Length ?? 0}, 譯文長度: {currentResults.Value.TranslatedText?.Length ?? 0}");
 
-                // 創建並顯示編輯窗口
+                // 使用當前 VM 顯示在 7 號按鈕上的語言（已由語言服務維護）
+                var srcLangDisplay = this.SourceLanguage;
+                var tgtLangDisplay = this.TargetLanguage;
+
+                // 建立編輯窗口（模型視窗），不阻擋工具條
                 var editWindow = new MonLingo.Core.View.Windows.EditWindow(
                     currentResults.Value.OriginalText ?? string.Empty,
                     currentResults.Value.TranslatedText ?? string.Empty,
-                    "中文", // 默認源語言
-                    "英文"  // 默認目標語言
+                    srcLangDisplay,
+                    tgtLangDisplay
                 );
 
-                // 設置窗口所有者
-                if (_mainBarWindow != null)
+                // 監聽確認事件以回寫結果
+                editWindow.EditConfirmed += (s, e) =>
                 {
-                    editWindow.Owner = _mainBarWindow;
-                }
-
-                Logger.Info("[Button15] 顯示編輯窗口");
-                var result = editWindow.ShowDialog();
-
-                if (result == true)
-                {
-                    Logger.Info("[Button15] 用戶確認編輯");
-                    var editResult = editWindow.GetEditResult();
-                    
-                    // 更新翻譯結果
-                    UpdateTranslationResults(editResult.OriginalText, editResult.TranslatedText);
+                    Logger.Info("[Button15] 用戶確認編輯（非模態）");
+                    UpdateTranslationResults(e.OriginalText, e.TranslatedText);
                     Logger.Info("[Button15] 編輯結果已更新到字幕窗口");
-                }
-                else
-                {
-                    Logger.Info("[Button15] 用戶取消編輯");
-                }
+                };
+
+                Logger.Info("[Button15] 顯示編輯窗口（非模態）");
+                editWindow.Show();
             }
             catch (Exception ex)
             {

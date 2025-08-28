@@ -25,6 +25,14 @@ namespace MonLingo.Core.ViewModel
         /// </summary>
         public ObservableCollection<SubtitleLineItem> SubtitleLines { get; }
 
+        // 將所有輸出以空格分隔合併為單行顯示
+        private string _combinedTranslatedText = string.Empty;
+        public string CombinedTranslatedText
+        {
+            get => _combinedTranslatedText;
+            private set => SetProperty(ref _combinedTranslatedText, value);
+        }
+
         private int _maxLines = 5; // 最多顯示5行字幕
         public int MaxLines
         {
@@ -80,7 +88,7 @@ namespace MonLingo.Core.ViewModel
             set => SetProperty(ref _windowTop, value);
         }
 
-    private bool _isDetached = false; // 是否分離模式（預設依附）
+    private bool _isDetached = true; // 是否分離模式（預設為分離）
         public bool IsDetached
         {
             get => _isDetached;
@@ -186,6 +194,15 @@ namespace MonLingo.Core.ViewModel
             SubtitleLines.Add(newLine);
             Logger.Info($"[SubtitleVM] AddNewLine: afterCount={SubtitleLines.Count}");
 
+            // 更新合併輸出（以空格分隔，無換行）
+            var part = newLine.TranslatedText ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(part))
+            {
+                CombinedTranslatedText = string.IsNullOrWhiteSpace(CombinedTranslatedText)
+                    ? part
+                    : CombinedTranslatedText + " " + part;
+            }
+
             // 觸發滾動事件
             OnNewLineAdded();
         }
@@ -197,6 +214,7 @@ namespace MonLingo.Core.ViewModel
         {
             Logger.Info($"[SubtitleVM] ClearLines: clearing {SubtitleLines.Count} lines");
             SubtitleLines.Clear();
+            CombinedTranslatedText = string.Empty;
         }
 
         /// <summary>
@@ -226,14 +244,7 @@ namespace MonLingo.Core.ViewModel
             IsDetached = true;
         }
 
-        /// <summary>
-        /// 重新依附到主工具條（自動鎖定）
-        /// </summary>
-        public void ReattachSubtitleWindow()
-        {
-            IsDetached = false;
-            IsLocked = true; // 依附時自動鎖定
-        }
+    // 不再支援依附模式
 
         #endregion
 
@@ -241,9 +252,6 @@ namespace MonLingo.Core.ViewModel
 
         private RelayCommand _detachCommand;
         public RelayCommand DetachCommand => _detachCommand ??= new RelayCommand(DetachSubtitleWindow);
-
-        private RelayCommand _reattachCommand;
-        public RelayCommand ReattachCommand => _reattachCommand ??= new RelayCommand(ReattachSubtitleWindow);
 
         private RelayCommand _closeCommand;
         public RelayCommand CloseCommand => _closeCommand ??= new RelayCommand(() =>

@@ -103,8 +103,9 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 標題 -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,24">
+    <!-- 標題（可點擊：跳轉設定→翻譯語言頁） -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,24"
+            Cursor="Hand" MouseLeftButtonUp="Header_MouseLeftButtonUp">
             <TextBlock Text="{Binding SourceLanguage}" Style="{StaticResource HeaderTextStyle}"/>
             <TextBlock Text=" → " Style="{StaticResource HeaderTextStyle}" Margin="8,0"/>
             <TextBlock Text="{Binding TargetLanguage}" Style="{StaticResource HeaderTextStyle}"/>
