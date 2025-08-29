@@ -4603,11 +4603,11 @@
         "net481": {
           "targetAlias": "net481",
           "projectReferences": {
-            "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
-              "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
+            "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
+              "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
             },
-            "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
-              "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj"
+            "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
+              "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj"
             }
           }
         }

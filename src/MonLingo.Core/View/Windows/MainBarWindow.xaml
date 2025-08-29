@@ -44,6 +44,120 @@
         <Geometry x:Key="IconGripVertical">M9 5H7V3H9V5M9 11H7V9H9V11M9 17H7V15H9V17M9 23H7V21H9V23M15 5H17V3H15V5M15 11H17V9H15V11M15 17H17V15H15V17M15 23H17V21H15V23</Geometry>
         <Geometry x:Key="IconX">M18 6L6 18M6 6L18 18</Geometry>
 
+        <!-- 引擎下拉選單樣式：深色、圓角、陰影、開闔動畫 -->
+        <Style x:Key="EngineContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="HasDropShadow" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="MinWidth" Value="260"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border x:Name="CmBorder"
+                                Background="#191919"
+                                BorderBrush="#44888888"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="6"
+                                Opacity="0"
+                                RenderTransformOrigin="0.5,0">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="0" Opacity="0.6"/>
+                            </Border.Effect>
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="CmScale" ScaleX="0.98" ScaleY="0.98"/>
+                                    <TranslateTransform x:Name="CmTrans" Y="6"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
+                            <StackPanel IsItemsHost="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsOpen" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CmBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.16">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CmScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CmScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CmTrans" Storyboard.TargetProperty="Y" To="0" Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CmBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.12">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseIn"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CmTrans" Storyboard.TargetProperty="Y" To="6" Duration="0:0:0.12"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 引擎下拉選單項目樣式：圓角、高亮、字型 -->
+    <Style x:Key="EngineMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+            <Border x:Name="ItemBorder" Background="Transparent" CornerRadius="6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0" ContentSource="Icon" Margin="0,0,8,0"/>
+                                <ContentPresenter Grid.Column="1" ContentSource="Header"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="ItemBorder" Property="Background" Value="#2A2A2A"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter TargetName="ItemBorder" Property="Background" Value="#333333"/>
+                <Setter Property="Foreground" Value="#93C5FD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 引擎選擇下拉選單（使用上面樣式，項目動態填充） -->
+        <ContextMenu x:Key="EngineContextMenu" Placement="Bottom" Style="{StaticResource EngineContextMenuStyle}">
+            <!-- 項目由後置碼動態填充 -->
+        </ContextMenu>
+
         <!-- 通用圖示按鈕樣式 -->
         <Style x:Key="IconButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -409,20 +523,32 @@
             <Rectangle Fill="#44888888" Width="1" Height="16" Margin="12,0"/>
 
             <!-- 5. 翻譯引擎選擇 -->
-            <Border Background="#80000000" CornerRadius="4" Padding="8,4" Cursor="Hand">
+        <Border x:Name="EngineSelectorBorder" Background="#80000000" CornerRadius="4" Padding="10,6,12,6" Cursor="Hand"
+                    MouseLeftButtonUp="EngineSelectorBorder_MouseLeftButtonUp" MinWidth="100">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse Fill="#4ADE80" Width="8" Height="8"/>
+                    <Ellipse Fill="#4ADE80" Width="8" Height="8" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding SelectedEngine}" 
                                Foreground="White" 
                                FontSize="11" 
-                               Margin="8,0,4,0"/>
-                    <Path Data="{StaticResource IconChevronDown}" 
-                          Stroke="White" 
-                          StrokeThickness="1.5" 
-                          Width="12" 
-                          Height="12"/>
+                               VerticalAlignment="Center"
+                               Margin="8,0,8,0"/>
+              <Path x:Name="EngineChevronPath"
+                  Data="{StaticResource IconChevronDown}"
+                  Stroke="#E6FFFFFF"
+                  StrokeThickness="2.2"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round"
+                  Width="12"
+                  Height="12"
+                  Stretch="Uniform"
+                  SnapsToDevicePixels="True"
+                  VerticalAlignment="Center"
+                  Margin="0,-2,2,0"/>
                 </StackPanel>
             </Border>
+
+            <!-- 引擎選擇下拉選單（在窗口資源中定義） -->
 
             <!-- 6. 翻譯引擎對比 -->
             <Button Style="{StaticResource IconButton}" 

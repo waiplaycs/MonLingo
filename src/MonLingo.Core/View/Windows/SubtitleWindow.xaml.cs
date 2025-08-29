@@ -52,6 +52,7 @@ namespace MonLingo.Core.View.Windows
                 // 訂閱新行添加事件
                 System.Diagnostics.Debug.WriteLine("🔗 訂閱事件");
                 _viewModel.NewLineAdded += OnNewLineAdded;
+                _viewModel.RoundStarted += OnRoundStarted;
                 
                 // 訂閱視窗狀態變化事件
                 this.StateChanged += OnWindowStateChanged;
@@ -192,6 +193,9 @@ namespace MonLingo.Core.View.Windows
             {
                 var dpi = VisualTreeHelper.GetDpi(this);
                 Logger.Info($"SubtitleWindow loaded: DPIScale=({dpi.DpiScaleX:F2},{dpi.DpiScaleY:F2}), IsDetached={_viewModel?.IsDetached}, IsLocked={_viewModel?.IsLocked}, L={Left}, T={Top}, W={ActualWidth}, H={ActualHeight}");
+
+                // 初次顯示時嘗試自動調整高度以完整顯示合併譯文
+                TryAutoSizeToFitCombinedText();
             }
             catch (Exception ex)
             {
@@ -208,6 +212,7 @@ namespace MonLingo.Core.View.Windows
             if (_viewModel != null)
             {
                 _viewModel.NewLineAdded -= OnNewLineAdded;
+                _viewModel.RoundStarted -= OnRoundStarted;
             }
             this.StateChanged -= OnWindowStateChanged;
             Logger.Info("SubtitleWindow closed");
@@ -255,18 +260,18 @@ namespace MonLingo.Core.View.Windows
         {
             try
             {
-        if (_viewModel == null || _viewModel.SubtitleLines == null || _viewModel.SubtitleLines.Count == 0)
-            return;
+                if (_viewModel == null)
+                    return;
 
-                var all = string.Join(Environment.NewLine,
-                    _viewModel.SubtitleLines
+                var text = !string.IsNullOrWhiteSpace(_viewModel.CombinedTranslatedText)
+                    ? _viewModel.CombinedTranslatedText
+                    : string.Join(" ", _viewModel.SubtitleLines
                         .Where(line => !string.IsNullOrWhiteSpace(line.TranslatedText))
                         .Select(line => line.TranslatedText));
 
-                if (string.IsNullOrWhiteSpace(all))
-                    return;
+                if (string.IsNullOrWhiteSpace(text)) return;
 
-                Clipboard.SetText(all);
+                Clipboard.SetText(text);
 
                 // 顯示置中 1 秒的提示
                 ShowCenterToast("✓複製成功", TimeSpan.FromSeconds(1));
@@ -317,6 +322,15 @@ namespace MonLingo.Core.View.Windows
         }
 
         /// <summary>
+        /// 新回合開始事件處理 - 重置自動調整標記
+        /// </summary>
+        private void OnRoundStarted()
+        {
+            _initialAutoSized = false;
+            Logger.Debug("SubtitleWindow: Round started, reset auto-size flag");
+        }
+
+        /// <summary>
         /// 新行添加事件處理 - 觸發自動滾動
         /// </summary>
         private void OnNewLineAdded()
@@ -325,6 +339,11 @@ namespace MonLingo.Core.View.Windows
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
+                    // 只在第一次有內容時自動調整高度
+                    if (!_initialAutoSized)
+                    {
+                        TryAutoSizeToFitCombinedText();
+                    }
                     ScrollToBottom();
                 }));
             }
@@ -539,6 +558,137 @@ namespace MonLingo.Core.View.Windows
         #endregion
 
         #region Private Methods
+
+        private bool _initialAutoSized = false;
+        /// <summary>
+        /// 初次顯示時，根據合併譯文自動調整寬高，盡量避免一開始就出現垂直滾動
+        /// </summary>
+        private void TryAutoSizeToFitCombinedText()
+        {
+            if (_initialAutoSized) return;
+            try
+            {
+                // 確保有實際的翻譯內容才進行調整
+                if (_viewModel == null || string.IsNullOrWhiteSpace(_viewModel.CombinedTranslatedText))
+                {
+                    return; // 沒有內容時不調整，等待內容加入
+                }
+
+                var tb = this.FindName("CombinedTextBlock") as TextBlock;
+                var sv = this.FindName("SubtitleScrollViewer") as ScrollViewer;
+                if (tb == null || sv == null) { _initialAutoSized = true; return; }
+
+                // 強制更新佈局
+                this.UpdateLayout();
+                sv.UpdateLayout();
+                tb.UpdateLayout();
+
+                // 螢幕工作區限制
+                var workArea = SystemParameters.WorkArea;
+                double maxHeight = workArea.Height * 0.9; // 高度最多90%
+                double maxWidth = workArea.Width * 0.9;   // 寬度最多90%
+                double minHeight = 150; // 最小高度
+
+                // ScrollViewer的padding與水平空間
+                var padding = new Thickness(12, 16, 28, 12);
+                double horizontalPadding = padding.Left + padding.Right;
+
+                // 標題列高度（分離且未鎖定時）
+                double titleHeight = 0;
+                if (_viewModel.IsDetached && !_viewModel.IsLocked)
+                {
+                    var title = this.FindName("TitleBar") as FrameworkElement;
+                    if (title != null)
+                    {
+                        title.Measure(new Size(workArea.Width, double.PositiveInfinity));
+                        titleHeight = title.DesiredSize.Height;
+                    }
+                }
+
+                // 量測在某個視窗寬度下所需的總高度（文字高度+padding+標題列）
+                double MeasureTotalHeight(double windowWidth)
+                {
+                    var availableWidth = Math.Max(50, windowWidth - horizontalPadding);
+                    tb.Measure(new Size(availableWidth, double.PositiveInfinity));
+                    var textHeight = tb.DesiredSize.Height;
+                    return textHeight + padding.Top + padding.Bottom + titleHeight;
+                }
+
+                // 搜尋最小寬度，能讓 totalHeight + 緩衝 <= maxHeight
+                double baseMinWidth = 600; // 預設較寬的起始寬度，避免太窄
+                double currentWidth = this.ActualWidth > 1 ? this.ActualWidth : baseMinWidth;
+                double minWidth = Math.Max(baseMinWidth, currentWidth);
+                double maxWidthBound = Math.Max(minWidth, maxWidth);
+
+                // 若在最大寬度下仍超高，則寬度設到最大，高度設到上限
+                double totalAtMax = MeasureTotalHeight(maxWidthBound);
+                double buffer = 40; // 額外緩衝，避免臨界出現捲動
+                if (totalAtMax + buffer > maxHeight)
+                {
+                    // 內容太多，無法完全避免垂直捲動，只能用最大寬度與最大高度
+                    double finalWidthFallback = maxWidthBound;
+                    double finalHeightFallback = Math.Max(minHeight, maxHeight);
+
+                    if (_viewModel != null)
+                    {
+                        _viewModel.WindowWidth = finalWidthFallback;
+                        _viewModel.WindowHeight = finalHeightFallback;
+                    }
+                    else
+                    {
+                        this.Width = finalWidthFallback;
+                        this.Height = finalHeightFallback;
+                    }
+
+                    Logger.Info($"SubtitleWindow auto-resized (cap): W={finalWidthFallback:F1}, H={finalHeightFallback:F1}, totalAtMax={totalAtMax:F1}");
+                    _initialAutoSized = true;
+                    return;
+                }
+
+                // 二分搜尋最小寬度使 totalHeight+buffer <= maxHeight
+                double lo = minWidth;
+                double hi = maxWidthBound;
+                double bestWidth = hi;
+                for (int i = 0; i < 14; i++) // 多幾次以確保收斂
+                {
+                    double mid = (lo + hi) / 2.0;
+                    double total = MeasureTotalHeight(mid);
+                    if (total + buffer <= maxHeight)
+                    {
+                        bestWidth = mid;
+                        hi = mid - 1; // 繼續嘗試更小的寬度
+                    }
+                    else
+                    {
+                        lo = mid + 1;
+                    }
+                }
+
+                // 用找到的寬度重新量測高度並套用
+                double finalWidth = Math.Min(bestWidth, maxWidthBound);
+                double finalTotal = MeasureTotalHeight(finalWidth);
+                double finalHeight = Math.Max(minHeight, Math.Min(finalTotal + buffer, maxHeight));
+
+                if (_viewModel != null)
+                {
+                    _viewModel.WindowWidth = finalWidth;
+                    _viewModel.WindowHeight = finalHeight;
+                    Logger.Info($"SubtitleWindow auto-resized: W={finalWidth:F1}, H={finalHeight:F1}, total={finalTotal:F1}");
+                }
+                else
+                {
+                    this.Width = finalWidth;
+                    this.Height = finalHeight;
+                }
+
+                _initialAutoSized = true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "TryAutoSizeToFitCombinedText ignored error");
+                _initialAutoSized = true;
+            }
+        }
 
         /// <summary>
         /// 平滑滾動到底部

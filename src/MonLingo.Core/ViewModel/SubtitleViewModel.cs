@@ -153,6 +153,11 @@ namespace MonLingo.Core.ViewModel
         /// </summary>
         public event Action NewLineAdded;
 
+        /// <summary>
+        /// 新回合開始事件，用於重置自動調整
+        /// </summary>
+        public event Action RoundStarted;
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         #endregion
@@ -225,6 +230,9 @@ namespace MonLingo.Core.ViewModel
             _roundNumber++;
             Logger.Info($"[SubtitleVM] StartNewRound: round=#{_roundNumber}, clearing previous lines={SubtitleLines.Count}");
             ClearLines();
+            
+            // 通知View重置自動調整標記，以便新一輪可以重新調整
+            RoundStarted?.Invoke();
         }
 
         /// <summary>

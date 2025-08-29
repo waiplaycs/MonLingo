@@ -10,6 +10,8 @@ using MonLingo.Core.View.Windows;
 using MonLingo.Core.Models;
 using MonLingo.Core.Service;
 using MonLingo.Core.Infrastructure;
+using MonLingo.Core.Commands;
+using System.Collections.ObjectModel;
 
 namespace MonLingo.ViewModel
 {
@@ -21,6 +23,7 @@ namespace MonLingo.ViewModel
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private Window _mainBarWindow;
         private readonly ILanguageConfigService _languageConfigService;
+    private readonly ITranslateService _translateService;
         
         public WorkingMainBarWindowViewModel(Window mainBarWindow = null)
         {
@@ -30,6 +33,7 @@ namespace MonLingo.ViewModel
             
             // 初始化語言配置服務
             _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
+            _translateService = Phase5ServiceContainer.GetService<ITranslateService>();
             
             // 異步初始化語言設置
             _ = InitializeLanguageSettingsAsync();
@@ -40,6 +44,9 @@ namespace MonLingo.ViewModel
                 _languageConfigService.LanguageConfigChanged += OnLanguageConfigChanged;
             }
             
+            // 初始化可選引擎清單與當前引擎
+            InitializeEngines();
+
             Logger.Info("✅ WorkingMainBarWindowViewModel 建構完成");
         }
 
@@ -106,6 +113,29 @@ namespace MonLingo.ViewModel
                 OnPropertyChanged(nameof(SelectedEngine));
             }
         }
+
+        // 引擎清單供 #5 下拉選用
+        public ObservableCollection<string> AvailableEngines { get; } = new ObservableCollection<string>();
+
+        // 引擎選擇命令（參數為引擎名稱）
+        private ICommand _selectEngineCommand;
+    public ICommand SelectEngineCommand => _selectEngineCommand ??= new RelayCommand<string>(engineName =>
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(engineName)) return;
+        if (Enum.TryParse<MonLingo.Core.Service.TranslationEngine>(engineName, out var engine))
+                {
+                    _translateService?.SetTranslationEngine(engine);
+                    SelectedEngine = engine.ToString();
+                    Logger.Info($"[Button5] 已切換翻譯引擎為: {SelectedEngine}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, $"[Button5] 切換引擎失敗: {engineName}");
+            }
+        });
 
         private int _remainingTranslations = 999;
         public int RemainingTranslations
@@ -252,6 +282,30 @@ namespace MonLingo.ViewModel
                 }
             }
             catch { }
+        }
+
+        private void InitializeEngines()
+        {
+            try
+            {
+                // 填充 enum 名稱作為顯示
+                AvailableEngines.Clear();
+                foreach (var name in Enum.GetNames(typeof(MonLingo.Core.Service.TranslationEngine)))
+                {
+                    AvailableEngines.Add(name);
+                }
+
+                // 同步 SelectedEngine 與服務當前值
+                var current = _translateService?.CurrentEngine.ToString();
+                if (!string.IsNullOrWhiteSpace(current))
+                {
+                    SelectedEngine = current;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "初始化翻譯引擎清單失敗");
+            }
         }
 
         // 2. 升級到PRO

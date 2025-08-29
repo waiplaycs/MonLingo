@@ -1,22 +1,22 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {}
+    "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {}
   },
   "projects": {
-    "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
+    "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+        "projectUniqueName": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
         "projectName": "MonLingo.Core",
-        "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
-        "packagesPath": "C:\\Users\\User\\Desktop\\MonLingo2\\packages",
-        "outputPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
+        "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+        "packagesPath": "c:\\Users\\User\\Desktop\\MonLingo2\\packages",
+        "outputPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
         "CentralPackageTransitivePinningEnabled": true,
         "configFilePaths": [
-          "C:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
+          "c:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
           "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
@@ -148,19 +148,19 @@
         }
       }
     },
-    "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
+    "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
+        "projectUniqueName": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
         "projectName": "MonLingo",
-        "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
-        "packagesPath": "C:\\Users\\User\\Desktop\\MonLingo2\\packages",
-        "outputPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\obj\\",
+        "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
+        "packagesPath": "c:\\Users\\User\\Desktop\\MonLingo2\\packages",
+        "outputPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
         "CentralPackageTransitivePinningEnabled": true,
         "configFilePaths": [
-          "C:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
+          "c:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
           "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
@@ -173,8 +173,8 @@
           "net481": {
             "targetAlias": "net481",
             "projectReferences": {
-              "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
-                "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
+              "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
+                "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
               }
             }
           }

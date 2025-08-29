@@ -3,7 +3,6 @@
 /* 日期: 2025年8月24日 */
 /* 文件: MainBarWindow.xaml.cs 完整內容 */
 /* ============================================================ */
-
 using System;
 using System.ComponentModel;
 using System.Linq;
@@ -13,11 +12,12 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Interop;
+using System.Windows.Controls.Primitives;
 using MonLingo.ViewModel;
 using MonLingo.View.Windows;
 using NLog;
 using Forms = System.Windows.Forms;
-
+using MonLingo.Core.Service;
 namespace MonLingo.Core.View.Windows
 {
     public partial class MainBarWindow : Window, INotifyPropertyChanged
@@ -35,6 +35,8 @@ namespace MonLingo.Core.View.Windows
         private Geometry _collapseButtonIcon;
     private Forms.NotifyIcon _trayIcon;
     private Forms.ContextMenuStrip _trayMenu;
+    // 引擎下拉：用於避免關閉後立刻又被同一次點擊重新打開
+    private DateTime _engineMenuLastClosedUtc = DateTime.MinValue;
         #endregion
 
         #region 屬性
@@ -298,6 +300,91 @@ namespace MonLingo.Core.View.Windows
                 Logger.Error(ex, "結束拖拽調整大小時發生錯誤");
             }
         }
+
+        // 5. 引擎選擇點擊：開啟下拉選單
+        private void EngineSelectorBorder_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                if (sender is FrameworkElement fe)
+                {
+                    // 若剛在極短時間內關閉，避免立刻又開啟（同一次點擊導致關閉後又開啟）
+                    if (DateTime.UtcNow - _engineMenuLastClosedUtc < TimeSpan.FromMilliseconds(250))
+                    {
+                        return;
+                    }
+
+                    var vm = this.DataContext as WorkingMainBarWindowViewModel;
+                    if (vm == null) return;
+
+                    var contextMenu = this.FindResource("EngineContextMenu") as ContextMenu;
+                    if (contextMenu == null) return;
+
+                    // Toggle: 若選單已開啟，無論目標為何都關閉
+                    if (contextMenu.IsOpen)
+                    {
+                        contextMenu.IsOpen = false;
+                        return;
+                    }
+
+                    // 重新填充項目（移除勾勾，改用高亮）
+                    contextMenu.Items.Clear();
+                    foreach (var engine in vm.AvailableEngines)
+                    {
+                        var menuItem = new MenuItem
+                        {
+                            Header = engine,
+                            IsCheckable = true, // 使用樣式的 IsChecked 觸發高亮
+                            IsChecked = engine == vm.SelectedEngine,
+                            Command = vm.SelectEngineCommand,
+                            CommandParameter = engine,
+                            Style = this.FindResource("EngineMenuItemStyle") as Style
+                        };
+                        // 不再設定 Icon，保持純高亮
+                        contextMenu.Items.Add(menuItem);
+                    }
+
+                    // 位置與開啟
+                    contextMenu.PlacementTarget = fe;
+                    contextMenu.Placement = PlacementMode.Bottom;
+
+                    // 箭頭向上
+                    if (fe.FindName("EngineChevronPath") is System.Windows.Shapes.Path chevron)
+                    {
+                        chevron.Data = this.FindResource("IconChevronUp") as Geometry ?? chevron.Data;
+                    }
+
+                    contextMenu.Closed -= OnEngineMenuClosed;
+                    contextMenu.Closed += OnEngineMenuClosed;
+                    contextMenu.IsOpen = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "引擎選擇下拉選單開啟失敗");
+            }
+        }
+
+        private void OnEngineMenuClosed(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _engineMenuLastClosedUtc = DateTime.UtcNow; // 標記關閉時間，供點擊抑制使用
+                var chevronOwner = this.FindName("EngineSelectorBorder") as FrameworkElement;
+                if (chevronOwner != null)
+                {
+                    var chevron = chevronOwner.FindName("EngineChevronPath") as System.Windows.Shapes.Path;
+                    if (chevron != null)
+                    {
+                        chevron.Data = this.FindResource("IconChevronDown") as Geometry ?? chevron.Data;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "恢復引擎箭頭圖標時出錯");
+            }
+        }
         #endregion
 
         #region 收縮/展開功能
@@ -306,61 +393,40 @@ namespace MonLingo.Core.View.Windows
             try
             {
                 Logger.Info($"🔄 收縮切換開始 - 當前狀態: {(_isCollapsed ? "收縮" : "展開")}");
-                
+
                 if (_isCollapsed)
                 {
+                    // 由收縮切換到展開
                     ExpandToolbar();
+                    return;
                 }
-                else
-                {
-                    CollapseToolbar();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "收縮切換時發生錯誤");
-            }
-        }
 
-        private void CollapseToolbar()
-        {
-            try
-            {
-                Logger.Info("🔽 開始收縮工具條");
+                // 由展開切換到收縮
                 _isCollapsed = true;
-
-                // 更新收縮按鈕圖標為向右展開
                 CollapseButtonIcon = (Geometry)this.FindResource("IconChevronsRight");
 
-                // 立即隱藏可收縮內容
-                var collapsibleContent = this.FindName("CollapsibleContent") as FrameworkElement;
-                if (collapsibleContent != null)
-                {
-                    collapsibleContent.Visibility = Visibility.Collapsed;
-                }
-
-                // 創建寬度動畫
+                var targetWidth = _collapsedWidth;
                 var widthAnimation = new DoubleAnimation
                 {
                     From = this.Width,
-                    To = _collapsedWidth,
-                    Duration = TimeSpan.FromMilliseconds(400),
+                    To = targetWidth,
+                    Duration = TimeSpan.FromMilliseconds(300),
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
                 };
 
                 widthAnimation.Completed += (s, e) =>
                 {
+                    UpdateContentVisibility(targetWidth);
                     EnsureRightTriggerAreaEnabled();
-                    Logger.Debug($"✅ 工具條收縮完成，寬度: {this.Width}");
                 };
 
                 this.BeginAnimation(WidthProperty, widthAnimation);
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "收縮工具條時發生錯誤");
+                Logger.Error(ex, "收縮/展開切換時發生錯誤");
             }
-        }
+    }
 
         private void ExpandToolbar()
         {

@@ -303,8 +303,8 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- 標題列 - 0824 現代化設計，僅在分離且非鎖定模式顯示 -->
-        <Border Grid.Row="0" 
+        <!-- 標題列 - 0824 現代化設計，僅在分離且非鎖定模式顯示 -->
+    <Border x:Name="TitleBar" Grid.Row="0" 
                         CornerRadius="22,22,0,0"
             Padding="14,6"
                         MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
@@ -382,7 +382,7 @@
                     </ScrollViewer.Resources>
                     
                     <!-- 單行合併輸出文本，但允許自動換行，以適應視窗寬度並保持內容在界內 -->
-                    <TextBlock Text="{Binding CombinedTranslatedText}"
+                    <TextBlock x:Name="CombinedTextBlock" Text="{Binding CombinedTranslatedText}"
                                Style="{StaticResource SubtitleTextStyle}"
                                TextWrapping="Wrap"
                                TextTrimming="None"/>

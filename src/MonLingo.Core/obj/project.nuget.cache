@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "8+04KWjj+2o=",
+  "dgSpecHash": "0wHvKyOrStc=",
   "success": true,
-  "projectFilePath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+  "projectFilePath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\downloader\\3.0.6\\downloader.3.0.6.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\guerrillantp\\2.0.1\\guerrillantp.2.0.1.nupkg.sha512",

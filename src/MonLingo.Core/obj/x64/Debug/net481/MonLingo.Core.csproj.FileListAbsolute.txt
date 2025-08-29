@@ -272,3 +272,5 @@ C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\OpenCvSha
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\opencv_videoio_ffmpeg480_64.dll
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\View\Windows\EditWindow.baml
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\View\Windows\EditWindow.g.cs
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\View\Windows\LanguageSettingsWindow.baml
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\View\Windows\LanguageSettingsWindow.g.cs
