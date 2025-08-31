@@ -4910,16 +4910,16 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+      "projectUniqueName": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
       "projectName": "MonLingo.Core",
-      "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
-      "packagesPath": "c:\\Users\\User\\Desktop\\MonLingo2\\packages",
-      "outputPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
+      "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+      "packagesPath": "C:\\Users\\User\\Desktop\\MonLingo2\\packages",
+      "outputPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
       "projectStyle": "PackageReference",
       "centralPackageVersionsManagementEnabled": true,
       "CentralPackageTransitivePinningEnabled": true,
       "configFilePaths": [
-        "c:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
+        "C:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
         "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [

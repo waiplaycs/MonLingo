@@ -58,8 +58,8 @@ namespace MonLingo.Core.Infrastructure
             
             // 再註冊依賴基礎服務的服務
             services.AddSingleton<MonLingo.Core.Service.IScreenCaptureService, MonLingo.Core.Service.ScreenCaptureService>();
-            // 🎯 使用真正的 PaddleOCR 服務
-            services.AddSingleton<MonLingo.Core.Service.IOcrService, MonLingo.Core.Service.RealOcrService>();
+            // 🎯 暫時使用 Mock OCR 服務避免模型檔案問題
+            services.AddSingleton<MonLingo.Core.Service.IOcrService, MonLingo.Core.Service.MockOcrService>();
             services.AddSingleton<MonLingo.Core.Service.ITranslateService, MonLingo.Core.Service.TranslateService>();
             
             // 最後註冊高層服務

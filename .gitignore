@@ -83,7 +83,15 @@ build_temp/
 config.json
 logs/
 cache/
-models/
+# 保護 models 資料夾結構，但忽略大型模型檔案
+models/*.tar
+models/*.zip
+models/*/*.pdmodel
+models/*/*.pdiparams
+models/*/*.pdiparams.info
+models/*/inference.pdiparams
+models/*/inference.pdiparams.info
+models/*/inference.pdmodel
 
 # Backup files
 *.bak
