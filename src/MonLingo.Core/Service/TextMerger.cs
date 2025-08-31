@@ -46,7 +46,7 @@ namespace MonLingo.Core.Service
                 
                 return finalText.Trim();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // 如果合併失敗，返回簡單拼接結果
                 return string.Join(" ", ocrResult.Lines.Select(line => line.Text).Where(text => !string.IsNullOrWhiteSpace(text)));
@@ -133,23 +133,45 @@ namespace MonLingo.Core.Service
         
         /// <summary>
         /// 判斷兩個文字行是否應該分在同一組
+        /// 優化邏輯以更好地處理複雜佈局（如 YouTube 評論）
         /// </summary>
         private static bool ShouldGroupTogether(OcrLine line1, OcrLine line2)
         {
             // 計算垂直距離
             var verticalDistance = Math.Abs(GetCenterY(line2.BoundingBox) - GetCenterY(line1.BoundingBox));
             
-            // 計算水平距離
+            // 計算水平距離  
             var horizontalDistance = Math.Abs(GetCenterX(line2.BoundingBox) - GetCenterX(line1.BoundingBox));
             
             // 計算平均行高
             var avgHeight = (line1.BoundingBox.Height + line2.BoundingBox.Height) / 2.0;
             
-            // 如果垂直距離小於 1.5 倍行高，且水平距離合理，則認為是同一行
-            var verticalThreshold = avgHeight * 1.5;
-            var horizontalThreshold = Math.Max(line1.BoundingBox.Width, line2.BoundingBox.Width) * 2;
+            // 🎯 優化：使用更嚴格的垂直閾值，避免不同段落文字被錯誤合併
+            var verticalThreshold = avgHeight * 1.2; // 從1.5降低到1.2，更保守的合併策略
             
-            return verticalDistance < verticalThreshold && horizontalDistance < horizontalThreshold;
+            // 🎯 優化：水平閾值也更保守，避免距離較遠的文字被強制合併
+            var maxWidth = Math.Max(line1.BoundingBox.Width, line2.BoundingBox.Width);
+            var horizontalThreshold = maxWidth * 1.5; // 從2.0降低到1.5
+            
+            // 🎯 新增：如果兩行文字在水平方向上重疊度很低，不應該合併
+            var line1Right = line1.BoundingBox.X + line1.BoundingBox.Width;
+            var line1Left = line1.BoundingBox.X;
+            var line2Right = line2.BoundingBox.X + line2.BoundingBox.Width;
+            var line2Left = line2.BoundingBox.X;
+            
+            // 計算水平重疊區間
+            var overlapLeft = Math.Max(line1Left, line2Left);
+            var overlapRight = Math.Min(line1Right, line2Right);
+            var overlapWidth = Math.Max(0, overlapRight - overlapLeft);
+            var minWidth = Math.Min(line1.BoundingBox.Width, line2.BoundingBox.Width);
+            var overlapRatio = minWidth > 0 ? overlapWidth / minWidth : 0;
+            
+            // 如果垂直距離很小且有一定水平重疊，認為是同一行
+            var isCloseVertically = verticalDistance < verticalThreshold;
+            var hasReasonableHorizontalGap = horizontalDistance < horizontalThreshold;
+            var hasMinimumOverlap = overlapRatio > 0.1; // 至少10%的重疊或接近
+            
+            return isCloseVertically && (hasReasonableHorizontalGap || hasMinimumOverlap);
         }
         
         /// <summary>

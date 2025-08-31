@@ -67,16 +67,11 @@ namespace MonLingo.Core.Service
                     // 若專案的 models 目錄下有 PP-OCRv5 模型，先部署到執行時的 inference 目錄
                     TryDeployPPOCRv5Models();
 
-                    // 初始化PaddleOCR引擎，配置為CPU模式
+                    // 初始化PaddleOCR引擎，配置為CPU模式，優化識別參數
                     var parameter = new OCRParameter
                     {
-                        use_gpu = 0,  // 修改為 int 類型
-                        // cpu_math_library_num_threads = Environment.ProcessorCount,  // 移除不存在的屬性
-                        // enable_mkldnn = true,  // 移除不存在的屬性
-                        // det_db_thresh = 0.3f,  // 移除不存在的屬性
-                        // det_db_box_thresh = 0.5f,  // 移除不存在的屬性
-                        // det_db_unclip_ratio = 1.6f,  // 移除不存在的屬性
-                        cls_thresh = 0.9f
+                        use_gpu = 0,      // 使用CPU模式
+                        cls_thresh = 0.7f // 降低分類閾值至0.7，提高識別率（原0.9太嚴格）
                     };
 
                     _ocrEngine = new PaddleOCREngine(null, parameter);
