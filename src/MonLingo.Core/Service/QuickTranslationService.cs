@@ -451,6 +451,23 @@ namespace MonLingo.Core.Service
             }
         }
 
+        /// <summary>
+        /// 直接處理選定區域的公共方法 (供工具條按鈕使用)
+        /// </summary>
+        /// <param name="selectedRegion">選定的區域</param>
+        public async Task ProcessSelectedRegionDirectAsync(Rect selectedRegion)
+        {
+            Logger.Info($"🎯 ProcessSelectedRegionDirectAsync 開始處理區域: {selectedRegion}");
+            
+            // 確保服務已初始化
+            EnsureServicesInitialized();
+            
+            // 調用內部處理方法
+            await ProcessSelectedRegionAsync(selectedRegion);
+            
+            Logger.Info("✅ ProcessSelectedRegionDirectAsync 處理完成");
+        }
+
         public void Dispose()
         {
             _captureWindow?.Close();

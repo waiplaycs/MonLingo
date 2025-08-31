@@ -83,15 +83,18 @@ build_temp/
 config.json
 logs/
 cache/
-# 保護 models 資料夾結構，但忽略大型模型檔案
+# 保護 models 資料夾結構，但忽略大型模型檔案（除了PP-OCRv5）
 models/*.tar
 models/*.zip
-models/*/*.pdmodel
-models/*/*.pdiparams
-models/*/*.pdiparams.info
-models/*/inference.pdiparams
-models/*/inference.pdiparams.info
-models/*/inference.pdmodel
+# 忽略v3模型檔案
+models/ch_PP-OCRv3_*/*.pdmodel
+models/ch_PP-OCRv3_*/*.pdiparams
+models/ch_PP-OCRv3_*/*.pdiparams.info
+# 忽略分類模型檔案
+models/ch_ppocr_mobile_v2.0_cls_infer/*.pdmodel
+models/ch_ppocr_mobile_v2.0_cls_infer/*.pdiparams
+models/ch_ppocr_mobile_v2.0_cls_infer/*.pdiparams.info
+# PP-OCRv5 模型需要被追蹤，所以不在忽略列表中
 
 # Backup files
 *.bak

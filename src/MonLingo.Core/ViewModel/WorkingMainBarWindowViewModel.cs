@@ -580,14 +580,12 @@ namespace MonLingo.ViewModel
                     Logger.Info("[Toolbar10] 分支=Create 新建 1 號框（進入十字游標模式）");
                     var overlay = new RegionSelectionOverlay(1);
                     
-                    // 訂閱區域選擇事件
+                    // 訂閱區域選擇事件（僅記錄選擇完成，不執行OCR翻譯）
                     overlay.RegionSelected += (sender, args) =>
                     {
                         var (region, number) = args;
                         Logger.Info($"[Toolbar10] 區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
-                        
-                        // 這裡可以保存區域信息或觸發其他處理
-                        // TODO: 整合實際的翻譯區域處理邏輯
+                        Logger.Info($"[Toolbar10] 區域{number}已保存，可通過1號按鈕執行翻譯");
                         
                         // 注意：不需要手動關閉窗口，RegionSelectionOverlay 會在選擇完成後自動關閉
                     };
@@ -659,14 +657,12 @@ namespace MonLingo.ViewModel
                     Logger.Info("[Toolbar11] 分支=Create 新建 2 號框（進入十字游標模式）");
                     var overlay = new RegionSelectionOverlay(2);
                     
-                    // 訂閱區域選擇事件
+                    // 訂閱區域選擇事件（僅記錄選擇完成，不執行OCR翻譯）
                     overlay.RegionSelected += (sender, args) =>
                     {
                         var (region, number) = args;
                         Logger.Info($"[Toolbar11] 區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
-                        
-                        // 這裡可以保存區域信息或觸發其他處理
-                        // TODO: 整合實際的翻譯區域處理邏輯
+                        Logger.Info($"[Toolbar11] 區域{number}已保存，可通過1號按鈕執行翻譯");
                         
                         // 注意：不需要手動關閉窗口，RegionSelectionOverlay 會在選擇完成後自動關閉
                     };

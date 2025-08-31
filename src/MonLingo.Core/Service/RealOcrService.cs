@@ -70,12 +70,12 @@ namespace MonLingo.Core.Service
                     // 初始化PaddleOCR引擎，配置為CPU模式
                     var parameter = new OCRParameter
                     {
-                        use_gpu = false,
-                        cpu_math_library_num_threads = Environment.ProcessorCount,
-                        enable_mkldnn = true,
-                        det_db_thresh = 0.3f,
-                        det_db_box_thresh = 0.5f,
-                        det_db_unclip_ratio = 1.6f,
+                        use_gpu = 0,  // 修改為 int 類型
+                        // cpu_math_library_num_threads = Environment.ProcessorCount,  // 移除不存在的屬性
+                        // enable_mkldnn = true,  // 移除不存在的屬性
+                        // det_db_thresh = 0.3f,  // 移除不存在的屬性
+                        // det_db_box_thresh = 0.5f,  // 移除不存在的屬性
+                        // det_db_unclip_ratio = 1.6f,  // 移除不存在的屬性
                         cls_thresh = 0.9f
                     };
 
@@ -278,7 +278,7 @@ namespace MonLingo.Core.Service
                     using var bitmap = ConvertRawDataToBitmap(imageData, width, height);
                     
                     // 執行OCR識別
-                    var ocrResult = _ocrEngine.DetectText(bitmap);
+                    var ocrResult = _ocrEngine.DetectTextBase64(ConvertBitmapToBase64(bitmap));
                     
                     // 轉換為我們的OcrResult格式（加入幾何排序，確保閱讀順序：自上而下、由左至右）
                     if (ocrResult?.TextBlocks != null && ocrResult.TextBlocks.Count > 0)
@@ -583,6 +583,17 @@ namespace MonLingo.Core.Service
                     Console.WriteLine($"⚠️ 釋放OCR資源時發生錯誤: {ex.Message}");
                 }
             }
+        }
+
+        /// <summary>
+        /// 將 Bitmap 轉換為 Base64 字符串
+        /// </summary>
+        private static string ConvertBitmapToBase64(Bitmap bitmap)
+        {
+            using var memoryStream = new MemoryStream();
+            bitmap.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
+            byte[] imageBytes = memoryStream.ToArray();
+            return Convert.ToBase64String(imageBytes);
         }
     }
 }

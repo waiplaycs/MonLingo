@@ -41,8 +41,7 @@
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="NLog" />
     <PackageReference Include="NLog.Extensions.Logging" />
-    <PackageReference Include="OpenCvSharp4" />
-    <PackageReference Include="OpenCvSharp4.runtime.win" />
+  <PackageReference Include="OpenCvSharp4" />
     <!-- Phase 4 音訊與網路功能 -->
     <PackageReference Include="NAudio" />
     <PackageReference Include="Whisper.net" />
