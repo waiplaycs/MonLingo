@@ -1,0 +1,11 @@
+# Basic Chinese character set for PaddleOCR
+# This is a minimal set for testing purposes
+0123456789
+abcdefghijklmnopqrstuvwxyz
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+一二三四五六七八九十
+百千万亿元年月日时分秒
+的了在是有和人这中大
+上个下来说也过会可
+！？，。：；""''（）
+【】《》＜＞
