@@ -4,19 +4,19 @@
     "C:\\Users\\User\\Desktop\\MonLingo2\\tests\\MonLingo.Tests\\MonLingo.Tests.csproj": {}
   },
   "projects": {
-    "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
+    "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+        "projectUniqueName": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
         "projectName": "MonLingo.Core",
-        "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
-        "packagesPath": "c:\\Users\\User\\Desktop\\MonLingo2\\packages",
-        "outputPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
+        "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
+        "packagesPath": "C:\\Users\\User\\Desktop\\MonLingo2\\packages",
+        "outputPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
         "CentralPackageTransitivePinningEnabled": true,
         "configFilePaths": [
-          "c:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
+          "C:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
           "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
@@ -91,14 +91,9 @@
               "version": "[4.8.0.20230708, )",
               "versionCentrallyManaged": true
             },
-            "OpenCvSharp4.runtime.win": {
-              "target": "Package",
-              "version": "[4.8.0.20230708, )",
-              "versionCentrallyManaged": true
-            },
             "PaddleOCRSharp": {
               "target": "Package",
-              "version": "[3.0.0, )",
+              "version": "[2.0.4, )",
               "versionCentrallyManaged": true
             },
             "System.Drawing.Common": {
@@ -131,7 +126,7 @@
             "NLog.Extensions.Logging": "5.3.2",
             "OpenCvSharp4": "4.8.0.20230708",
             "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-            "PaddleOCRSharp": "3.0.0",
+            "PaddleOCRSharp": "2.0.4",
             "Prism.Core": "8.1.97",
             "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
             "StyleCop.Analyzers": "1.1.118",
@@ -148,19 +143,19 @@
         }
       }
     },
-    "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
+    "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
+        "projectUniqueName": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
         "projectName": "MonLingo",
-        "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
-        "packagesPath": "c:\\Users\\User\\Desktop\\MonLingo2\\packages",
-        "outputPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\obj\\",
+        "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
+        "packagesPath": "C:\\Users\\User\\Desktop\\MonLingo2\\packages",
+        "outputPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\obj\\",
         "projectStyle": "PackageReference",
         "centralPackageVersionsManagementEnabled": true,
         "CentralPackageTransitivePinningEnabled": true,
         "configFilePaths": [
-          "c:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
+          "C:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
           "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
@@ -173,8 +168,8 @@
           "net481": {
             "targetAlias": "net481",
             "projectReferences": {
-              "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
-                "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
+              "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
+                "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
               }
             }
           }
@@ -234,7 +229,7 @@
             "NLog.Extensions.Logging": "5.3.2",
             "OpenCvSharp4": "4.8.0.20230708",
             "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-            "PaddleOCRSharp": "3.0.0",
+            "PaddleOCRSharp": "2.0.4",
             "Prism.Core": "8.1.97",
             "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
             "StyleCop.Analyzers": "1.1.118",
@@ -276,11 +271,11 @@
           "net481": {
             "targetAlias": "net481",
             "projectReferences": {
-              "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
-                "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
+              "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
+                "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
               },
-              "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
-                "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj"
+              "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj": {
+                "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj"
               }
             }
           }
@@ -360,7 +355,7 @@
             "NLog.Extensions.Logging": "5.3.2",
             "OpenCvSharp4": "4.8.0.20230708",
             "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-            "PaddleOCRSharp": "3.0.0",
+            "PaddleOCRSharp": "2.0.4",
             "Prism.Core": "8.1.97",
             "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
             "StyleCop.Analyzers": "1.1.118",

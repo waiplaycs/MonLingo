@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Text;
 using System.Drawing;
+using System.IO;
 using MonLingo.Core.Service;
 
 namespace MonLingo.Core.Service
@@ -13,8 +14,52 @@ namespace MonLingo.Core.Service
     public class OcrService : IOcrService
     {
         private bool _isInitialized = false;
+        private TextWriter _originalConsoleOut;
+        private TextWriter _originalConsoleError;
         
         public bool IsInitialized => _isInitialized;
+
+        /// <summary>
+        /// 抑制控制台輸出（用於隱藏PaddleOCR冗長日誌）
+        /// </summary>
+        private void SuppressConsoleOutput()
+        {
+            try
+            {
+                _originalConsoleOut = Console.Out;
+                _originalConsoleError = Console.Error;
+                
+                // 重定向到空流
+                Console.SetOut(TextWriter.Null);
+                Console.SetError(TextWriter.Null);
+            }
+            catch (Exception)
+            {
+                // 忽略重定向失敗
+            }
+        }
+
+        /// <summary>
+        /// 恢復控制台輸出
+        /// </summary>
+        private void RestoreConsoleOutput()
+        {
+            try
+            {
+                if (_originalConsoleOut != null)
+                {
+                    Console.SetOut(_originalConsoleOut);
+                }
+                if (_originalConsoleError != null)
+                {
+                    Console.SetError(_originalConsoleError);
+                }
+            }
+            catch (Exception)
+            {
+                // 忽略恢復失敗
+            }
+        }
         
         /// <summary>
         /// 初始化 OCR 引擎
@@ -25,18 +70,41 @@ namespace MonLingo.Core.Service
             {
                 if (_isInitialized) return true;
                 
-                // 使用離線模式初始化 OCR
-                var success = NativeBridge.ocr_init(fullOffline: true, timeStamp: 0);
+                // 抑制PaddleOCR的冗長初始化日誌
+                SuppressConsoleOutput();
                 
-                if (success)
+                try
                 {
-                    _isInitialized = true;
+                    // 嘗試設置日誌級別（如果API可用）
+                    try
+                    {
+                        NativeBridge.ocr_set_log_level(0); // 0 = 禁用所有日誌
+                    }
+                    catch (Exception)
+                    {
+                        // 如果日誌控制API不可用，忽略錯誤
+                        // 這保證了向後兼容性
+                    }
+                    
+                    // 使用離線模式初始化 OCR
+                    var success = NativeBridge.ocr_init(fullOffline: true, timeStamp: 0);
+                    
+                    if (success)
+                    {
+                        _isInitialized = true;
+                    }
+                    
+                    return success;
                 }
-                
-                return success;
+                finally
+                {
+                    // 恢復控制台輸出
+                    RestoreConsoleOutput();
+                }
             }
             catch (Exception ex)
             {
+                RestoreConsoleOutput(); // 確保在異常情況下也恢復輸出
                 throw new InvalidOperationException($"Failed to initialize OCR: {ex.Message}", ex);
             }
         }
@@ -58,23 +126,34 @@ namespace MonLingo.Core.Service
             
             try
             {
-                // 調用 Native.dll 的 OCR 管線
-                var resultPtr = NativeBridge.ocr_run_pipeline(imageData, imageData.Length, width, height);
-                
-                if (resultPtr == IntPtr.Zero)
-                {
-                    return new OcrResult { Text = string.Empty, Confidence = 0.0 };
-                }
+                // 抑制OCR識別過程中的日誌輸出
+                SuppressConsoleOutput();
                 
                 try
                 {
-                    // 解析 OCR 結果
-                    return await ParseOcrResultAsync(resultPtr);
+                    // 調用 Native.dll 的 OCR 管線
+                    var resultPtr = NativeBridge.ocr_run_pipeline(imageData, imageData.Length, width, height);
+                    
+                    if (resultPtr == IntPtr.Zero)
+                    {
+                        return new OcrResult { Text = string.Empty, Confidence = 0.0 };
+                    }
+                    
+                    try
+                    {
+                        // 解析 OCR 結果
+                        return await ParseOcrResultAsync(resultPtr);
+                    }
+                    finally
+                    {
+                        // 釋放 Native 記憶體
+                        NativeBridge.ocr_release_result(resultPtr);
+                    }
                 }
                 finally
                 {
-                    // 釋放 Native 記憶體
-                    NativeBridge.ocr_release_result(resultPtr);
+                    // 恢復控制台輸出
+                    RestoreConsoleOutput();
                 }
             }
             catch (Exception ex)

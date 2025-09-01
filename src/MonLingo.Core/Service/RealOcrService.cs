@@ -9,6 +9,7 @@ using PaddleOCRSharp;
 using System.Reflection;
 using MonLingo.Core.Infrastructure;
 using System.Collections.Generic;
+using Microsoft.Win32.SafeHandles;
 
 namespace MonLingo.Core.Service
 {
@@ -24,6 +25,35 @@ namespace MonLingo.Core.Service
         private bool _disposed = false;
         private ILanguageConfigService _languageConfigService;
         private string _lastUsedSourceLanguage = "auto";
+        private TextWriter _originalConsoleOut;
+        private TextWriter _originalConsoleError;
+        
+        // Windows API for deeper console redirection
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GetStdHandle(int nStdHandle);
+        
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetStdHandle(int nStdHandle, IntPtr hHandle);
+        
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr CreateFile(
+            string fileName,
+            uint fileAccess,
+            uint fileShare,
+            IntPtr securityAttributes,
+            uint creationDisposition,
+            uint flags,
+            IntPtr template);
+            
+        private const int STD_OUTPUT_HANDLE = -11;
+        private const int STD_ERROR_HANDLE = -12;
+        private const uint GENERIC_WRITE = 0x40000000;
+        private const uint FILE_SHARE_WRITE = 0x00000002;
+        private const uint OPEN_EXISTING = 3;
+        private const uint CREATE_ALWAYS = 2;
+        
+        private IntPtr _originalStdOut = IntPtr.Zero;
+        private IntPtr _originalStdErr = IntPtr.Zero;
 
         /// <summary>
         /// 是否已初始化
@@ -54,6 +84,75 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
+        /// 抑制控制台輸出（用於隱藏PaddleOCR冗長日誌）
+        /// 使用 Windows API 進行深層重定向，可以攔截 C++ 庫的輸出
+        /// </summary>
+        private void SuppressConsoleOutput()
+        {
+            try
+            {
+                // 保存原始的控制台輸出
+                _originalConsoleOut = Console.Out;
+                _originalConsoleError = Console.Error;
+                
+                // 重定向 .NET 控制台輸出
+                Console.SetOut(TextWriter.Null);
+                Console.SetError(TextWriter.Null);
+                
+                // 保存原始的 Windows 標準控制代碼
+                _originalStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+                _originalStdErr = GetStdHandle(STD_ERROR_HANDLE);
+                
+                // 創建空設備來重定向 C++ 庫的輸出
+                IntPtr nullHandle = CreateFile("NUL", GENERIC_WRITE, FILE_SHARE_WRITE, 
+                    IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+                
+                if (nullHandle != IntPtr.Zero && nullHandle.ToInt32() != -1)
+                {
+                    SetStdHandle(STD_OUTPUT_HANDLE, nullHandle);
+                    SetStdHandle(STD_ERROR_HANDLE, nullHandle);
+                }
+            }
+            catch (Exception)
+            {
+                // 忽略重定向失敗，使用基本的 .NET 重定向
+            }
+        }
+
+        /// <summary>
+        /// 恢復控制台輸出
+        /// </summary>
+        private void RestoreConsoleOutput()
+        {
+            try
+            {
+                // 恢復 .NET 控制台輸出
+                if (_originalConsoleOut != null)
+                {
+                    Console.SetOut(_originalConsoleOut);
+                }
+                if (_originalConsoleError != null)
+                {
+                    Console.SetError(_originalConsoleError);
+                }
+                
+                // 恢復 Windows 標準控制代碼
+                if (_originalStdOut != IntPtr.Zero)
+                {
+                    SetStdHandle(STD_OUTPUT_HANDLE, _originalStdOut);
+                }
+                if (_originalStdErr != IntPtr.Zero)
+                {
+                    SetStdHandle(STD_ERROR_HANDLE, _originalStdErr);
+                }
+            }
+            catch (Exception)
+            {
+                // 忽略恢復失敗
+            }
+        }
+
+        /// <summary>
         /// 初始化PaddleOCR引擎 (async版本)
         /// </summary>
         public async Task<bool> InitializeAsync()
@@ -62,27 +161,39 @@ namespace MonLingo.Core.Service
 
             try
             {
-                return await Task.Run(() =>
+                // 抑制PaddleOCR的冗長初始化日誌
+                SuppressConsoleOutput();
+                
+                try
                 {
-                    // 若專案的 models 目錄下有 PP-OCRv5 模型，先部署到執行時的 inference 目錄
-                    TryDeployPPOCRv5Models();
-
-                    // 初始化PaddleOCR引擎，配置為CPU模式，優化識別參數
-                    var parameter = new OCRParameter
+                    return await Task.Run(() =>
                     {
-                        use_gpu = 0,      // 使用CPU模式
-                        cls_thresh = 0.7f // 降低分類閾值至0.7，提高識別率（原0.9太嚴格）
-                    };
+                        // 若專案的 models 目錄下有 PP-OCRv5 模型，先部署到執行時的 inference 目錄
+                        TryDeployPPOCRv5Models();
 
-                    _ocrEngine = new PaddleOCREngine(null, parameter);
-                    _isInitialized = true;
-                    
-                    Console.WriteLine("✅ PaddleOCR引擎初始化成功");
-                    return true;
-                });
+                        // 初始化PaddleOCR引擎，配置為CPU模式，優化識別參數
+                        var parameter = new OCRParameter
+                        {
+                            use_gpu = 0,      // 使用CPU模式
+                            cls_thresh = 0.7f // 降低分類閾值至0.7，提高識別率（原0.9太嚴格）
+                        };
+
+                        _ocrEngine = new PaddleOCREngine(null, parameter);
+                        _isInitialized = true;
+                        
+                        Console.WriteLine("✅ PaddleOCR引擎初始化成功");
+                        return true;
+                    });
+                }
+                finally
+                {
+                    // 恢復控制台輸出
+                    RestoreConsoleOutput();
+                }
             }
             catch (Exception ex)
             {
+                RestoreConsoleOutput(); // 確保在異常情況下也恢復輸出
                 Console.WriteLine($"❌ PaddleOCR引擎初始化失敗: {ex.Message}");
                 return false;
             }
@@ -267,13 +378,18 @@ namespace MonLingo.Core.Service
 
             try
             {
-                return await Task.Run(() =>
+                // 抑制PaddleOCR的冗長識別日誌
+                SuppressConsoleOutput();
+                
+                try
                 {
-                    // 處理原始像素數據：來自Native.dll的是RGBA格式
-                    using var bitmap = ConvertRawDataToBitmap(imageData, width, height);
-                    
-                    // 執行OCR識別
-                    var ocrResult = _ocrEngine.DetectTextBase64(ConvertBitmapToBase64(bitmap));
+                    return await Task.Run(() =>
+                    {
+                        // 處理原始像素數據：來自Native.dll的是RGBA格式
+                        using var bitmap = ConvertRawDataToBitmap(imageData, width, height);
+                        
+                        // 執行OCR識別
+                        var ocrResult = _ocrEngine.DetectTextBase64(ConvertBitmapToBase64(bitmap));
                     
                     // 轉換為我們的OcrResult格式（加入幾何排序，確保閱讀順序：自上而下、由左至右）
                     if (ocrResult?.TextBlocks != null && ocrResult.TextBlocks.Count > 0)
@@ -396,9 +512,16 @@ namespace MonLingo.Core.Service
                         };
                     }
                 });
+                }
+                finally
+                {
+                    // 恢復控制台輸出
+                    RestoreConsoleOutput();
+                }
             }
             catch (Exception ex)
             {
+                RestoreConsoleOutput(); // 確保在異常情況下也恢復輸出
                 Console.WriteLine($"❌ OCR識別失敗: {ex.Message}");
                 throw new InvalidOperationException($"OCR recognition failed: {ex.Message}", ex);
             }

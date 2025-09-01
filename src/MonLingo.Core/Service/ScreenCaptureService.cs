@@ -204,6 +204,14 @@ namespace MonLingo.Core.Service
         // === OCR 處理 (完整 API) ===
         [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
         public static extern bool ocr_init(bool fullOffline, int timeStamp);
+
+        /// <summary>
+        /// 設置 PaddleOCR 日誌級別
+        /// </summary>
+        /// <param name="level">日誌級別 (0=禁用, 1=錯誤, 2=警告, 3=信息, 4=調試)</param>
+        /// <returns>true 表示設置成功，false 表示失敗</returns>
+        [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
+        public static extern bool ocr_set_log_level(int level);
         
         [System.Runtime.InteropServices.DllImport(DllName, CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
         public static extern void ocr_destroy();

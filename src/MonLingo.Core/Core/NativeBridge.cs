@@ -72,6 +72,23 @@ namespace MonLingo.Core
         public static extern bool ocr_init();
 
         /// <summary>
+        /// 初始化 PaddleOCR 引擎和相關資源（帶參數版本）
+        /// </summary>
+        /// <param name="fullOffline">是否使用完全離線模式</param>
+        /// <param name="timeStamp">時間戳</param>
+        /// <returns>true 表示初始化成功，false 表示失敗</returns>
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool ocr_init(bool fullOffline, int timeStamp);
+
+        /// <summary>
+        /// 設置 PaddleOCR 日誌級別
+        /// </summary>
+        /// <param name="level">日誌級別 (0=禁用, 1=錯誤, 2=警告, 3=信息, 4=調試)</param>
+        /// <returns>true 表示設置成功，false 表示失敗</returns>
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool ocr_set_log_level(int level);
+
+        /// <summary>
         /// 銷毀 OCR 引擎並清理記憶體
         /// </summary>
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

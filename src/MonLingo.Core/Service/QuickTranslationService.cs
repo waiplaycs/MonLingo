@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
@@ -331,10 +332,41 @@ namespace MonLingo.Core.Service
                     return string.Empty; // 沒有識別到文字
                 }
 
-                // 🔍 調試功能：顯示OCR識別框
-                ShowOcrDebugInfo(ocrResult);
+                // ============ PHASE 2: 高級版面分析 ============
+                // 📝 階段一：橫向行合併（基於 PRD v5.0 規格）
+                var layoutAnalysis = new LayoutAnalysisService();
                 
-                // ============ PHASE 2: 【字幕模式特殊邏輯】文字合併 ============
+                // 🔍 啟用調試模式以獲得詳細的三階段處理訊息
+                layoutAnalysis.EnableDebugMode = true;
+                
+                var layoutResult = layoutAnalysis.AnalyzeLayout(ocrResult);
+                
+                if (layoutResult.Success)
+                {
+                    Logger.Info($"📊 版面分析完成：耗時 {layoutResult.ProcessingTimeMs:F1}ms");
+                    
+                    // 🔍 調試功能：顯示版面分析結果的視覺化
+                    ShowLayoutAnalysisDebugInfo(ocrResult, layoutResult);
+                    
+                    // 從版面分析結果提取合併後的文字
+                    var analyzedText = ExtractTextFromLayout(layoutResult);
+                    Logger.Info($"🎯 版面分析文字：{analyzedText}");
+                    
+                    // 如果版面分析成功且有結果，使用分析結果
+                    if (!string.IsNullOrEmpty(analyzedText))
+                    {
+                        return analyzedText;
+                    }
+                }
+                else
+                {
+                    Logger.Warn($"⚠️ 版面分析失敗：{layoutResult.ErrorMessage}，回退到傳統文字合併");
+                    
+                    // 如果版面分析失敗，顯示基本OCR識別框
+                    ShowOcrDebugInfo(ocrResult);
+                }
+                
+                // ============ PHASE 2B: 【後備方案】傳統文字合併 ============
                 // 將零散的文字行合併成連貫的句子
                 string mergedText = TextMerger.MergeForSubtitle(ocrResult);
                 
@@ -480,6 +512,44 @@ namespace MonLingo.Core.Service
             Logger.Info("✅ ProcessSelectedRegionDirectAsync 處理完成");
         }
 
+        /// <summary>
+        /// 專門用於版面分析的方法（只執行OCR和版面分析，不進行翻譯）
+        /// </summary>
+        /// <param name="selectedRegion">選定的區域</param>
+        public async Task ProcessSelectedRegionForLayoutAnalysisAsync(Rect selectedRegion)
+        {
+            Logger.Info($"🔍 ProcessSelectedRegionForLayoutAnalysisAsync 開始版面分析: {selectedRegion}");
+            
+            try
+            {
+                // 確保服務已初始化
+                EnsureServicesInitialized();
+                
+                // 保存當前選中的區域（用於座標轉換）
+                _currentSelectedRegion = selectedRegion;
+
+                // 步驟1: 截圖
+                Logger.Info("📸 執行區域截圖");
+                var screenshot = CaptureScreenRegion(selectedRegion);
+                
+                // 步驟2: OCR識別
+                Logger.Info("🔤 執行OCR識別");
+                var originalText = await PerformOcrAsync(screenshot);
+                
+                Logger.Info($"✅ 版面分析完成 - 識別到文字: {originalText?.Length ?? 0} 字符");
+                
+                // 不進行翻譯和顯示，只進行OCR版面分析和調試視覺化
+                // OCR調試信息已經在PerformOcrAsync中顯示了
+                
+                screenshot?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "❌ 版面分析處理失敗");
+                throw new Exception($"版面分析失敗: {ex.Message}", ex);
+            }
+        }
+
         public void Dispose()
         {
             // 取消訂閱事件
@@ -525,6 +595,88 @@ namespace MonLingo.Core.Service
             catch (Exception ex)
             {
                 Logger.Error(ex, "顯示OCR調試信息時發生錯誤");
+            }
+        }
+
+        /// <summary>
+        /// 顯示版面分析調試信息
+        /// </summary>
+        /// <param name="ocrResult">OCR識別結果</param>
+        /// <param name="layoutResult">版面分析結果</param>
+        private void ShowLayoutAnalysisDebugInfo(OcrResult ocrResult, LayoutAnalysisResult layoutResult)
+        {
+            try
+            {
+                Logger.Info("🔍 顯示版面分析調試可視化");
+                
+                // 創建調試覆蓋層（如果尚未創建）
+                if (_ocrDebugOverlay == null)
+                {
+                    _ocrDebugOverlay = new OcrDebugOverlay();
+                    Logger.Debug("📱 創建新的OCR調試覆蓋層");
+                }
+
+                // 計算座標轉換參數
+                var dpiScale = GetDpiScale();
+                var coordinateTransform = new CoordinateTransform
+                {
+                    SelectedRegion = _currentSelectedRegion,
+                    DpiScale = dpiScale,
+                    VirtualScreenLeft = SystemParameters.VirtualScreenLeft,
+                    VirtualScreenTop = SystemParameters.VirtualScreenTop
+                };
+
+                // 顯示版面分析調試信息，傳遞座標轉換參數
+                _ocrDebugOverlay.ShowLayoutAnalysisDebugInfo(ocrResult, layoutResult, coordinateTransform);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "顯示版面分析調試信息時發生錯誤");
+            }
+        }
+
+        /// <summary>
+        /// 從版面分析結果中提取文字
+        /// 按照版面結構（欄位→段落→行）重組文字內容
+        /// </summary>
+        /// <param name="layoutResult">版面分析結果</param>
+        /// <returns>重組後的文字內容</returns>
+        private string ExtractTextFromLayout(LayoutAnalysisResult layoutResult)
+        {
+            try
+            {
+                var textBuilder = new System.Text.StringBuilder();
+                
+                foreach (var column in layoutResult.Layout)
+                {
+                    Logger.Debug($"📂 處理欄位：{column.Key}（{column.Value.Count} 個段落）");
+                    
+                    foreach (var paragraph in column.Value)
+                    {
+                        Logger.Debug($"📝 處理段落：{paragraph.ParagraphId}（{paragraph.Lines.Count} 行）");
+                        
+                        // 將段落中的所有行合併為一個段落
+                        var paragraphText = string.Join(" ", paragraph.Lines.Select(line => line.Text.Trim()));
+                        
+                        if (!string.IsNullOrEmpty(paragraphText))
+                        {
+                            textBuilder.AppendLine(paragraphText);
+                            Logger.Debug($"💬 段落文字：{paragraphText}");
+                        }
+                    }
+                    
+                    // 欄位之間添加額外的換行
+                    textBuilder.AppendLine();
+                }
+                
+                var result = textBuilder.ToString().Trim();
+                Logger.Info($"📄 版面分析文字提取完成：{result.Length} 字符");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "從版面分析結果提取文字時出錯");
+                return string.Empty;
             }
         }
 

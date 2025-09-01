@@ -905,42 +905,15 @@
           }
         }
       },
-      "OpenCvSharp4.runtime.win/4.8.0.20230708": {
+      "PaddleOCRSharp/2.0.4": {
         "type": "package",
-        "build": {
-          "build/net48/_._": {}
-        },
-        "runtimeTargets": {
-          "runtimes/win-x64/native/OpenCvSharpExtern.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x64/native/opencv_videoio_ffmpeg480_64.dll": {
-            "assetType": "native",
-            "rid": "win-x64"
-          },
-          "runtimes/win-x86/native/OpenCvSharpExtern.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          },
-          "runtimes/win-x86/native/opencv_videoio_ffmpeg480.dll": {
-            "assetType": "native",
-            "rid": "win-x86"
-          }
-        }
-      },
-      "PaddleOCRSharp/3.0.0": {
-        "type": "package",
-        "dependencies": {
-          "Newtonsoft.Json": "12.0.1"
-        },
         "compile": {
-          "lib/net481/PaddleOCRSharp.dll": {
+          "lib/net48/PaddleOCRSharp.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net481/PaddleOCRSharp.dll": {
+          "lib/net48/PaddleOCRSharp.dll": {
             "related": ".xml"
           }
         },
@@ -1421,8 +1394,7 @@
           "NLog.Extensions.Logging": "5.3.2",
           "Newtonsoft.Json": "13.0.3",
           "OpenCvSharp4": "4.8.0.20230708",
-          "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-          "PaddleOCRSharp": "3.0.0",
+          "PaddleOCRSharp": "2.0.4",
           "System.Drawing.Common": "8.0.0",
           "Whisper.net": "1.4.7"
         },
@@ -2328,28 +2300,15 @@
           }
         }
       },
-      "OpenCvSharp4.runtime.win/4.8.0.20230708": {
+      "PaddleOCRSharp/2.0.4": {
         "type": "package",
-        "native": {
-          "runtimes/win-x64/native/OpenCvSharpExtern.dll": {},
-          "runtimes/win-x64/native/opencv_videoio_ffmpeg480_64.dll": {}
-        },
-        "build": {
-          "build/net48/_._": {}
-        }
-      },
-      "PaddleOCRSharp/3.0.0": {
-        "type": "package",
-        "dependencies": {
-          "Newtonsoft.Json": "12.0.1"
-        },
         "compile": {
-          "lib/net481/PaddleOCRSharp.dll": {
+          "lib/net48/PaddleOCRSharp.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
-          "lib/net481/PaddleOCRSharp.dll": {
+          "lib/net48/PaddleOCRSharp.dll": {
             "related": ".xml"
           }
         },
@@ -2764,8 +2723,7 @@
           "NLog.Extensions.Logging": "5.3.2",
           "Newtonsoft.Json": "13.0.3",
           "OpenCvSharp4": "4.8.0.20230708",
-          "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-          "PaddleOCRSharp": "3.0.0",
+          "PaddleOCRSharp": "2.0.4",
           "System.Drawing.Common": "8.0.0",
           "Whisper.net": "1.4.7"
         },
@@ -4012,36 +3970,15 @@
         "opencvsharp4.nuspec"
       ]
     },
-    "OpenCvSharp4.runtime.win/4.8.0.20230708": {
-      "sha512": "V9zbVQXazSSoEG04nF1KEkxfY62WMQAcKAlDe7xgkNErY7WQZzEcj8dMEuHXQMaDr45jPvrJi50SQroi+w4wNw==",
+    "PaddleOCRSharp/2.0.4": {
+      "sha512": "aeXynvKN3onpk9IomAcdTZdDDdp9UqwOxBLPCVAhKEnCmDhFZfD5U2PasTmTqceFuCnIUOc2PqFaV45L9bg+Fw==",
       "type": "package",
-      "path": "opencvsharp4.runtime.win/4.8.0.20230708",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "build/net48/OpenCvSharp4.runtime.win.props",
-        "build/net5.0/OpenCvSharp4.runtime.win.props",
-        "build/netcoreapp/OpenCvSharp4.runtime.win.props",
-        "build/netstandard/OpenCvSharp4.runtime.win.props",
-        "opencvsharp4.runtime.win.4.8.0.20230708.nupkg.sha512",
-        "opencvsharp4.runtime.win.nuspec",
-        "runtimes/win-x64/native/OpenCvSharpExtern.dll",
-        "runtimes/win-x64/native/opencv_videoio_ffmpeg480_64.dll",
-        "runtimes/win-x86/native/OpenCvSharpExtern.dll",
-        "runtimes/win-x86/native/opencv_videoio_ffmpeg480.dll"
-      ]
-    },
-    "PaddleOCRSharp/3.0.0": {
-      "sha512": "Baa4DMbDGIAnl8UnYnsJnHhEeQWjZRxsto5lIbGc+WrjbGppUNyrJxYm1iWSmvtxIftqHypbIqEboy1+s63PqA==",
-      "type": "package",
-      "path": "paddleocrsharp/3.0.0",
+      "path": "paddleocrsharp/2.0.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "build/PaddleOCRLib/PaddleOCR.dll",
         "build/PaddleOCRLib/concrt140.dll",
-        "build/PaddleOCRLib/inference/PaddleOCR.config.json",
-        "build/PaddleOCRLib/inference/PaddleOCRStructure.config.json",
         "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/._inference.pdiparams",
         "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/._inference.pdiparams.info",
         "build/PaddleOCRLib/inference/ch_PP-OCRv3_det_infer/._inference.pdmodel",
@@ -4057,15 +3994,7 @@
         "build/PaddleOCRLib/inference/ch_ppocr_mobile_v2.0_cls_infer/inference.pdiparams",
         "build/PaddleOCRLib/inference/ch_ppocr_mobile_v2.0_cls_infer/inference.pdiparams.info",
         "build/PaddleOCRLib/inference/ch_ppocr_mobile_v2.0_cls_infer/inference.pdmodel",
-        "build/PaddleOCRLib/inference/ch_ppstructure_mobile_v2.0_SLANet_infer/inference.pdiparams",
-        "build/PaddleOCRLib/inference/ch_ppstructure_mobile_v2.0_SLANet_infer/inference.pdiparams.info",
-        "build/PaddleOCRLib/inference/ch_ppstructure_mobile_v2.0_SLANet_infer/inference.pdmodel",
-        "build/PaddleOCRLib/inference/layout_publaynet_dict.txt",
         "build/PaddleOCRLib/inference/ppocr_keys.txt",
-        "build/PaddleOCRLib/inference/table_structure_dict_ch.txt",
-        "build/PaddleOCRLib/inference/win7_dll/API-MS-Win-Eventing-Provider-L1-1-0.dll",
-        "build/PaddleOCRLib/inference/win7_dll/api-ms-win-core-libraryloader-l1-2-0.dll",
-        "build/PaddleOCRLib/inference/win7_dll/api-ms-win-core-processtopology-obsolete-l1-1-0.dll",
         "build/PaddleOCRLib/libiomp5md.dll",
         "build/PaddleOCRLib/mfc140.dll",
         "build/PaddleOCRLib/mfcm140.dll",
@@ -4076,16 +4005,13 @@
         "build/PaddleOCRLib/msvcp140_2.dll",
         "build/PaddleOCRLib/msvcp140_atomic_wait.dll",
         "build/PaddleOCRLib/msvcp140_codecvt_ids.dll",
-        "build/PaddleOCRLib/onnxruntime.dll",
         "build/PaddleOCRLib/opencv_world411.dll",
-        "build/PaddleOCRLib/paddle2onnx.dll",
         "build/PaddleOCRLib/paddle_inference.dll",
         "build/PaddleOCRLib/vcamp140.dll",
         "build/PaddleOCRLib/vccorlib140.dll",
         "build/PaddleOCRLib/vcomp140.dll",
         "build/PaddleOCRLib/vcruntime140.dll",
         "build/PaddleOCRLib/vcruntime140_1.dll",
-        "build/PaddleOCRLib/yt_CPUCheck.dll",
         "build/PaddleOCRSharp.targets",
         "lib/net35/PaddleOCRSharp.dll",
         "lib/net35/PaddleOCRSharp.xml",
@@ -4111,19 +4037,15 @@
         "lib/net472/PaddleOCRSharp.xml",
         "lib/net48/PaddleOCRSharp.dll",
         "lib/net48/PaddleOCRSharp.xml",
-        "lib/net481/PaddleOCRSharp.dll",
-        "lib/net481/PaddleOCRSharp.xml",
         "lib/net5.0/PaddleOCRSharp.dll",
         "lib/net5.0/PaddleOCRSharp.xml",
         "lib/net6.0/PaddleOCRSharp.dll",
         "lib/net6.0/PaddleOCRSharp.xml",
-        "lib/net7.0/PaddleOCRSharp.dll",
-        "lib/net7.0/PaddleOCRSharp.xml",
         "lib/netcoreapp3.1/PaddleOCRSharp.dll",
         "lib/netcoreapp3.1/PaddleOCRSharp.xml",
         "lib/netstandard2.0/PaddleOCRSharp.dll",
         "lib/netstandard2.0/PaddleOCRSharp.xml",
-        "paddleocrsharp.3.0.0.nupkg.sha512",
+        "paddleocrsharp.2.0.4.nupkg.sha512",
         "paddleocrsharp.nuspec"
       ]
     },
@@ -5235,16 +5157,16 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
+      "projectUniqueName": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
       "projectName": "MonLingo",
-      "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
-      "packagesPath": "c:\\Users\\User\\Desktop\\MonLingo2\\packages",
-      "outputPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\obj\\",
+      "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\MonLingo.csproj",
+      "packagesPath": "C:\\Users\\User\\Desktop\\MonLingo2\\packages",
+      "outputPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo\\obj\\",
       "projectStyle": "PackageReference",
       "centralPackageVersionsManagementEnabled": true,
       "CentralPackageTransitivePinningEnabled": true,
       "configFilePaths": [
-        "c:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
+        "C:\\Users\\User\\Desktop\\MonLingo2\\NuGet.Config",
         "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
@@ -5257,8 +5179,8 @@
         "net481": {
           "targetAlias": "net481",
           "projectReferences": {
-            "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
-              "projectPath": "c:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
+            "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj": {
+              "projectPath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj"
             }
           }
         }
@@ -5318,7 +5240,7 @@
           "NLog.Extensions.Logging": "5.3.2",
           "OpenCvSharp4": "4.8.0.20230708",
           "OpenCvSharp4.runtime.win": "4.8.0.20230708",
-          "PaddleOCRSharp": "3.0.0",
+          "PaddleOCRSharp": "2.0.4",
           "Prism.Core": "8.1.97",
           "SQLitePCLRaw.bundle_e_sqlite3": "2.1.6",
           "StyleCop.Analyzers": "1.1.118",
@@ -5382,13 +5304,9 @@
         "include": "Runtime, Compile, Native, BuildTransitive",
         "version": "[4.8.0.20230708, )"
       },
-      "OpenCvSharp4.runtime.win": {
-        "include": "Runtime, Compile, Native, BuildTransitive",
-        "version": "[4.8.0.20230708, )"
-      },
       "PaddleOCRSharp": {
         "include": "Runtime, Compile, Native, BuildTransitive",
-        "version": "[3.0.0, )"
+        "version": "[2.0.4, )"
       },
       "System.Drawing.Common": {
         "include": "Runtime, Compile, Native, BuildTransitive",

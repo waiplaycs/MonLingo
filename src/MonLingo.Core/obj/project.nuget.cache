@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "8+04KWjj+2o=",
+  "dgSpecHash": "7qFuV2V40/8=",
   "success": true,
   "projectFilePath": "C:\\Users\\User\\Desktop\\MonLingo2\\src\\MonLingo.Core\\MonLingo.Core.csproj",
   "expectedPackageFiles": [
@@ -46,8 +46,7 @@
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\nlog\\5.2.3\\nlog.5.2.3.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\nlog.extensions.logging\\5.3.2\\nlog.extensions.logging.5.3.2.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\opencvsharp4\\4.8.0.20230708\\opencvsharp4.4.8.0.20230708.nupkg.sha512",
-    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\opencvsharp4.runtime.win\\4.8.0.20230708\\opencvsharp4.runtime.win.4.8.0.20230708.nupkg.sha512",
-    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\paddleocrsharp\\3.0.0\\paddleocrsharp.3.0.0.nupkg.sha512",
+    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\paddleocrsharp\\2.0.4\\paddleocrsharp.2.0.4.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.diagnostics.diagnosticsource\\8.0.0\\system.diagnostics.diagnosticsource.8.0.0.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.drawing.common\\8.0.0\\system.drawing.common.8.0.0.nupkg.sha512",
