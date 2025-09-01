@@ -133,10 +133,16 @@ namespace MonLingo.Core.Service
         
         /// <summary>
         /// 判斷兩個文字行是否應該分在同一組
-        /// 優化邏輯以更好地處理複雜佈局（如 YouTube 評論）
+        /// 優化邏輯以更好地處理複雜佈局（如 YouTube 評論、列表結構）
         /// </summary>
         private static bool ShouldGroupTogether(OcrLine line1, OcrLine line2)
         {
+            // 🎯 特殊檢測：如果是列表結構（以 * 或 # 開頭），應該保持獨立行
+            if (IsListItem(line1.Text) || IsListItem(line2.Text))
+            {
+                return false; // 列表項目不應該與其他行合併
+            }
+            
             // 計算垂直距離
             var verticalDistance = Math.Abs(GetCenterY(line2.BoundingBox) - GetCenterY(line1.BoundingBox));
             
@@ -147,11 +153,11 @@ namespace MonLingo.Core.Service
             var avgHeight = (line1.BoundingBox.Height + line2.BoundingBox.Height) / 2.0;
             
             // 🎯 優化：使用更嚴格的垂直閾值，避免不同段落文字被錯誤合併
-            var verticalThreshold = avgHeight * 1.2; // 從1.5降低到1.2，更保守的合併策略
+            var verticalThreshold = avgHeight * 1.0; // 進一步降低到1.0，更嚴格的行分離
             
             // 🎯 優化：水平閾值也更保守，避免距離較遠的文字被強制合併
             var maxWidth = Math.Max(line1.BoundingBox.Width, line2.BoundingBox.Width);
-            var horizontalThreshold = maxWidth * 1.5; // 從2.0降低到1.5
+            var horizontalThreshold = maxWidth * 1.2; // 進一步降低到1.2
             
             // 🎯 新增：如果兩行文字在水平方向上重疊度很低，不應該合併
             var line1Right = line1.BoundingBox.X + line1.BoundingBox.Width;
@@ -166,16 +172,59 @@ namespace MonLingo.Core.Service
             var minWidth = Math.Min(line1.BoundingBox.Width, line2.BoundingBox.Width);
             var overlapRatio = minWidth > 0 ? overlapWidth / minWidth : 0;
             
-            // 如果垂直距離很小且有一定水平重疊，認為是同一行
+            // 🎯 新增：檢測是否為獨立的文件名或配置項
+            if (IsConfigurationItem(line1.Text) || IsConfigurationItem(line2.Text))
+            {
+                return false; // 配置項應該保持獨立
+            }
+            
+            // 如果垂直距離很小且有足夠水平重疊，認為是同一行
             var isCloseVertically = verticalDistance < verticalThreshold;
             var hasReasonableHorizontalGap = horizontalDistance < horizontalThreshold;
-            var hasMinimumOverlap = overlapRatio > 0.1; // 至少10%的重疊或接近
+            var hasSignificantOverlap = overlapRatio > 0.3; // 提高重疊要求到30%
             
-            return isCloseVertically && (hasReasonableHorizontalGap || hasMinimumOverlap);
+            return isCloseVertically && hasReasonableHorizontalGap && hasSignificantOverlap;
+        }
+        
+        /// <summary>
+        /// 檢測是否為列表項目（以 * 或 # 開頭）
+        /// </summary>
+        private static bool IsListItem(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+                
+            var trimmed = text.Trim();
+            return trimmed.StartsWith("*") || trimmed.StartsWith("#") || 
+                   trimmed.StartsWith("-.") || trimmed.StartsWith("•");
+        }
+        
+        /// <summary>
+        /// 檢測是否為配置項目（文件擴展名、設置項等）
+        /// </summary>
+        private static bool IsConfigurationItem(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+                
+            var trimmed = text.Trim();
+            
+            // 檢測文件擴展名模式
+            if (trimmed.Contains("*.") && trimmed.Length < 50)
+                return true;
+                
+            // 檢測項目設置文件模式
+            if (trimmed.Contains("project.") || trimmed.Contains(".cache") || 
+                trimmed.Contains(".json") || trimmed.Contains(".props") ||
+                trimmed.Contains(".targets") || trimmed.Contains(".config"))
+                return true;
+                
+            return false;
         }
         
         /// <summary>
         /// 拼接文字組
+        /// 針對不同類型的內容使用不同的拼接策略
         /// </summary>
         private static string JoinTextGroups(List<List<OcrLine>> groups)
         {
@@ -186,12 +235,30 @@ namespace MonLingo.Core.Service
                 // 對組內的文字按水平位置排序
                 var sortedGroup = group.OrderBy(line => GetCenterX(line.BoundingBox)).ToList();
                 
-                // 拼接組內文字
-                var groupText = string.Join(" ", sortedGroup.Select(line => line.Text.Trim()));
+                // 檢查是否為列表或配置內容
+                var isListContent = sortedGroup.Any(line => IsListItem(line.Text) || IsConfigurationItem(line.Text));
                 
-                if (!string.IsNullOrWhiteSpace(groupText))
+                if (isListContent)
                 {
-                    lines.Add(groupText);
+                    // 對於列表內容，每個文字塊應該是獨立的一行
+                    foreach (var line in sortedGroup)
+                    {
+                        var cleanText = line.Text.Trim();
+                        if (!string.IsNullOrWhiteSpace(cleanText))
+                        {
+                            lines.Add(cleanText);
+                        }
+                    }
+                }
+                else
+                {
+                    // 對於普通文字內容，可以在同一行合併
+                    var groupText = string.Join(" ", sortedGroup.Select(line => line.Text.Trim()));
+                    
+                    if (!string.IsNullOrWhiteSpace(groupText))
+                    {
+                        lines.Add(groupText);
+                    }
                 }
             }
             

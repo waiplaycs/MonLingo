@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Forms;
 using MonLingo.Core.View.Windows;
 using MonLingo.Core.Infrastructure;
+using MonLingo.Core.Events;
 using NLog;
 
 namespace MonLingo.Core.Service
@@ -22,6 +23,8 @@ namespace MonLingo.Core.Service
         private CaptureRegionWindow _captureWindow;
         private SubtitleWindow _subtitleWindow;
         private Window _mainBarWindow;
+        private OcrDebugOverlay _ocrDebugOverlay; // 新增OCR調試覆蓋層
+        private Rect _currentSelectedRegion; // 保存當前選中的區域座標
         
         // 服務依賴 (延遲初始化)
         private IOcrService _ocrService;
@@ -38,6 +41,9 @@ namespace MonLingo.Core.Service
             Logger.Info("🚀 QuickTranslationService(Service) 建構函數開始");
             Logger.Debug($"📋 主視窗引用: {(mainBarWindow != null ? mainBarWindow.GetType().Name : "null")}");
             _mainBarWindow = mainBarWindow;
+            
+            // 訂閱OCR調試事件
+            OcrDebugEvents.HideDebugOverlay += HideOcrDebugInfo;
             
             // 🛑 延遲服務初始化，避免在建構函數中觸發自動測試
             // 服務將在第一次使用時才初始化
@@ -224,6 +230,9 @@ namespace MonLingo.Core.Service
         {
             try
             {
+                // 保存選中區域座標供調試使用
+                _currentSelectedRegion = selectedRegion;
+                
                 // 步驟2: 截圖選擇的區域
                 var screenshot = CaptureScreenRegion(selectedRegion);
                 
@@ -321,6 +330,9 @@ namespace MonLingo.Core.Service
                 {
                     return string.Empty; // 沒有識別到文字
                 }
+
+                // 🔍 調試功能：顯示OCR識別框
+                ShowOcrDebugInfo(ocrResult);
                 
                 // ============ PHASE 2: 【字幕模式特殊邏輯】文字合併 ============
                 // 將零散的文字行合併成連貫的句子
@@ -470,8 +482,69 @@ namespace MonLingo.Core.Service
 
         public void Dispose()
         {
+            // 取消訂閱事件
+            OcrDebugEvents.HideDebugOverlay -= HideOcrDebugInfo;
+            
             _captureWindow?.Close();
             _subtitleWindow?.Close();
+            _ocrDebugOverlay?.Close(); // 關閉調試覆蓋層
         }
+
+        #region OCR 調試功能
+
+        /// <summary>
+        /// 顯示OCR調試信息
+        /// </summary>
+        /// <param name="ocrResult">OCR識別結果</param>
+        private void ShowOcrDebugInfo(OcrResult ocrResult)
+        {
+            try
+            {
+                Logger.Info("🔍 顯示OCR調試可視化");
+                
+                // 創建調試覆蓋層（如果尚未創建）
+                if (_ocrDebugOverlay == null)
+                {
+                    _ocrDebugOverlay = new OcrDebugOverlay();
+                    Logger.Debug("📱 創建新的OCR調試覆蓋層");
+                }
+
+                // 計算座標轉換參數
+                var dpiScale = GetDpiScale();
+                var coordinateTransform = new CoordinateTransform
+                {
+                    SelectedRegion = _currentSelectedRegion,
+                    DpiScale = dpiScale,
+                    VirtualScreenLeft = SystemParameters.VirtualScreenLeft,
+                    VirtualScreenTop = SystemParameters.VirtualScreenTop
+                };
+
+                // 顯示調試信息，傳遞座標轉換參數
+                _ocrDebugOverlay.ShowOcrDebugInfo(ocrResult, coordinateTransform);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "顯示OCR調試信息時發生錯誤");
+            }
+        }
+
+        /// <summary>
+        /// 隱藏OCR調試信息
+        /// 當字幕視窗關閉時調用
+        /// </summary>
+        public void HideOcrDebugInfo()
+        {
+            try
+            {
+                Logger.Info("🙈 隱藏OCR調試可視化");
+                _ocrDebugOverlay?.HideDebugOverlay();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "隱藏OCR調試信息時發生錯誤");
+            }
+        }
+
+        #endregion
     }
 }

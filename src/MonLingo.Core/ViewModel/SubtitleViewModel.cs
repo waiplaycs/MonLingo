@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using MonLingo.Core.Commands;
+using MonLingo.Core.Events;
 using NLog;
 
 namespace MonLingo.Core.ViewModel
@@ -266,6 +267,9 @@ namespace MonLingo.Core.ViewModel
         {
             Logger.Info("🔒 SubtitleViewModel CloseCommand 被觸發");
             Logger.Debug($"📊 目前應用程式視窗數量: {Application.Current.Windows.Count}");
+            
+            // 觸發隱藏OCR調試覆蓋層
+            OcrDebugEvents.TriggerHideDebugOverlay();
             
             // 隱藏字幕視窗但不關閉，允許下次重新顯示
             bool windowFound = false;
