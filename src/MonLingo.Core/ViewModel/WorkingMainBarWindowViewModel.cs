@@ -560,29 +560,15 @@ namespace MonLingo.ViewModel
                         Logger.Info($"[Toolbar10] IsBoxVisible(1)={visible1}");
                         if (visible1)
                         {
-                            Logger.Info("[Toolbar10] 分支=Visible→Flash 並執行OCR版面分析");
+                            Logger.Info("[Toolbar10] 分支=Visible→Flash 第1號框");
                             await overlayHost.FlashBoxByNumberAsync(1);
-                            
-                            // 獲取第1號框的區域並執行OCR版面分析
-                            var regions = overlayHost.GetAllRegions(includeHidden: false);
-                            var region1 = regions.FirstOrDefault(r => r.number == 1);
-                            if (region1.rect != System.Windows.Rect.Empty)
-                            {
-                                await PerformOcrLayoutAnalysisAsync(region1.rect, 1);
-                            }
                             return;
                         }
                         bool showOk = overlayHost.ShowBoxByNumber(1);
                         Logger.Info($"[Toolbar10] 分支=Hidden→Show 結果={showOk}");
                         if (showOk)
                         {
-                            // 顯示後執行OCR版面分析
-                            var regions = overlayHost.GetAllRegions(includeHidden: false);
-                            var region1 = regions.FirstOrDefault(r => r.number == 1);
-                            if (region1.rect != System.Windows.Rect.Empty)
-                            {
-                                await PerformOcrLayoutAnalysisAsync(region1.rect, 1);
-                            }
+                            Logger.Info("[Toolbar10] 第1號框已顯示，等待第1號按鈕觸發翻譯");
                             return;
                         }
                         else
@@ -595,14 +581,12 @@ namespace MonLingo.ViewModel
                     Logger.Info("[Toolbar10] 分支=Create 新建 1 號框（進入十字游標模式）");
                     var overlay = new RegionSelectionOverlay(1);
                     
-                    // 訂閱區域選擇事件（選擇完成後執行OCR版面分析）
-                    overlay.RegionSelected += async (sender, args) =>
+                    // 訂閱區域選擇事件（選擇完成後只創建框，不執行OCR）
+                    overlay.RegionSelected += (sender, args) =>
                     {
                         var (region, number) = args;
                         Logger.Info($"[Toolbar10] 區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
-                        
-                        // 執行OCR版面分析
-                        await PerformOcrLayoutAnalysisAsync(region, number);
+                        Logger.Info($"[Toolbar10] 第{number}號框已創建，等待第1號按鈕觸發翻譯");
                         
                         // 注意：不需要手動關閉窗口，RegionSelectionOverlay 會在選擇完成後自動關閉
                     };
@@ -654,29 +638,15 @@ namespace MonLingo.ViewModel
                         Logger.Info($"[Toolbar11] IsBoxVisible(2)={visible2}");
                         if (visible2)
                         {
-                            Logger.Info("[Toolbar11] 分支=Visible→Flash 並執行OCR版面分析");
+                            Logger.Info("[Toolbar11] 分支=Visible→Flash 第2號框");
                             await overlayHost.FlashBoxByNumberAsync(2);
-                            
-                            // 獲取第2號框的區域並執行OCR版面分析
-                            var regions = overlayHost.GetAllRegions(includeHidden: false);
-                            var region2 = regions.FirstOrDefault(r => r.number == 2);
-                            if (region2.rect != System.Windows.Rect.Empty)
-                            {
-                                await PerformOcrLayoutAnalysisAsync(region2.rect, 2);
-                            }
                             return;
                         }
                         bool showOk = overlayHost.ShowBoxByNumber(2);
                         Logger.Info($"[Toolbar11] 分支=Hidden→Show 結果={showOk}");
                         if (showOk)
                         {
-                            // 顯示後執行OCR版面分析
-                            var regions = overlayHost.GetAllRegions(includeHidden: false);
-                            var region2 = regions.FirstOrDefault(r => r.number == 2);
-                            if (region2.rect != System.Windows.Rect.Empty)
-                            {
-                                await PerformOcrLayoutAnalysisAsync(region2.rect, 2);
-                            }
+                            Logger.Info("[Toolbar11] 第2號框已顯示，等待第1號按鈕觸發翻譯");
                             return;
                         }
                         else
@@ -689,14 +659,12 @@ namespace MonLingo.ViewModel
                     Logger.Info("[Toolbar11] 分支=Create 新建 2 號框（進入十字游標模式）");
                     var overlay = new RegionSelectionOverlay(2);
                     
-                    // 訂閱區域選擇事件（選擇完成後執行OCR版面分析）
-                    overlay.RegionSelected += async (sender, args) =>
+                    // 訂閱區域選擇事件（選擇完成後只創建框，不執行OCR）
+                    overlay.RegionSelected += (sender, args) =>
                     {
                         var (region, number) = args;
                         Logger.Info($"[Toolbar11] 區域{number}選擇完成: X={region.X}, Y={region.Y}, Width={region.Width}, Height={region.Height}");
-                        
-                        // 執行OCR版面分析
-                        await PerformOcrLayoutAnalysisAsync(region, number);
+                        Logger.Info($"[Toolbar11] 第{number}號框已創建，等待第1號按鈕觸發翻譯");
                         
                         // 注意：不需要手動關閉窗口，RegionSelectionOverlay 會在選擇完成後自動關閉
                     };

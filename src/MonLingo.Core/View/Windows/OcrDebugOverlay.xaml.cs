@@ -22,6 +22,7 @@ namespace MonLingo.Core.View.Windows
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private Canvas _debugCanvas;
         private List<FrameworkElement> _debugElements = new List<FrameworkElement>();
+        private System.Drawing.Rectangle _targetScreenBounds; // 目標螢幕邊界，用於多螢幕支援
 
         public OcrDebugOverlay()
         {
@@ -63,6 +64,9 @@ namespace MonLingo.Core.View.Windows
             {
                 try
                 {
+                    // 保存目標螢幕資訊供座標轉換使用
+                    _targetScreenBounds = targetScreen;
+                    
                     // 設置視窗位置和大小以覆蓋指定螢幕
                     WindowState = WindowState.Normal;
                     Left = targetScreen.X;
@@ -149,7 +153,7 @@ namespace MonLingo.Core.View.Windows
         /// <param name="transform">座標轉換參數</param>
         public void ShowLayoutAnalysisDebugInfo(OcrResult ocrResult, LayoutAnalysisResult layoutResult, CoordinateTransform transform = null)
         {
-            if (ocrResult?.Lines == null || !ocrResult.Lines.Any() || layoutResult?.Layout == null)
+            if (ocrResult?.Lines == null || !ocrResult.Lines.Any())
                 return;
 
             Dispatcher.Invoke(() =>
@@ -159,32 +163,92 @@ namespace MonLingo.Core.View.Windows
                     // 清除之前的調試元素
                     ClearDebugElements();
                     
-                    Logger.Info($"🎯 顯示版面分析結果：{layoutResult.Layout.Count} 個欄位");
+                    Logger.Info($"🎯 顯示版面分析結果：欄位聚類虛線框 + 段落框雙重顯示模式");
 
-                    int columnIndex = 0;
-                    foreach (var column in layoutResult.Layout)
-                    {
-                        var columnColor = GetColumnColor(columnIndex);
-                        Logger.Info($"📋 欄位 {column.Key}：{column.Value.Count} 個段落，顏色：{columnColor}");
+                    // 第一步：為所有原始OCR文字行繪製虛線框
+                    var sortedLines = ocrResult.Lines
+                        .Where(line => !string.IsNullOrWhiteSpace(line.Text))
+                        .OrderBy(line => GetCenterY(line.BoundingBox))
+                        .ThenBy(line => GetCenterX(line.BoundingBox))
+                        .ToList();
 
-                    foreach (var paragraph in column.Value)
+                    // 建立原始索引到欄位顏色的映射
+                    var indexToColumnColorMap = new Dictionary<int, SolidColorBrush>();
+                    
+                    if (layoutResult?.Layout != null && layoutResult.Layout.Any())
                     {
-                        // 根據用戶需求：如果是同一段落(符合階段1,2,3)，用一個大框包圍原文代替識別框
-                        DrawParagraphBoundingBox(paragraph, columnColor, transform);
-                        
-                        // 大框內不需要有小框，所以註釋掉個別文字行的繪製
-                        // foreach (var line in paragraph.Lines)
-                        // {
-                        //     DrawLineWithColumnColor(line, columnColor, transform);
-                        // }
-                    }                        columnIndex++;
+                        int columnIndex = 0;
+                        foreach (var column in layoutResult.Layout)
+                        {
+                            var columnColor = GetColumnColor(columnIndex);
+                            Logger.Info($"📋 欄位 {column.Key}：{column.Value.Count} 個段落，顏色：{columnColor}");
+
+                            // 為這個欄位中的所有行建立顏色映射
+                            foreach (var paragraph in column.Value)
+                            {
+                                foreach (var line in paragraph.Lines)
+                                {
+                                    indexToColumnColorMap[line.OriginalIndex] = columnColor;
+                                    Logger.Debug($"🎨 映射索引{line.OriginalIndex} → 欄位{columnIndex}顏色");
+                                }
+                            }
+                            columnIndex++;
+                        }
                     }
+
+                    Logger.Info($"🔸 繪製 {sortedLines.Count} 個按欄位聚類的虛線框");
+                    for (int i = 0; i < sortedLines.Count; i++)
+                    {
+                        var line = sortedLines[i];
+                        var originalIndex = Array.IndexOf(ocrResult.Lines, line);
+                        
+                        // 獲取該行所屬欄位的顏色，如果沒有映射則使用預設顏色
+                        var columnColor = indexToColumnColorMap.ContainsKey(originalIndex) 
+                            ? indexToColumnColorMap[originalIndex] 
+                            : Brushes.Gray; // 未歸類的行使用灰色
+                        
+                        Logger.Debug($"🔸 虛線框：索引={originalIndex}, 欄位顏色={columnColor}, 文字=\"{line.Text?.Trim()}\"");
+                        DrawOcrBoxWithColor(line, columnColor, transform); // 使用欄位顏色繪製虛線框（移除編號）
+                    }
+
+                    // 第二步：如果有版面分析結果，繪製段落框包圍合併後的區域
+                    if (layoutResult?.Layout != null && layoutResult.Layout.Any())
+                    {
+                        Logger.Info($"📦 繪製版面分析段落框：{layoutResult.Layout.Count} 個欄位");
+                        
+                        int columnIndex = 0;
+                        foreach (var column in layoutResult.Layout)
+                        {
+                            var columnColor = GetColumnColor(columnIndex);
+
+                            foreach (var paragraph in column.Value)
+                            {
+                                // 只為多行段落繪製段落框（單行段落不需要額外的段落框）
+                                if (paragraph.Lines.Count > 1)
+                                {
+                                    DrawParagraphBoundingBox(paragraph, columnColor, transform);
+                                    Logger.Info($"📦 繪製段落框：{paragraph.Lines.Count} 行，段落ID={paragraph.ParagraphId}，範圍=({paragraph.BoundingBox.X},{paragraph.BoundingBox.Y},{paragraph.BoundingBox.Width}×{paragraph.BoundingBox.Height})");
+                                }
+                                else
+                                {
+                                    Logger.Debug($"⏭️ 跳過單行段落框：段落ID={paragraph.ParagraphId}（已有虛線框顯示）");
+                                }
+                            }
+                            columnIndex++;
+                        }
+                    }
+                    else
+                    {
+                        Logger.Info("📝 沒有版面分析結果，使用預設顏色顯示虛線框");
+                    }
+
+                    Logger.Info($"📊 顯示完成：{sortedLines.Count} 個按欄位聚類的虛線框 + 版面分析段落框");
 
                     // 顯示視窗
                     Show();
                     Activate();
                     
-                    Logger.Info("✅ 版面分析調試視覺化已顯示");
+                    Logger.Info("✅ 版面分析調試視覺化已顯示（雙重框線模式）");
                 }
                 catch (Exception ex)
                 {
@@ -204,21 +268,27 @@ namespace MonLingo.Core.View.Windows
         {
             var boundingBox = line.BoundingBox;
             
-            // 計算絕對螢幕座標
-            System.Windows.Point screenPosition;
+            // 計算相對於覆蓋層視窗的座標
+            System.Windows.Point relativePosition;
             if (transform != null)
             {
-                // 使用座標轉換器計算正確的螢幕座標
-                screenPosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                // 先計算絕對螢幕座標
+                var absolutePosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                
+                // 轉換為相對於覆蓋層視窗的座標
+                relativePosition = new System.Windows.Point(
+                    absolutePosition.X - _targetScreenBounds.X,
+                    absolutePosition.Y - _targetScreenBounds.Y
+                );
+                
+                Logger.Debug($"🔍 框{index}座標轉換：絕對({absolutePosition.X:F1},{absolutePosition.Y:F1}) → 相對({relativePosition.X:F1},{relativePosition.Y:F1})");
             }
             else
             {
                 // 回退到簡單偏移（舊版本兼容）
-                screenPosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
+                relativePosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
+                Logger.Debug($"🔍 框{index}使用簡單座標：({relativePosition.X:F1},{relativePosition.Y:F1})");
             }
-            
-            var absoluteX = screenPosition.X;
-            var absoluteY = screenPosition.Y;
             
             // 創建邊界框，根據合併狀態設置線條樣式
             var rect = new Rectangle
@@ -244,9 +314,9 @@ namespace MonLingo.Core.View.Windows
                 Logger.Debug($"📝 框{index}：未合併框-虛線樣式(5,3)，顏色={rect.Stroke}");
             }
 
-            // 設置絕對位置
-            Canvas.SetLeft(rect, absoluteX);
-            Canvas.SetTop(rect, absoluteY);
+            // 設置相對位置（相對於覆蓋層視窗）
+            Canvas.SetLeft(rect, relativePosition.X);
+            Canvas.SetTop(rect, relativePosition.Y);
 
             // 創建編號標籤，根據合併狀態設置不同的外觀
             var label = new Border
@@ -263,9 +333,9 @@ namespace MonLingo.Core.View.Windows
                 }
             };
 
-            // 設置標籤位置（在框的左上角，使用絕對座標）
-            Canvas.SetLeft(label, absoluteX);
-            Canvas.SetTop(label, absoluteY - 25);
+            // 設置標籤位置（在框的左上角，使用相對座標）
+            Canvas.SetLeft(label, relativePosition.X);
+            Canvas.SetTop(label, relativePosition.Y - 25);
 
             // 添加到Canvas（只添加框和編號標籤，移除文字預覽）
             _debugCanvas.Children.Add(rect);
@@ -319,24 +389,91 @@ namespace MonLingo.Core.View.Windows
         }
 
         /// <summary>
+        /// 繪製OCR識別框（按欄位聚類，無編號版本）
+        /// </summary>
+        /// <param name="line">OCR識別行</param>
+        /// <param name="columnColor">欄位顏色</param>
+        /// <param name="transform">座標轉換參數</param>
+        private void DrawOcrBoxWithColor(OcrLine line, SolidColorBrush columnColor, CoordinateTransform transform = null)
+        {
+            var boundingBox = line.BoundingBox;
+            
+            // 計算相對於覆蓋層視窗的座標
+            System.Windows.Point relativePosition;
+            if (transform != null)
+            {
+                // 先計算絕對螢幕座標
+                var absolutePosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                
+                // 轉換為相對於覆蓋層視窗的座標
+                relativePosition = new System.Windows.Point(
+                    absolutePosition.X - _targetScreenBounds.X,
+                    absolutePosition.Y - _targetScreenBounds.Y
+                );
+                
+                Logger.Debug($"🔍 欄位虛線框座標轉換：絕對({absolutePosition.X:F1},{absolutePosition.Y:F1}) → 相對({relativePosition.X:F1},{relativePosition.Y:F1})");
+            }
+            else
+            {
+                // 回退到簡單偏移（舊版本兼容）
+                relativePosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
+                Logger.Debug($"🔍 欄位虛線框使用簡單座標：({relativePosition.X:F1},{relativePosition.Y:F1})");
+            }
+            
+            // 創建邊界框，使用欄位顏色的虛線
+            var rect = new Rectangle
+            {
+                Width = boundingBox.Width / (transform?.DpiScale ?? 1.0), // 考慮DPI縮放
+                Height = boundingBox.Height / (transform?.DpiScale ?? 1.0),
+                Stroke = columnColor,
+                StrokeThickness = 1, // 細線
+                Fill = Brushes.Transparent,
+                StrokeDashArray = new DoubleCollection { 5, 3 } // 虛線樣式：5個單位實線，3個單位空白
+            };
+
+            // 設置相對位置（相對於覆蓋層視窗）
+            Canvas.SetLeft(rect, relativePosition.X);
+            Canvas.SetTop(rect, relativePosition.Y);
+
+            // 添加到Canvas（不添加編號標籤）
+            _debugCanvas.Children.Add(rect);
+
+            // 記錄元素以便後續清除
+            _debugElements.Add(rect);
+            
+            Logger.Debug($"📝 欄位虛線框：顏色={columnColor}，文字=\"{line.Text?.Trim()}\"");
+        }
+
+        /// <summary>
         /// 繪製段落邊界框（大框包圍整個段落）
         /// </summary>
         private void DrawParagraphBoundingBox(LayoutParagraph paragraph, SolidColorBrush color, CoordinateTransform transform = null)
         {
             var boundingBox = paragraph.BoundingBox;
             
-            // 計算絕對螢幕座標
-            System.Windows.Point screenPosition;
+            // 計算相對於覆蓋層視窗的座標
+            System.Windows.Point relativePosition;
             if (transform != null)
             {
-                screenPosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                // 先計算絕對螢幕座標
+                var absolutePosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                
+                // 轉換為相對於覆蓋層視窗的座標
+                relativePosition = new System.Windows.Point(
+                    absolutePosition.X - _targetScreenBounds.X,
+                    absolutePosition.Y - _targetScreenBounds.Y
+                );
+                
+                Logger.Debug($"🔍 段落框座標轉換：絕對({absolutePosition.X:F1},{absolutePosition.Y:F1}) → 相對({relativePosition.X:F1},{relativePosition.Y:F1})");
             }
             else
             {
-                screenPosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
+                // 回退到簡單偏移（舊版本兼容）
+                relativePosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
+                Logger.Debug($"🔍 段落框使用簡單座標：({relativePosition.X:F1},{relativePosition.Y:F1})");
             }
 
-            // 創建段落邊界框（粗實線框，無填充）
+            // 創建段落邊界框（粗實線框，無填充，無標籤）
             var rect = new Rectangle
             {
                 Width = boundingBox.Width / (transform?.DpiScale ?? 1.0),
@@ -347,36 +484,17 @@ namespace MonLingo.Core.View.Windows
                 StrokeDashArray = null // 實線
             };
 
-            // 設置絕對位置
-            Canvas.SetLeft(rect, screenPosition.X);
-            Canvas.SetTop(rect, screenPosition.Y);
+            // 設置相對位置（相對於覆蓋層視窗）
+            Canvas.SetLeft(rect, relativePosition.X);
+            Canvas.SetTop(rect, relativePosition.Y);
 
-            // 創建段落標籤
-            var label = new Border
-            {
-                Background = color,
-                CornerRadius = new CornerRadius(5),
-                Padding = new Thickness(6, 3, 6, 3),
-                Child = new TextBlock
-                {
-                    Text = $"段落 {paragraph.ParagraphId}",
-                    Foreground = Brushes.White,
-                    FontWeight = FontWeights.Bold,
-                    FontSize = 14
-                }
-            };
-
-            // 設置標籤位置（在框的左上角外側）
-            Canvas.SetLeft(label, screenPosition.X);
-            Canvas.SetTop(label, screenPosition.Y - 30);
-
-            // 添加到Canvas
+            // 添加到Canvas（移除段落標籤）
             _debugCanvas.Children.Add(rect);
-            _debugCanvas.Children.Add(label);
 
             // 記錄元素以便後續清除
             _debugElements.Add(rect);
-            _debugElements.Add(label);
+            
+            Logger.Debug($"📦 段落框：無標籤，顏色={color}，段落ID={paragraph.ParagraphId}");
         }
 
         /// <summary>
@@ -386,15 +504,23 @@ namespace MonLingo.Core.View.Windows
         {
             var boundingBox = line.BoundingBox;
             
-            // 計算絕對螢幕座標
-            System.Windows.Point screenPosition;
+            // 計算相對於覆蓋層視窗的座標
+            System.Windows.Point relativePosition;
             if (transform != null)
             {
-                screenPosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                // 先計算絕對螢幕座標
+                var absolutePosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                
+                // 轉換為相對於覆蓋層視窗的座標
+                relativePosition = new System.Windows.Point(
+                    absolutePosition.X - _targetScreenBounds.X,
+                    absolutePosition.Y - _targetScreenBounds.Y
+                );
             }
             else
             {
-                screenPosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
+                // 回退到簡單偏移（舊版本兼容）
+                relativePosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
             }
 
             // 創建文字行邊界框（細虛線框）
@@ -408,9 +534,9 @@ namespace MonLingo.Core.View.Windows
                 StrokeDashArray = new DoubleCollection { 3, 2 } // 虛線樣式
             };
 
-            // 設置絕對位置
-            Canvas.SetLeft(rect, screenPosition.X);
-            Canvas.SetTop(rect, screenPosition.Y);
+            // 設置相對位置（相對於覆蓋層視窗）
+            Canvas.SetLeft(rect, relativePosition.X);
+            Canvas.SetTop(rect, relativePosition.Y);
 
             // 添加到Canvas
             _debugCanvas.Children.Add(rect);
