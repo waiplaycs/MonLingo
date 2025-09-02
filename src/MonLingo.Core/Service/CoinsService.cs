@@ -250,8 +250,9 @@ namespace MonLingo.Core.Service
             {
                 MonLingo.Core.Service.TranslationEngine.Google => MonLingo.Core.Models.TranslationEngine.Google,
                 MonLingo.Core.Service.TranslationEngine.DeepL => MonLingo.Core.Models.TranslationEngine.DeepL,
-                MonLingo.Core.Service.TranslationEngine.GPT35 => MonLingo.Core.Models.TranslationEngine.GPT35,
-                MonLingo.Core.Service.TranslationEngine.GPT4 => MonLingo.Core.Models.TranslationEngine.GPT4,
+                MonLingo.Core.Service.TranslationEngine.Microsoft => MonLingo.Core.Models.TranslationEngine.Bing,
+                MonLingo.Core.Service.TranslationEngine.Baidu => MonLingo.Core.Models.TranslationEngine.Baidu,
+                MonLingo.Core.Service.TranslationEngine.Local => MonLingo.Core.Models.TranslationEngine.Local,
                 _ => MonLingo.Core.Models.TranslationEngine.Google
             };
         }

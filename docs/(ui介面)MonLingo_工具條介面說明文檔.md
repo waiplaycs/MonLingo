@@ -62,8 +62,9 @@ MonLingo 翻譯工具條採用現代化設計，半透明黑色背景，圓角�
 - **實現狀況**: 
   - ✅ 數據綁定完成
   - ✅ 下拉選擇交互功能已實現
-  - ✅ 多引擎支援架構 (Google, DeepL, Microsoft, Baidu, GPT, Local)
+  - ✅ 多引擎支援架構 (Google, DeepL, Microsoft, Baidu, Local)
   - ✅ 點擊彈出下拉選單，選擇後即時切換引擎
+  - 🗑️ **2025/09/02**: 已移除 GPT35 和 GPT4 選項
 
 #### 6. 翻譯引擎對比 📊 ✅ **已完成對接**
 - **圖標**: GitCompare (對比圖標)

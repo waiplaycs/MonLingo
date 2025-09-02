@@ -8,8 +8,6 @@ namespace MonLingo.Core.Models
         DeepL = 4,
         OpenAI = 5,
         Azure = 6,
-        Local = 7,
-        GPT35 = 8,
-        GPT4 = 9
+        Local = 7
     }
 }

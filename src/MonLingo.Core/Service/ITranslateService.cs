@@ -49,8 +49,6 @@ namespace MonLingo.Core.Service
         DeepL,
         Microsoft,
         Baidu,
-        GPT35,
-        GPT4,
         Local  // 離線翻譯
     }
 }

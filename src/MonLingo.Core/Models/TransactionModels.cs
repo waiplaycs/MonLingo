@@ -101,8 +101,7 @@ namespace MonLingo.Core.Models
                 TranslationEngine.DeepL => 2,
                 TranslationEngine.OpenAI => 5,
                 TranslationEngine.Azure => 2,
-                TranslationEngine.GPT35 => 3,
-                TranslationEngine.GPT4 => 6,
+                TranslationEngine.Local => 0, // 本地翻譯免費
                 _ => 1
             };
 

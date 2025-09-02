@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright © 2025")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7ae8cd3ce68e6d793c767b549e71836674ef0f54")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aaa65bcb3d429ecc0d49aaef08b220546a10e951")]
 [assembly: System.Reflection.AssemblyProductAttribute("MonLingo")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MonLingo Desktop Translation Tool")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
