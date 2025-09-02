@@ -181,6 +181,11 @@ namespace MonLingo.Core.Service
                 }
                 
                 // ============ PHASE 4: 顯示結果分發 ============
+                // 設置覆蓋模式所需的 OCR 結果和區域資訊
+                var wpfRect = new System.Windows.Rect(ocrResult.BoundingBox.X, ocrResult.BoundingBox.Y, 
+                                                      ocrResult.BoundingBox.Width, ocrResult.BoundingBox.Height);
+                _displayService.SetOcrContext(ocrResult, wpfRect);
+                
                 // 將結果交給 DisplayService 根據模式顯示
                 _displayService.Show(mergedText, translationResult);
                 

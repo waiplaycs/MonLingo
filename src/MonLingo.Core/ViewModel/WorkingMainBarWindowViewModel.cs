@@ -23,7 +23,8 @@ namespace MonLingo.ViewModel
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private Window _mainBarWindow;
         private readonly ILanguageConfigService _languageConfigService;
-    private readonly ITranslateService _translateService;
+        private readonly ITranslateService _translateService;
+        private readonly IDisplayService _displayService;
         
         public WorkingMainBarWindowViewModel(Window mainBarWindow = null)
         {
@@ -34,6 +35,14 @@ namespace MonLingo.ViewModel
             // 初始化語言配置服務
             _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
             _translateService = Phase5ServiceContainer.GetService<ITranslateService>();
+            _displayService = Phase5ServiceContainer.GetService<IDisplayService>();
+            
+            Logger.Info($"[WorkingMainBarWindowViewModel] DisplayService 獲取: {_displayService != null}");
+            
+            // 連接覆蓋模式服務
+            _displayService?.SetMainBarViewModel(this);
+            
+            Logger.Info($"[WorkingMainBarWindowViewModel] IsCoverModeEnabled 初始值: {IsCoverModeEnabled}");
             
             // 異步初始化語言設置
             _ = InitializeLanguageSettingsAsync();
@@ -181,12 +190,13 @@ namespace MonLingo.ViewModel
             }
         }
 
-        private bool _isCoverModeEnabled = true;
+        private bool _isCoverModeEnabled = false;
         public bool IsCoverModeEnabled
         {
             get => _isCoverModeEnabled;
             set
             {
+                Logger.Info($"[WorkingMainBarWindowViewModel] IsCoverModeEnabled 變更: {_isCoverModeEnabled} -> {value}");
                 _isCoverModeEnabled = value;
                 OnPropertyChanged(nameof(IsCoverModeEnabled));
             }

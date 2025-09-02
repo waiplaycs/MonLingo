@@ -1,0 +1,62 @@
+<Window x:Class="MonLingo.Core.View.Windows.SingleTranslationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Single Translation"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        SizeToContent="WidthAndHeight"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Border Background="#CC2E2E2E" 
+            CornerRadius="8"
+            Padding="8,4">
+        
+        <Grid>
+            <!-- 第一層：用於文字描邊的副本 (黑色) -->
+            <TextBlock Text="{Binding TranslatedText}"
+                       Foreground="Black"
+                       Margin="1,1,0,0"
+                       FontWeight="Bold"
+                       FontSize="16"/>
+            <TextBlock Text="{Binding TranslatedText}"
+                       Foreground="Black"
+                       Margin="-1,-1,0,0"
+                       FontWeight="Bold"
+                       FontSize="16"/>
+            <TextBlock Text="{Binding TranslatedText}"
+                       Foreground="Black"
+                       Margin="1,-1,0,0"
+                       FontWeight="Bold"
+                       FontSize="16"/>
+            <TextBlock Text="{Binding TranslatedText}"
+                       Foreground="Black"
+                       Margin="-1,1,0,0"
+                       FontWeight="Bold"
+                       FontSize="16"/>
+                       
+            <!-- 第二層：主要的文字 (白色) -->
+            <TextBlock Text="{Binding TranslatedText}"
+                       Foreground="White"
+                       FontWeight="Bold"
+                       FontSize="16"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"/>
+        </Grid>
+    </Border>
+
+    <!-- 淡入動畫觸發器 -->
+    <Window.Triggers>
+        <EventTrigger RoutedEvent="Window.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0.0" To="1.0"
+                                     Duration="0:0:0.3"/>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+</Window>

@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using MonLingo.Core.View.Windows;
 using MonLingo.Core.Infrastructure;
 using MonLingo.Core.Events;
+using MonLingo.ViewModel;
 using NLog;
 
 namespace MonLingo.Core.Service
@@ -16,7 +17,7 @@ namespace MonLingo.Core.Service
     /// <summary>
     /// 快速翻譯服務
     /// 負責處理螢幕截圖、OCR識別和翻譯的完整流程
-    /// 實現完整的 OCR → 文字合併 → 翻譯 → 顯示流程
+    /// 實現完整的文字合併 → 翻譯 → 顯示流程
     /// </summary>
     public class QuickTranslationService
     {
@@ -56,33 +57,38 @@ namespace MonLingo.Core.Service
             Logger.Info("🎯 StartQuickTranslationAsync(Service) 開始執行");
             Logger.Debug($"📋 服務狀態: _mainBarWindow={((_mainBarWindow == null) ? "null" : "已設定")}, _subtitleWindow={((_subtitleWindow == null) ? "null" : "已存在")}");
             
+            // 添加字幕視窗狀態調試
+            if (_subtitleWindow != null)
+            {
+                Logger.Debug($"🔍 字幕視窗已存在狀態: Visibility={_subtitleWindow.Visibility}, IsVisible={_subtitleWindow.IsVisible}");
+            }
+            
             try
             {
                 // 🔧 首次使用時初始化服務
                 Logger.Info("🔧 確保服務已初始化");
                 EnsureServicesInitialized();
                 
-                // 在回合開始時清空舊輸出（只清一次）
-                if (_subtitleWindow == null)
+                // 清理現有的字幕視窗內容（如果存在），但不在此階段顯示視窗
+                if (_subtitleWindow != null)
                 {
-                    Logger.Debug("🆕 [Round] 創建字幕視窗以顯示結果（預先，用於一鍵截圖回合清理）");
-                    _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                    Logger.Debug("🧹 清理現有字幕視窗內容，但不顯示視窗");
                     if (_displayService != null)
                     {
-                        var vm = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
-                        _displayService.SetSubtitleViewModel(vm);
+                        Logger.Info("[Round] StartNewRound via DisplayService (Quick)");
+                        _displayService.StartNewRound();
                     }
-                    _subtitleWindow.ShowSubtitle();
-                }
-                if (_displayService != null)
-                {
-                    Logger.Info("[Round] StartNewRound via DisplayService (Quick)");
-                    _displayService.StartNewRound();
-                }
-                else
-                {
-                    Logger.Info("[Round] ClearSubtitles via SubtitleWindow (Quick)");
-                    _subtitleWindow.ClearSubtitles();
+                    else
+                    {
+                        Logger.Info("[Round] ClearSubtitles via SubtitleWindow (Quick)");
+                        _subtitleWindow.ClearSubtitles();
+                    }
+                    // 確保隱藏字幕視窗
+                    if (_subtitleWindow.Visibility == Visibility.Visible)
+                    {
+                        Logger.Debug("❌ 隱藏字幕視窗（框選階段不應顯示）");
+                        _subtitleWindow.Hide();
+                    }
                 }
                 
                 // 步驟1: 顯示區域選擇視窗
@@ -173,11 +179,14 @@ namespace MonLingo.Core.Service
         {
             if (_ocrService == null)
             {
+                Logger.Info("[QuickTranslationService] 初始化服務...");
                 // 獲取服務實例
                 _ocrService = Phase5ServiceContainer.GetService<IOcrService>();
                 _translateService = Phase5ServiceContainer.GetService<ITranslateService>();
                 _displayService = Phase5ServiceContainer.GetService<IDisplayService>();
                 _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
+                
+                Logger.Info($"[QuickTranslationService] DisplayService 獲取完成: {_displayService != null}");
             }
         }
 
@@ -231,23 +240,35 @@ namespace MonLingo.Core.Service
         {
             try
             {
+                Logger.Info("*** 🎯 ProcessSelectedRegionAsync 開始執行 ***");
+                Logger.Info($"*** 選中區域: {selectedRegion} ***");
+                
                 // 保存選中區域座標供調試使用
                 _currentSelectedRegion = selectedRegion;
                 
                 // 步驟2: 截圖選擇的區域
+                Logger.Info("*** 📸 開始截圖 ***");
                 var screenshot = CaptureScreenRegion(selectedRegion);
+                Logger.Info("*** ✅ 截圖完成 ***");
                 
-                // 步驟3: OCR識別文字
-                var recognizedText = await PerformOcrAsync(screenshot);
+                // 步驟3: OCR識別文字 (同時獲取OCR結果)
+                Logger.Info("*** 🔍 開始OCR識別 ***");
+                var (recognizedText, ocrResult) = await PerformOcrWithResultAsync(screenshot);
+                Logger.Info($"*** ✅ OCR完成，識別文字: {recognizedText} ***");
                 
                 // 步驟4: 翻譯文字
+                Logger.Info("*** 🌐 開始翻譯 ***");
                 var translatedText = await TranslateTextAsync(recognizedText);
+                Logger.Info($"*** ✅ 翻譯完成，譯文: {translatedText} ***");
                 
-                // 步驟5: 顯示結果視窗
-                ShowTranslationResult(recognizedText, translatedText, selectedRegion);
+                // 步驟5: 顯示結果視窗 (傳遞OCR結果)
+                Logger.Info("*** 📺 開始顯示結果 ***");
+                ShowTranslationResult(recognizedText, translatedText, selectedRegion, ocrResult);
+                Logger.Info("*** ✅ ProcessSelectedRegionAsync 執行完成 ***");
             }
             catch (Exception ex)
             {
+                Logger.Error(ex, "*** ❌ ProcessSelectedRegionAsync 發生異常 ***");
                 System.Windows.MessageBox.Show($"處理選擇區域時出錯: {ex.Message}", "錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -294,6 +315,12 @@ namespace MonLingo.Core.Service
 
         private async Task<string> PerformOcrAsync(Bitmap image)
         {
+            var (text, _) = await PerformOcrWithResultAsync(image);
+            return text;
+        }
+
+        private async Task<(string recognizedText, OcrResult ocrResult)> PerformOcrWithResultAsync(Bitmap image)
+        {
             try
             {
                 // 初始化 OCR 服務（如果需要）
@@ -329,7 +356,7 @@ namespace MonLingo.Core.Service
                 
                 if (ocrResult == null || ocrResult.Lines == null || ocrResult.Lines.Length == 0)
                 {
-                    return string.Empty; // 沒有識別到文字
+                    return (string.Empty, null); // 沒有識別到文字
                 }
 
                 // ============ PHASE 2: 高級版面分析 ============
@@ -355,7 +382,7 @@ namespace MonLingo.Core.Service
                     // 如果版面分析成功且有結果，使用分析結果
                     if (!string.IsNullOrEmpty(analyzedText))
                     {
-                        return analyzedText;
+                        return (analyzedText, ocrResult);
                     }
                 }
                 else
@@ -370,7 +397,7 @@ namespace MonLingo.Core.Service
                 // 將零散的文字行合併成連貫的句子
                 string mergedText = TextMerger.MergeForSubtitle(ocrResult);
                 
-                return mergedText;
+                return (mergedText, ocrResult);
             }
             catch (Exception ex)
             {
@@ -411,79 +438,114 @@ namespace MonLingo.Core.Service
             }
         }
 
-        private void ShowTranslationResult(string originalText, string translatedText, Rect sourceRegion)
+        private void ShowTranslationResult(string originalText, string translatedText, Rect sourceRegion, OcrResult ocrResult = null)
         {
             try
             {
-                Logger.Debug("🎯 ShowTranslationResult 開始執行");
-                Logger.Debug($"📝 原文: {originalText}");
-                Logger.Debug($"🌐 譯文: {translatedText}");
+                Logger.Info("*** 🎯 ShowTranslationResult 開始執行 ***");
+                Logger.Info($"*** 📝 原文: {originalText} ***");
+                Logger.Info($"*** 🌐 譯文: {translatedText} ***");
                 
                 // ============ PHASE 4: 顯示結果分發 ============
-                // 確保字幕視窗存在並設置 DisplayService
-                if (_subtitleWindow == null)
+                // 檢查是否為Cover模式，如果是則跳過字幕視窗創建
+                bool isCoverModeEnabled = false;
+                Logger.Info($"*** 🔍 檢查Cover模式 - _mainBarWindow: {_mainBarWindow != null} ***");
+                Logger.Info($"*** 🔍 檢查Cover模式 - DataContext: {_mainBarWindow?.DataContext != null} ***");
+                Logger.Info($"*** 🔍 檢查Cover模式 - DataContext類型: {_mainBarWindow?.DataContext?.GetType()?.Name} ***");
+                
+                if (_mainBarWindow?.DataContext is WorkingMainBarWindowViewModel viewModel)
                 {
-                    Logger.Debug("🆕 創建新的字幕視窗");
-                    
-                    try
-                    {
-                        Logger.Debug("🔨 開始創建 SubtitleWindow 實例");
-                        _subtitleWindow = new SubtitleWindow(_mainBarWindow);
-                        Logger.Debug("✅ SubtitleWindow 實例創建成功");
-                        
-                        // 設置 DisplayService 的 SubtitleViewModel 引用
-                        if (_displayService != null)
-                        {
-                            Logger.Debug("🔗 設置 DisplayService 的 SubtitleViewModel 引用");
-                            var viewModel = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
-                            _displayService.SetSubtitleViewModel(viewModel);
-                            Logger.Debug("✅ DisplayService 設置完成");
-                        }
-                        else
-                        {
-                            Logger.Debug("⚠️ DisplayService 為 null，跳過設置");
-                        }
-                        
-                        Logger.Debug("🎬 開始調用 ShowSubtitle()");
-                        _subtitleWindow.ShowSubtitle();
-                        Logger.Debug("✅ 新字幕視窗已顯示");
-                    }
-                    catch (Exception createEx)
-                    {
-                        Logger.Error(createEx, "❌ 創建字幕視窗時發生錯誤");
-                        throw new Exception($"創建字幕視窗失敗: {createEx.Message}", createEx);
-                    }
+                    isCoverModeEnabled = viewModel.IsCoverModeEnabled;
+                    Logger.Info($"*** 🎛️ Cover模式狀態: {isCoverModeEnabled} ***");
                 }
                 else
                 {
-                    Logger.Debug($"♻️ 重複使用現有字幕視窗，當前狀態: Visibility={_subtitleWindow.Visibility}, IsVisible={_subtitleWindow.IsVisible}");
+                    Logger.Warn("*** ⚠️ 無法獲取Cover模式狀態 - DataContext類型不匹配 ***");
+                }
+                
+                // 只有在非Cover模式下才創建和顯示字幕視窗
+                if (!isCoverModeEnabled)
+                {
+                    Logger.Debug("📺 字幕模式 - 確保字幕視窗存在並設置 DisplayService");
                     
-                    // 如果字幕視窗已存在但被隱藏，重新顯示它
-                    if (_subtitleWindow.Visibility == Visibility.Hidden || !_subtitleWindow.IsVisible)
+                    // 確保字幕視窗存在並設置 DisplayService
+                    if (_subtitleWindow == null)
                     {
-                        Logger.Debug("🔄 重新顯示隱藏的字幕視窗");
-                        _subtitleWindow.ShowSubtitle();
-                        Logger.Debug($"✅ 字幕視窗重新顯示完成，新狀態: Visibility={_subtitleWindow.Visibility}, IsVisible={_subtitleWindow.IsVisible}");
+                        Logger.Debug("🆕 創建新的字幕視窗");
+                        
+                        try
+                        {
+                            Logger.Debug("🔨 開始創建 SubtitleWindow 實例");
+                            _subtitleWindow = new SubtitleWindow(_mainBarWindow);
+                            Logger.Debug("✅ SubtitleWindow 實例創建成功");
+                            
+                            // 設置 DisplayService 的 SubtitleViewModel 引用
+                            if (_displayService != null)
+                            {
+                                Logger.Debug("🔗 設置 DisplayService 的 SubtitleViewModel 引用");
+                                var subtitleViewModel = _subtitleWindow.DataContext as MonLingo.Core.ViewModel.SubtitleViewModel;
+                                _displayService.SetSubtitleViewModel(subtitleViewModel);
+                                Logger.Debug("✅ DisplayService 設置完成");
+                            }
+                            else
+                            {
+                                Logger.Debug("⚠️ DisplayService 為 null，跳過設置");
+                            }
+                            
+                            Logger.Debug("🎬 開始調用 ShowSubtitle()");
+                            _subtitleWindow.ShowSubtitle();
+                            Logger.Debug("✅ 新字幕視窗已顯示");
+                        }
+                        catch (Exception createEx)
+                        {
+                            Logger.Error(createEx, "❌ 創建字幕視窗時發生錯誤");
+                            throw new Exception($"創建字幕視窗失敗: {createEx.Message}", createEx);
+                        }
                     }
                     else
                     {
-                        Logger.Debug("ℹ️ 字幕視窗已經是顯示狀態，無需重新顯示");
+                        Logger.Debug($"♻️ 重複使用現有字幕視窗，當前狀態: Visibility={_subtitleWindow.Visibility}, IsVisible={_subtitleWindow.IsVisible}");
+                        
+                        // 如果字幕視窗已存在但被隱藏，重新顯示它
+                        if (_subtitleWindow.Visibility == Visibility.Hidden || !_subtitleWindow.IsVisible)
+                        {
+                            Logger.Debug("🔄 重新顯示隱藏的字幕視窗");
+                            _subtitleWindow.ShowSubtitle();
+                            Logger.Debug($"✅ 字幕視窗重新顯示完成，新狀態: Visibility={_subtitleWindow.Visibility}, IsVisible={_subtitleWindow.IsVisible}");
+                        }
+                        else
+                        {
+                            Logger.Debug("ℹ️ 字幕視窗已經是顯示狀態，無需重新顯示");
+                        }
                     }
-                }
-
-                // 使用 DisplayService 顯示翻譯結果
-                Logger.Debug("📊 檢查 DisplayService 狀態");
-                if (_displayService != null)
-                {
-                    Logger.Debug("✅ 使用 DisplayService 顯示翻譯結果 (SubtitleMode)");
-                    _displayService.Show(originalText, translatedText);
-                    Logger.Debug("✅ DisplayService.Show() 調用完成");
                 }
                 else
                 {
-                    Logger.Debug("🔄 DisplayService 不可用，直接調用字幕視窗");
+                    Logger.Info("*** 🎭 Cover模式啟用 - 跳過字幕視窗創建 ***");
+                }
+
+                // 使用 DisplayService 顯示翻譯結果
+                Logger.Info("*** 📊 檢查 DisplayService 狀態 ***");
+                Logger.Info($"*** _displayService 是否為 null: {_displayService == null} ***");
+                
+                if (_displayService != null)
+                {
+                    // 設置覆蓋模式所需的 OCR 結果和區域資訊
+                    if (ocrResult != null)
+                    {
+                        Logger.Info("*** 設置 OCR 上下文 ***");
+                        _displayService.SetOcrContext(ocrResult, sourceRegion);
+                    }
+                    
+                    Logger.Info("*** ✅ 調用 DisplayService.Show() ***");
+                    _displayService.Show(originalText, translatedText);
+                    Logger.Info("*** ✅ DisplayService.Show() 調用完成 ***");
+                }
+                else
+                {
+                    Logger.Info("*** 🔄 DisplayService 不可用，直接調用字幕視窗 ***");
                     _subtitleWindow.AddSubtitleLine(originalText, translatedText);
-                    Logger.Debug("✅ AddSubtitleLine() 調用完成");
+                    Logger.Info("*** ✅ AddSubtitleLine() 調用完成 ***");
                 }
                 
                 Logger.Debug("🎊 ShowTranslationResult 執行完成");
