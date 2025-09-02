@@ -136,10 +136,19 @@ namespace MonLingo.Core.Service
                         Color = columnColor
                     };
                     
-                    // 收集原始行邊界框
+                    // 收集原始行邊界框和合併資訊
                     foreach (var line in paragraph.Lines)
                     {
                         paragraphDebugInfo.OriginalLineBounds.Add(line.BoundingBox);
+                        
+                        // 如果這行是合併而來的，記錄所有合併來源的索引
+                        if (line.IsMerged)
+                        {
+                            foreach (var index in line.MergedFromIndices)
+                            {
+                                debugInfo.MergedOriginalIndices.Add(index);
+                            }
+                        }
                     }
                     
                     debugInfo.ParagraphBounds.Add(paragraphDebugInfo);
@@ -265,7 +274,8 @@ namespace MonLingo.Core.Service
                 Confidence = line.Confidence,
                 BoundingBox = line.BoundingBox,
                 LineHeight = line.BoundingBox.Height,
-                OriginalIndex = index
+                OriginalIndex = index,
+                MergedFromIndices = new List<int> { index } // 初始狀態，每行對應自己的索引
             }).ToList();
 
             // 建立合併候選對列表
@@ -453,7 +463,8 @@ namespace MonLingo.Core.Service
                 ? (leftLine.Confidence * weightA + rightLine.Confidence * weightB) / totalWeight 
                 : (leftLine.Confidence + rightLine.Confidence) / 2.0;
 
-            return new LayoutLine
+            // 創建合併後的行，記錄合併來源
+            var mergedLine = new LayoutLine
             {
                 Text = mergedText,
                 Confidence = mergedConfidence,
@@ -461,6 +472,12 @@ namespace MonLingo.Core.Service
                 LineHeight = mergedBBox.Height,
                 OriginalIndex = Math.Min(leftLine.OriginalIndex, rightLine.OriginalIndex) // 保留較小的索引
             };
+
+            // 記錄合併來源
+            mergedLine.MergedFromIndices.AddRange(leftLine.MergedFromIndices.Count > 0 ? leftLine.MergedFromIndices : new[] { leftLine.OriginalIndex });
+            mergedLine.MergedFromIndices.AddRange(rightLine.MergedFromIndices.Count > 0 ? rightLine.MergedFromIndices : new[] { rightLine.OriginalIndex });
+
+            return mergedLine;
         }
 
         /// <summary>
@@ -968,6 +985,11 @@ namespace MonLingo.Core.Service
         /// 段落邊界框（用於繪製大框）
         /// </summary>
         public List<ParagraphDebugInfo> ParagraphBounds { get; set; } = new List<ParagraphDebugInfo>();
+        
+        /// <summary>
+        /// 合併的原始OCR行索引（用於識別哪些框是合併後的）
+        /// </summary>
+        public HashSet<int> MergedOriginalIndices { get; set; } = new HashSet<int>();
     }
 
     /// <summary>
@@ -1007,5 +1029,15 @@ namespace MonLingo.Core.Service
         public Rectangle BoundingBox { get; set; }
         public int LineHeight { get; set; }
         public int OriginalIndex { get; set; } // 原始OCR行索引
+        
+        /// <summary>
+        /// 合併來源的原始索引列表（如果這一行是合併而來的）
+        /// </summary>
+        public List<int> MergedFromIndices { get; set; } = new List<int>();
+        
+        /// <summary>
+        /// 是否為合併產生的行
+        /// </summary>
+        public bool IsMerged => MergedFromIndices.Count > 1;
     }
 }

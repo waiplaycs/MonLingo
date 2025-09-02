@@ -40,7 +40,7 @@ namespace MonLingo.Core.View.Windows
             ShowInTaskbar = false;
             ResizeMode = ResizeMode.NoResize;
             
-            // 設置全螢幕大小
+            // 默認設置為主螢幕全螢幕大小
             WindowState = WindowState.Maximized;
             
             // 創建Canvas
@@ -54,11 +54,38 @@ namespace MonLingo.Core.View.Windows
         }
 
         /// <summary>
+        /// 設置覆蓋層在指定螢幕上顯示
+        /// </summary>
+        /// <param name="targetScreen">目標螢幕的工作區域</param>
+        public void SetTargetScreen(System.Drawing.Rectangle targetScreen)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    // 設置視窗位置和大小以覆蓋指定螢幕
+                    WindowState = WindowState.Normal;
+                    Left = targetScreen.X;
+                    Top = targetScreen.Y;
+                    Width = targetScreen.Width;
+                    Height = targetScreen.Height;
+                    
+                    Logger.Info($"🖥️ OCR調試覆蓋層已設置到螢幕區域：({targetScreen.X},{targetScreen.Y},{targetScreen.Width},{targetScreen.Height})");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "設置目標螢幕時發生錯誤");
+                }
+            });
+        }
+
+        /// <summary>
         /// 顯示OCR識別結果的調試信息
         /// </summary>
         /// <param name="ocrResult">OCR識別結果</param>
         /// <param name="transform">座標轉換參數</param>
-        public void ShowOcrDebugInfo(OcrResult ocrResult, CoordinateTransform transform = null)
+        /// <param name="mergedLineInfo">合併行資訊（可選）</param>
+        public void ShowOcrDebugInfo(OcrResult ocrResult, CoordinateTransform transform = null, LayoutAnalysisResult layoutResult = null)
         {
             if (ocrResult?.Lines == null || !ocrResult.Lines.Any())
                 return;
@@ -79,11 +106,21 @@ namespace MonLingo.Core.View.Windows
 
                     Logger.Info($"🎯 顯示 {sortedLines.Count} 個OCR識別框");
 
+                    // 建立合併資訊映射（如果有版面分析結果）
+                    var mergedIndices = new HashSet<int>();
+                    if (layoutResult?.Success == true && layoutResult.DebugInfo?.MergedOriginalIndices != null)
+                    {
+                        mergedIndices = layoutResult.DebugInfo.MergedOriginalIndices;
+                        Logger.Info($"🔗 檢測到 {mergedIndices.Count} 個合併的原始索引：[{string.Join(", ", mergedIndices)}]");
+                    }
+
                     // 繪製每個識別框
                     for (int i = 0; i < sortedLines.Count; i++)
                     {
                         var line = sortedLines[i];
-                        DrawOcrBox(line, i + 1, transform); // 編號從1開始，傳遞座標轉換
+                        var originalIndex = Array.IndexOf(ocrResult.Lines, line);
+                        var isMerged = mergedIndices.Contains(originalIndex);
+                        DrawOcrBox(line, i + 1, transform, isMerged); // 傳遞合併狀態
                     }
 
                     // 顯示視窗
@@ -155,7 +192,8 @@ namespace MonLingo.Core.View.Windows
         /// <param name="line">OCR識別行</param>
         /// <param name="index">編號</param>
         /// <param name="transform">座標轉換參數</param>
-        private void DrawOcrBox(OcrLine line, int index, CoordinateTransform transform = null)
+        /// <param name="isMerged">是否為合併後的框</param>
+        private void DrawOcrBox(OcrLine line, int index, CoordinateTransform transform = null, bool isMerged = false)
         {
             var boundingBox = line.BoundingBox;
             
@@ -175,30 +213,43 @@ namespace MonLingo.Core.View.Windows
             var absoluteX = screenPosition.X;
             var absoluteY = screenPosition.Y;
             
-            // 創建邊界框（虛線樣式）
+            // 創建邊界框，根據合併狀態設置線條樣式
             var rect = new Rectangle
             {
                 Width = boundingBox.Width / (transform?.DpiScale ?? 1.0), // 考慮DPI縮放
                 Height = boundingBox.Height / (transform?.DpiScale ?? 1.0),
                 Stroke = GetColorByIndex(index),
-                StrokeThickness = 2,
-                Fill = Brushes.Transparent,
-                StrokeDashArray = new DoubleCollection { 5, 3 } // 虛線樣式：5個單位實線，3個單位空白
+                StrokeThickness = 1, // 細線
+                Fill = Brushes.Transparent
             };
+
+            // 根據合併狀態設置線條樣式
+            if (isMerged)
+            {
+                // 合併過的框用細實線
+                rect.StrokeDashArray = null;
+                Logger.Debug($"🔗 框{index}：合併框-實線樣式");
+            }
+            else
+            {
+                // 沒有合併的框用細虛線
+                rect.StrokeDashArray = new DoubleCollection { 5, 3 }; // 虛線樣式：5個單位實線，3個單位空白
+                Logger.Debug($"📝 框{index}：未合併框-虛線樣式");
+            }
 
             // 設置絕對位置
             Canvas.SetLeft(rect, absoluteX);
             Canvas.SetTop(rect, absoluteY);
 
-            // 創建編號標籤
+            // 創建編號標籤，根據合併狀態設置不同的外觀
             var label = new Border
             {
-                Background = GetColorByIndex(index),
+                Background = isMerged ? Brushes.DarkGreen : GetColorByIndex(index), // 合併框用深綠色標籤
                 CornerRadius = new CornerRadius(3),
                 Padding = new Thickness(4, 2, 4, 2),
                 Child = new TextBlock
                 {
-                    Text = index.ToString(),
+                    Text = isMerged ? $"{index}✓" : index.ToString(), // 合併框加勾號
                     Foreground = Brushes.White,
                     FontWeight = FontWeights.Bold,
                     FontSize = 12

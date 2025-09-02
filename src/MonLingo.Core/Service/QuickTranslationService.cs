@@ -579,6 +579,19 @@ namespace MonLingo.Core.Service
                     Logger.Debug("📱 創建新的OCR調試覆蓋層");
                 }
 
+                // 檢測目標螢幕（基於當前選中區域）
+                var targetScreen = MultiScreenHelper.GetScreenContainingRegion(
+                    new System.Drawing.Rectangle(
+                        (int)_currentSelectedRegion.X,
+                        (int)_currentSelectedRegion.Y,
+                        (int)_currentSelectedRegion.Width,
+                        (int)_currentSelectedRegion.Height
+                    )
+                );
+                
+                // 設置覆蓋層到目標螢幕
+                _ocrDebugOverlay.SetTargetScreen(targetScreen);
+
                 // 計算座標轉換參數
                 var dpiScale = GetDpiScale();
                 var coordinateTransform = new CoordinateTransform
@@ -589,8 +602,8 @@ namespace MonLingo.Core.Service
                     VirtualScreenTop = SystemParameters.VirtualScreenTop
                 };
 
-                // 顯示調試信息，傳遞座標轉換參數
-                _ocrDebugOverlay.ShowOcrDebugInfo(ocrResult, coordinateTransform);
+                // 顯示調試信息，傳遞座標轉換參數（沒有版面分析結果）
+                _ocrDebugOverlay.ShowOcrDebugInfo(ocrResult, coordinateTransform, null);
             }
             catch (Exception ex)
             {
@@ -615,6 +628,19 @@ namespace MonLingo.Core.Service
                     _ocrDebugOverlay = new OcrDebugOverlay();
                     Logger.Debug("📱 創建新的OCR調試覆蓋層");
                 }
+
+                // 檢測目標螢幕（基於當前選中區域）
+                var targetScreen = MultiScreenHelper.GetScreenContainingRegion(
+                    new System.Drawing.Rectangle(
+                        (int)_currentSelectedRegion.X,
+                        (int)_currentSelectedRegion.Y,
+                        (int)_currentSelectedRegion.Width,
+                        (int)_currentSelectedRegion.Height
+                    )
+                );
+                
+                // 設置覆蓋層到目標螢幕
+                _ocrDebugOverlay.SetTargetScreen(targetScreen);
 
                 // 計算座標轉換參數
                 var dpiScale = GetDpiScale();
