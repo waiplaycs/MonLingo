@@ -113,6 +113,10 @@ namespace MonLingo.Core.View.Windows
                         mergedIndices = layoutResult.DebugInfo.MergedOriginalIndices;
                         Logger.Info($"🔗 檢測到 {mergedIndices.Count} 個合併的原始索引：[{string.Join(", ", mergedIndices)}]");
                     }
+                    else
+                    {
+                        Logger.Info("📝 沒有版面分析結果，所有框將顯示為未合併狀態（細虛線）");
+                    }
 
                     // 繪製每個識別框
                     for (int i = 0; i < sortedLines.Count; i++)
@@ -120,6 +124,9 @@ namespace MonLingo.Core.View.Windows
                         var line = sortedLines[i];
                         var originalIndex = Array.IndexOf(ocrResult.Lines, line);
                         var isMerged = mergedIndices.Contains(originalIndex);
+                        
+                        Logger.Debug($"🔍 框{i + 1}：原始索引={originalIndex}, 合併狀態={isMerged}, 文字=\"{line.Text?.Trim()}\"");
+                        
                         DrawOcrBox(line, i + 1, transform, isMerged); // 傳遞合併狀態
                     }
 
@@ -228,13 +235,13 @@ namespace MonLingo.Core.View.Windows
             {
                 // 合併過的框用細實線
                 rect.StrokeDashArray = null;
-                Logger.Debug($"🔗 框{index}：合併框-實線樣式");
+                Logger.Debug($"🔗 框{index}：合併框-實線樣式，顏色={rect.Stroke}");
             }
             else
             {
                 // 沒有合併的框用細虛線
                 rect.StrokeDashArray = new DoubleCollection { 5, 3 }; // 虛線樣式：5個單位實線，3個單位空白
-                Logger.Debug($"📝 框{index}：未合併框-虛線樣式");
+                Logger.Debug($"📝 框{index}：未合併框-虛線樣式(5,3)，顏色={rect.Stroke}");
             }
 
             // 設置絕對位置

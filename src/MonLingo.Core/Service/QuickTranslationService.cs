@@ -572,6 +572,15 @@ namespace MonLingo.Core.Service
             {
                 Logger.Info("🔍 顯示OCR調試可視化");
                 
+                // 檢查多螢幕環境
+                var isMultiScreen = MultiScreenHelper.IsMultiScreenEnvironment();
+                Logger.Info($"🖥️ 多螢幕環境：{(isMultiScreen ? "是" : "否")}");
+                
+                if (isMultiScreen)
+                {
+                    Logger.Info(MultiScreenHelper.GetAllScreensInfo());
+                }
+                
                 // 創建調試覆蓋層（如果尚未創建）
                 if (_ocrDebugOverlay == null)
                 {
@@ -589,6 +598,9 @@ namespace MonLingo.Core.Service
                     )
                 );
                 
+                Logger.Info($"🎯 OCR區域：({_currentSelectedRegion.X},{_currentSelectedRegion.Y},{_currentSelectedRegion.Width},{_currentSelectedRegion.Height})");
+                Logger.Info($"🖥️ 目標螢幕：({targetScreen.X},{targetScreen.Y},{targetScreen.Width},{targetScreen.Height})");
+                
                 // 設置覆蓋層到目標螢幕
                 _ocrDebugOverlay.SetTargetScreen(targetScreen);
 
@@ -602,8 +614,12 @@ namespace MonLingo.Core.Service
                     VirtualScreenTop = SystemParameters.VirtualScreenTop
                 };
 
+                Logger.Info($"📐 座標轉換參數：DPI={dpiScale}, 虛擬螢幕偏移=({SystemParameters.VirtualScreenLeft},{SystemParameters.VirtualScreenTop})");
+
                 // 顯示調試信息，傳遞座標轉換參數（沒有版面分析結果）
                 _ocrDebugOverlay.ShowOcrDebugInfo(ocrResult, coordinateTransform, null);
+                
+                Logger.Info("✅ OCR調試可視化顯示完成");
             }
             catch (Exception ex)
             {
@@ -622,6 +638,30 @@ namespace MonLingo.Core.Service
             {
                 Logger.Info("🔍 顯示版面分析調試可視化");
                 
+                // 檢查多螢幕環境
+                var isMultiScreen = MultiScreenHelper.IsMultiScreenEnvironment();
+                Logger.Info($"🖥️ 多螢幕環境：{(isMultiScreen ? "是" : "否")}");
+                
+                if (isMultiScreen)
+                {
+                    Logger.Info(MultiScreenHelper.GetAllScreensInfo());
+                }
+                
+                // 顯示版面分析結果詳情
+                if (layoutResult?.Success == true)
+                {
+                    Logger.Info($"📊 版面分析成功：{layoutResult.Layout.Count} 個欄位");
+                    if (layoutResult.DebugInfo?.MergedOriginalIndices != null)
+                    {
+                        Logger.Info($"🔗 合併資訊：{layoutResult.DebugInfo.MergedOriginalIndices.Count} 個原始索引被合併");
+                        Logger.Info($"🔗 合併索引列表：[{string.Join(", ", layoutResult.DebugInfo.MergedOriginalIndices)}]");
+                    }
+                }
+                else
+                {
+                    Logger.Warn($"⚠️ 版面分析失敗：{layoutResult?.ErrorMessage ?? "未知錯誤"}");
+                }
+                
                 // 創建調試覆蓋層（如果尚未創建）
                 if (_ocrDebugOverlay == null)
                 {
@@ -639,6 +679,9 @@ namespace MonLingo.Core.Service
                     )
                 );
                 
+                Logger.Info($"🎯 OCR區域：({_currentSelectedRegion.X},{_currentSelectedRegion.Y},{_currentSelectedRegion.Width},{_currentSelectedRegion.Height})");
+                Logger.Info($"🖥️ 目標螢幕：({targetScreen.X},{targetScreen.Y},{targetScreen.Width},{targetScreen.Height})");
+                
                 // 設置覆蓋層到目標螢幕
                 _ocrDebugOverlay.SetTargetScreen(targetScreen);
 
@@ -652,8 +695,12 @@ namespace MonLingo.Core.Service
                     VirtualScreenTop = SystemParameters.VirtualScreenTop
                 };
 
+                Logger.Info($"📐 座標轉換參數：DPI={dpiScale}, 虛擬螢幕偏移=({SystemParameters.VirtualScreenLeft},{SystemParameters.VirtualScreenTop})");
+
                 // 顯示版面分析調試信息，傳遞座標轉換參數
                 _ocrDebugOverlay.ShowLayoutAnalysisDebugInfo(ocrResult, layoutResult, coordinateTransform);
+                
+                Logger.Info("✅ 版面分析調試可視化顯示完成");
             }
             catch (Exception ex)
             {

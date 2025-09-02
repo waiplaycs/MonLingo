@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MonLingo.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+40d6c2fc460a6d29d084848f6f07e5d570a1bb13")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1ef19dd04a8f289b69e89a644918994e82b47012")]
 [assembly: System.Reflection.AssemblyProductAttribute("MonLingo.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MonLingo Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
