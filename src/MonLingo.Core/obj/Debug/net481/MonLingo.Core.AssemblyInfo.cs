@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Copyright © 2025")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c21cef5c7ea9f3a4f0566f0cd5d1ccacd10c7463")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e4bb799a74b62cb1eb3a4a0e32c4ca092fb585a8")]
 [assembly: System.Reflection.AssemblyProductAttribute("MonLingo.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MonLingo Core Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
