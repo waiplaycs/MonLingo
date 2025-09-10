@@ -1,11 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "PTJBtmpWxTY=",
+  "dgSpecHash": "TXlsPgBbxbg=",
   "success": true,
   "projectFilePath": "C:\\Users\\User\\Desktop\\MonLingo2\\tests\\MonLingo.Tests\\MonLingo.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\castle.core\\5.1.1\\castle.core.5.1.1.nupkg.sha512",
-    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\communitytoolkit.mvvm\\8.2.1\\communitytoolkit.mvvm.8.2.1.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\coverlet.collector\\6.0.0\\coverlet.collector.6.0.0.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\downloader\\3.0.6\\downloader.3.0.6.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\fluentassertions\\6.12.0\\fluentassertions.6.12.0.nupkg.sha512",
@@ -57,9 +56,7 @@
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\opencvsharp4\\4.8.0.20230708\\opencvsharp4.4.8.0.20230708.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\opencvsharp4.runtime.win\\4.8.0.20230708\\opencvsharp4.runtime.win.4.8.0.20230708.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\paddleocrsharp\\2.0.4\\paddleocrsharp.2.0.4.nupkg.sha512",
-    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\prism.core\\8.1.97\\prism.core.8.1.97.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
-    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.componentmodel.annotations\\5.0.0\\system.componentmodel.annotations.5.0.0.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.diagnostics.diagnosticsource\\8.0.0\\system.diagnostics.diagnosticsource.8.0.0.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.drawing.common\\8.0.0\\system.drawing.common.8.0.0.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.io\\4.3.0\\system.io.4.3.0.nupkg.sha512",
@@ -79,7 +76,6 @@
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.text.json\\8.0.0\\system.text.json.8.0.0.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.threading.tasks.extensions\\4.5.4\\system.threading.tasks.extensions.4.5.4.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\system.valuetuple\\4.5.0\\system.valuetuple.4.5.0.nupkg.sha512",
-    "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\toastnotifications\\2.5.1\\toastnotifications.2.5.1.nupkg.sha512",
     "C:\\Users\\User\\Desktop\\MonLingo2\\packages\\whisper.net\\1.4.7\\whisper.net.1.4.7.nupkg.sha512"
   ],
   "logs": [
