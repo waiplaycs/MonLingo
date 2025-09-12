@@ -47,58 +47,209 @@ namespace MonLingo.Core.Service
             if (EnableDebugMode)
             {
                 // 輸出到控制台和日誌
-                Console.WriteLine($"[版面分析調試] {message}");
-                Logger.Debug($"[版面分析調試] {message}");
+                Console.WriteLine($"[MonLingo v3版面分析] {message}");
+                Logger.Debug($"[MonLingo v3版面分析] {message}");
                 
                 // 同時輸出到系統調試輸出
-                System.Diagnostics.Debug.WriteLine($"[版面分析調試] {message}");
+                System.Diagnostics.Debug.WriteLine($"[MonLingo v3版面分析] {message}");
             }
         }
 
         /// <summary>
-        /// 階段一調試：記錄識別框合併過程
+        /// v3階段一調試：迭代式順序合併演算法
         /// </summary>
         /// <param name="boxA">文字框A</param>
         /// <param name="boxB">文字框B</param>
         /// <param name="stage">處理階段</param>
         /// <param name="result">處理結果</param>
-        private void DebugStage1(Rectangle boxA, Rectangle boxB, string stage, string result)
+        private void DebugStage1V3(Rectangle boxA, Rectangle boxB, string stage, string result)
         {
             if (EnableDebugMode)
             {
-                DebugLog($"🔍 階段一-{stage}: 框A({boxA.X},{boxA.Y},{boxA.Width}×{boxA.Height}) + 框B({boxB.X},{boxB.Y},{boxB.Width}×{boxB.Height}) → {result}");
+                DebugLog($"🔍 v3階段一-{stage}: 框A({boxA.X},{boxA.Y},{boxA.Width}×{boxA.Height}) + 框B({boxB.X},{boxB.Y},{boxB.Width}×{boxB.Height}) → {result}");
             }
         }
 
         /// <summary>
-        /// 階段二調試：記錄分欄檢測過程
+        /// v3階段一調試：詳細合併過程追蹤
+        /// </summary>
+        /// <param name="mainPtr">主指針位置</param>
+        /// <param name="lookAheadPtr">前瞻指針位置</param>
+        /// <param name="overlapRatio">垂直重疊率</param>
+        /// <param name="horizontalGap">水平間距</param>
+        /// <param name="avgHeight">平均高度</param>
+        /// <param name="result">合併結果</param>
+        private void DebugStage1MergeDetail(int mainPtr, int lookAheadPtr, double overlapRatio, int horizontalGap, double avgHeight, string result)
+        {
+            if (EnableDebugMode)
+            {
+                DebugLog($"   🧮 v3合併詳情: 主{mainPtr}+候選{lookAheadPtr} | 重疊率:{overlapRatio:F2} | 間距:{horizontalGap}px/{avgHeight:F1}px | 結果:{result}");
+            }
+        }
+
+        /// <summary>
+        /// v3階段二調試：單次遍歷有序聚類演算法
         /// </summary>
         /// <param name="lineIndex">行索引</param>
         /// <param name="line">文字行</param>
         /// <param name="columnIndex">分配的欄位索引</param>
         /// <param name="reason">分配原因</param>
-        private void DebugStage2(int lineIndex, LayoutLine line, int columnIndex, string reason)
+        private void DebugStage2V3(int lineIndex, LayoutLine line, int columnIndex, string reason)
         {
             if (EnableDebugMode)
             {
-                DebugLog($"📂 階段二-分欄: 行{lineIndex} 「{line.Text.Substring(0, Math.Min(20, line.Text.Length))}...」 → 欄位{columnIndex} ({reason})");
+                DebugLog($"📂 v3階段二-分欄: 行{lineIndex} 「{line.Text.Substring(0, Math.Min(20, line.Text.Length))}...」 → 欄位{columnIndex} ({reason})");
             }
         }
 
         /// <summary>
-        /// 階段三調試：記錄段落分割過程
+        /// v3階段二調試：歸屬判斷詳細過程
+        /// </summary>
+        /// <param name="lineIndex">行索引</param>
+        /// <param name="columnIndex">目標欄位索引</param>
+        /// <param name="minVerticalDist">最小垂直距離</param>
+        /// <param name="verticalThreshold">垂直閾值</param>
+        /// <param name="overlapRatio">水平重疊比例</param>
+        /// <param name="overlapThreshold">重疊閾值</param>
+        /// <param name="passed">是否通過檢查</param>
+        private void DebugStage2OwnershipDetail(int lineIndex, int columnIndex, double minVerticalDist, double verticalThreshold, 
+            double overlapRatio, double overlapThreshold, bool passed)
+        {
+            if (EnableDebugMode)
+            {
+                string status = passed ? "✅通過" : "❌失敗";
+                DebugLog($"   🔍 v3歸屬檢查: 行{lineIndex} → 欄位{columnIndex} | 垂直:{minVerticalDist:F1}/{verticalThreshold:F1}px | 重疊:{overlapRatio:F2}/{overlapThreshold:F2} | {status}");
+            }
+        }
+
+        /// <summary>
+        /// v3階段二調試：活躍欄位修剪過程
+        /// </summary>
+        /// <param name="currentLineIndex">當前行索引</param>
+        /// <param name="columnIndex">被修剪的欄位索引</param>
+        /// <param name="columnSize">欄位大小</param>
+        /// <param name="verticalDistance">垂直距離</param>
+        /// <param name="threshold">修剪閾值</param>
+        private void DebugStage2Pruning(int currentLineIndex, int columnIndex, int columnSize, double verticalDistance, double threshold)
+        {
+            if (EnableDebugMode)
+            {
+                DebugLog($"   ✂️ v3欄位修剪: 行{currentLineIndex}觸發 | 欄位{columnIndex}({columnSize}行) | 距離:{verticalDistance:F1}px > 閾值:{threshold:F1}px");
+            }
+        }
+
+        /// <summary>
+        /// v3階段三調試：混合模式段落檢測
         /// </summary>
         /// <param name="columnKey">欄位鍵值</param>
         /// <param name="lineIndex">行索引</param>
         /// <param name="line">文字行</param>
         /// <param name="paragraphIndex">段落索引</param>
         /// <param name="action">執行動作</param>
-        private void DebugStage3(string columnKey, int lineIndex, LayoutLine line, int paragraphIndex, string action)
+        private void DebugStage3V3(string columnKey, int lineIndex, LayoutLine line, int paragraphIndex, string action)
         {
             if (EnableDebugMode)
             {
-                DebugLog($"📑 階段三-段落: {columnKey} 行{lineIndex} 「{line.Text.Substring(0, Math.Min(15, line.Text.Length))}...」 → 段落{paragraphIndex} ({action})");
+                DebugLog($"📑 v3階段三-段落: {columnKey} 行{lineIndex} 「{line.Text.Substring(0, Math.Min(15, line.Text.Length))}...」 → 段落{paragraphIndex} ({action})");
             }
+        }
+
+        /// <summary>
+        /// v3階段三調試：內容類型預檢查結果
+        /// </summary>
+        /// <param name="columnKey">欄位鍵值</param>
+        /// <param name="contentType">內容類型</param>
+        /// <param name="lineCount">行數</param>
+        /// <param name="listIndicatorCount">列表指示符數量</param>
+        private void DebugStage3ContentType(string columnKey, ContentType contentType, int lineCount, int? listIndicatorCount = null)
+        {
+            if (EnableDebugMode)
+            {
+                string details = contentType == ContentType.ListItems 
+                    ? $" (列表符號:{listIndicatorCount}/{lineCount})" 
+                    : "";
+                DebugLog($"   🎯 v3內容分析: {columnKey} | 類型:{contentType} | {lineCount}行{details}");
+            }
+        }
+
+        /// <summary>
+        /// v3階段三調試：標準行距計算結果
+        /// </summary>
+        /// <param name="columnKey">欄位鍵值</param>
+        /// <param name="spacingCount">間距數量</param>
+        /// <param name="medianSpacing">中位數間距</param>
+        /// <param name="minSpacing">最小間距</param>
+        /// <param name="maxSpacing">最大間距</param>
+        private void DebugStage3StandardSpacing(string columnKey, int spacingCount, double medianSpacing, double minSpacing, double maxSpacing)
+        {
+            if (EnableDebugMode)
+            {
+                DebugLog($"   📏 v3標準行距: {columnKey} | {spacingCount}個間距值 | 中位數:{medianSpacing:F1}px | 範圍:[{minSpacing:F1}, {maxSpacing:F1}]px");
+            }
+        }
+
+        /// <summary>
+        /// v3階段三調試：多指標加權決策系統詳細分析
+        /// </summary>
+        /// <param name="lineIndex">行索引</param>
+        /// <param name="relativeDistanceScore">相對距離得分</param>
+        /// <param name="fontHeightPenalty">字體高度懲罰</param>
+        /// <param name="alignmentPenalty">對齊風格懲罰</param>
+        /// <param name="overlapBonus">重疊獎勵得分</param>
+        /// <param name="totalScore">總分</param>
+        /// <param name="threshold">合併閾值</param>
+        /// <param name="willMerge">是否合併</param>
+        private void DebugStage3WeightedScore(int lineIndex, double relativeDistanceScore, double fontHeightPenalty, 
+            double alignmentPenalty, double overlapBonus, double totalScore, double threshold, bool willMerge)
+        {
+            if (EnableDebugMode)
+            {
+                string decision = willMerge ? "🔗合併" : "✂️分割";
+                DebugLog($"   🧮 v3加權分析: 行{lineIndex} | 距離:{relativeDistanceScore:F2} | 字體懲罰:-{fontHeightPenalty:F2} | 對齊懲罰:-{alignmentPenalty:F2} | 重疊:+{overlapBonus:F1} | 總分:{totalScore:F2}/{threshold} | {decision}");
+            }
+        }
+
+        /// <summary>
+        /// v3性能統計調試
+        /// </summary>
+        /// <param name="stage">階段名稱</param>
+        /// <param name="inputCount">輸入數量</param>
+        /// <param name="outputCount">輸出數量</param>
+        /// <param name="processingTimeMs">處理時間(毫秒)</param>
+        /// <param name="complexity">算法複雜度</param>
+        private void DebugStagePerformance(string stage, int inputCount, int outputCount, double processingTimeMs, string complexity)
+        {
+            if (EnableDebugMode)
+            {
+                DebugLog($"⚡ v3性能統計: {stage} | {inputCount}→{outputCount} | {processingTimeMs:F2}ms | 複雜度:{complexity}");
+            }
+        }
+
+        /// <summary>
+        /// 向後兼容的舊版調試方法 (已標記為過時)
+        /// </summary>
+        [Obsolete("請使用 DebugStage1V3 替代此方法")]
+        private void DebugStage1(Rectangle boxA, Rectangle boxB, string stage, string result)
+        {
+            DebugStage1V3(boxA, boxB, stage, result);
+        }
+
+        /// <summary>
+        /// 向後兼容的舊版調試方法 (已標記為過時)
+        /// </summary>
+        [Obsolete("請使用 DebugStage2V3 替代此方法")]
+        private void DebugStage2(int lineIndex, LayoutLine line, int columnIndex, string reason)
+        {
+            DebugStage2V3(lineIndex, line, columnIndex, reason);
+        }
+
+        /// <summary>
+        /// 向後兼容的舊版調試方法 (已標記為過時)
+        /// </summary>
+        [Obsolete("請使用 DebugStage3V3 替代此方法")]
+        private void DebugStage3(string columnKey, int lineIndex, LayoutLine line, int paragraphIndex, string action)
+        {
+            DebugStage3V3(columnKey, lineIndex, line, paragraphIndex, action);
         }
 
         /// <summary>
@@ -208,10 +359,12 @@ namespace MonLingo.Core.Service
                 }
 
                 // 階段三：段落分段
-                Logger.Info("📑 階段三：開始段落分段");
-                DebugLog($"📑 階段三：對 {columns.Count} 個欄位執行段落分割");
+                Logger.Info("📑 v3階段三：開始混合模式段落檢測");
+                Console.WriteLine("📑 v3階段三：開始混合模式段落檢測");
+                DebugLog($"📑 v3階段三：對 {columns.Count} 個欄位執行段落分割");
                 var layoutResult = PerformParagraphSegmentation(columns);
-                Logger.Info($"✅ 階段三完成：生成 {layoutResult.Count} 個欄位的段落結構");
+                Logger.Info($"✅ v3階段三完成：生成 {layoutResult.Count} 個欄位的段落結構");
+                Console.WriteLine($"✅ v3階段三完成：生成 {layoutResult.Count} 個欄位的段落結構");
                 
                 // 顯示段落詳細信息
                 foreach (var column in layoutResult)
@@ -257,17 +410,21 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 階段一：橫向行合併
+        /// 階段一：橫向行合併 (v3版本)
         /// 將因OCR辨識而產生的、在同一水平線上的文字碎片，拼接成語義上完整的單行文字
-        /// 採用兩階段嚴謹合併演算法
+        /// 採用迭代式順序合併演算法 (O(n)優化版本)
         /// </summary>
         /// <param name="ocrLines">原始OCR行結果</param>
         /// <returns>合併後的完整文字行列表</returns>
         private List<LayoutLine> PerformHorizontalLineMerging(OcrLine[] ocrLines)
         {
-            Logger.Debug($"🔄 開始橫向行合併，輸入 {ocrLines.Length} 個OCR行");
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            Logger.Debug($"🔄 開始橫向行合併 (v3算法)，輸入 {ocrLines.Length} 個OCR行");
+            Logger.Debug($"📊 v3預排序：按Y座標升序(從上到下)，Y相同時按X座標升序(從左到右)");
 
-            // 轉換為內部格式
+            // v3規格：全局預排序 - 先按Y座標升序，Y座標相同時再按X座標升序
+            // 確保處理順序符合「從上到下、從左到右」的閱讀直覺
             var layoutLines = ocrLines.Select((line, index) => new LayoutLine
             {
                 Text = line.Text,
@@ -276,97 +433,112 @@ namespace MonLingo.Core.Service
                 LineHeight = line.BoundingBox.Height,
                 OriginalIndex = index,
                 MergedFromIndices = new List<int> { index } // 初始狀態，每行對應自己的索引
-            }).ToList();
+            }).OrderBy(line => line.BoundingBox.Top)      // 主要按Y座標排序（從上到下）
+              .ThenBy(line => line.BoundingBox.Left)      // 次要按X座標排序（從左到右）
+              .ToList();
 
-            // 建立合併候選對列表
-            var mergeOperations = new List<MergeCandidate>();
-
-            // 遍歷所有行對，檢查合併可能性
-            for (int i = 0; i < layoutLines.Count; i++)
-            {
-                for (int j = i + 1; j < layoutLines.Count; j++)
-                {
-                    var boxA = layoutLines[i];
-                    var boxB = layoutLines[j];
-
-                    DebugStage1(boxA.BoundingBox, boxB.BoundingBox, "開始檢測", $"檢查行{i}與行{j}的合併可能性");
-
-                    // 關卡一：垂直重疊率檢查
-                    if (!CheckVerticalOverlap(boxA.BoundingBox, boxB.BoundingBox))
-                    {
-                        DebugStage1(boxA.BoundingBox, boxB.BoundingBox, "垂直重疊檢查", "未通過-垂直重疊率不足");
-                        continue; // 不通過，跳過此對
-                    }
-
-                    // 關卡二：相對水平間距檢查
-                    if (!CheckHorizontalSpacing(boxA.BoundingBox, boxB.BoundingBox))
-                    {
-                        DebugStage1(boxA.BoundingBox, boxB.BoundingBox, "水平間距檢查", "未通過-水平間距過大");
-                        continue; // 不通過，跳過此對
-                    }
-
-                    // 兩個關卡都通過，加入合併候選
-                    var candidate = new MergeCandidate
-                    {
-                        IndexA = i,
-                        IndexB = j,
-                        HorizontalDistance = CalculateHorizontalDistance(boxA.BoundingBox, boxB.BoundingBox)
-                    };
-                    mergeOperations.Add(candidate);
-
-                    DebugStage1(boxA.BoundingBox, boxB.BoundingBox, "合併候選", $"通過所有檢查-距離{candidate.HorizontalDistance}px");
-
-                    Logger.Debug($"✅ 發現合併候選：行{i}「{boxA.Text}」+ 行{j}「{boxB.Text}」（距離={mergeOperations.Last().HorizontalDistance}px）");
-                }
-            }
-
-            // 按水平距離排序，優先合併距離最近的
-            mergeOperations.Sort((a, b) => a.HorizontalDistance.CompareTo(b.HorizontalDistance));
-
-            // 執行合併操作
-            var merged = new bool[layoutLines.Count]; // 標記已合併的行
             var result = new List<LayoutLine>();
+            var processed = new bool[layoutLines.Count]; // 已處理標記
 
-            DebugLog($"🔄 開始執行 {mergeOperations.Count} 個合併操作");
-
-            foreach (var operation in mergeOperations)
+            // v3迭代式順序合併：主指針遍歷，前瞻指針尋找候選
+            for (int mainPtr = 0; mainPtr < layoutLines.Count; mainPtr++)
             {
-                // 檢查兩行是否已被合併
-                if (merged[operation.IndexA] || merged[operation.IndexB])
+                if (processed[mainPtr]) continue; // 已處理則跳過
+
+                var currentLine = layoutLines[mainPtr];
+                var mergedLine = new LayoutLine
                 {
-                    DebugStage1(layoutLines[operation.IndexA].BoundingBox, layoutLines[operation.IndexB].BoundingBox, 
-                        "合併檢查", "跳過-其中一行已被合併");
-                    continue;
+                    Text = currentLine.Text,
+                    Confidence = currentLine.Confidence,
+                    BoundingBox = currentLine.BoundingBox,
+                    LineHeight = currentLine.LineHeight,
+                    OriginalIndex = currentLine.OriginalIndex,
+                    MergedFromIndices = new List<int>(currentLine.MergedFromIndices)
+                };
+
+                Logger.Debug($"📍 主指針 {mainPtr}: 開始處理「{currentLine.Text}」");
+                
+                // 🔥 修復：v3迭代式順序合併 - 只檢查緊鄰的下一個候選行
+                // 一旦合併失敗就停止，移動到下一個主指針
+                bool hasMerged = false;
+                
+                for (int lookAheadPtr = mainPtr + 1; lookAheadPtr < layoutLines.Count; lookAheadPtr++)
+                {
+                    if (processed[lookAheadPtr]) continue; // 已處理則跳過
+
+                    var candidateLine = layoutLines[lookAheadPtr];
+
+                    DebugStage1V3(mergedLine.BoundingBox, candidateLine.BoundingBox, "迭代檢測", 
+                        $"主{mainPtr}與候選{lookAheadPtr}");
+
+                    // v3標準：檢查垂直重疊率（60%固定閾值）
+                    if (!CheckVerticalOverlapV3(mergedLine.BoundingBox, candidateLine.BoundingBox))
+                    {
+                        // 計算調試需要的詳細數據
+                        int overlapTop = Math.Max(mergedLine.BoundingBox.Top, candidateLine.BoundingBox.Top);
+                        int overlapBottom = Math.Min(mergedLine.BoundingBox.Bottom, candidateLine.BoundingBox.Bottom);
+                        int overlapHeight = Math.Max(0, overlapBottom - overlapTop);
+                        int smallerHeight = Math.Min(mergedLine.BoundingBox.Height, candidateLine.BoundingBox.Height);
+                        double overlapRatio = smallerHeight > 0 ? (double)overlapHeight / smallerHeight : 0;
+                        int horizontalGap = CalculateHorizontalDistance(mergedLine.BoundingBox, candidateLine.BoundingBox);
+                        double avgHeight = (mergedLine.BoundingBox.Height + candidateLine.BoundingBox.Height) / 2.0;
+                        
+                        DebugStage1MergeDetail(mainPtr, lookAheadPtr, overlapRatio, horizontalGap, avgHeight, "垂直重疊率<60%");
+                        DebugStage1V3(mergedLine.BoundingBox, candidateLine.BoundingBox, "垂直檢查", "未通過-垂直重疊率<60%");
+                        
+                        // 🔥 關鍵修復：一旦垂直重疊失敗，停止當前主指針的探索
+                        break;
+                    }
+
+                    // v3標準：檢查水平間距（1.5x平均高度動態閾值）
+                    if (!CheckHorizontalSpacingV3(mergedLine.BoundingBox, candidateLine.BoundingBox))
+                    {
+                        int horizontalGap = CalculateHorizontalDistance(mergedLine.BoundingBox, candidateLine.BoundingBox);
+                        double avgHeight = (mergedLine.BoundingBox.Height + candidateLine.BoundingBox.Height) / 2.0;
+                        double threshold = avgHeight * 1.5;
+                        
+                        DebugStage1MergeDetail(mainPtr, lookAheadPtr, 0, horizontalGap, avgHeight, $"水平間距過大:{horizontalGap}px>{threshold:F1}px");
+                        DebugStage1V3(mergedLine.BoundingBox, candidateLine.BoundingBox, "水平檢查", "未通過-水平間距過大");
+                        
+                        // 🔥 關鍵修復：一旦水平間距失敗，停止當前主指針的探索
+                        break;
+                    }
+
+                    // 通過所有檢查，執行合併
+                    var newMergedLine = MergeTwoLinesV3(mergedLine, candidateLine);
+                    int oldLength = mergedLine.Text.Length;
+                    mergedLine = newMergedLine;
+                    processed[lookAheadPtr] = true; // 標記候選行已處理
+                    hasMerged = true;
+
+                    DebugStage1V3(mergedLine.BoundingBox, candidateLine.BoundingBox, "合併成功", 
+                        $"長度{oldLength}→{mergedLine.Text.Length}字元");
+
+                    Logger.Debug($"✅ v3合併：主行「{currentLine.Text}」+ 候選「{candidateLine.Text}」");
+                    
+                    // 🔥 關鍵修復：合併成功後，用新的mergedLine繼續探索下一個候選
+                    // 但不break，而是繼續迭代，實現真正的"迭代式順序合併"
                 }
 
-                // 執行合併
-                var lineA = layoutLines[operation.IndexA];
-                var lineB = layoutLines[operation.IndexB];
-                var mergedLine = MergeTwoLines(lineA, lineB);
-
+                // 將最終合併結果加入結果列表
                 result.Add(mergedLine);
-                merged[operation.IndexA] = true;
-                merged[operation.IndexB] = true;
+                processed[mainPtr] = true; // 標記主行已處理
 
-                DebugStage1(lineA.BoundingBox, lineB.BoundingBox, "合併執行", 
-                    $"成功合併-新文字「{mergedLine.Text.Substring(0, Math.Min(30, mergedLine.Text.Length))}...」");
-
-                Logger.Debug($"🔗 合併執行：「{lineA.Text}」+「{lineB.Text}」→「{mergedLine.Text}」");
-            }
-
-            // 添加未被合併的行
-            for (int i = 0; i < layoutLines.Count; i++)
-            {
-                if (!merged[i])
+                if (hasMerged)
                 {
-                    result.Add(layoutLines[i]);
-                    DebugStage1(layoutLines[i].BoundingBox, new Rectangle(), "獨立保留", 
-                        $"行{i}未合併-文字「{layoutLines[i].Text.Substring(0, Math.Min(20, layoutLines[i].Text.Length))}...」");
-                    Logger.Debug($"📝 保留獨立行：「{layoutLines[i].Text}」");
+                    Logger.Debug($"🎯 主{mainPtr}完成：合併鏈結束，最終文字「{mergedLine.Text.Substring(0, Math.Min(50, mergedLine.Text.Length))}...」");
+                }
+                else
+                {
+                    Logger.Debug($"🎯 主{mainPtr}完成：無合併，保持原文字「{mergedLine.Text.Substring(0, Math.Min(50, mergedLine.Text.Length))}...」");
                 }
             }
 
-            Logger.Info($"🎯 橫向行合併完成：{ocrLines.Length} → {result.Count} 行");
+            Logger.Info($"🎯 v3橫向行合併完成：{ocrLines.Length} → {result.Count} 行 (算法複雜度: O(n))");
+            
+            stopwatch.Stop();
+            DebugStagePerformance("v3階段一-迭代式順序合併", ocrLines.Length, result.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n)");
+            
             return result;
         }
 
@@ -396,6 +568,32 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
+        /// v3版本：檢查垂直重疊率
+        /// v3標準：使用60%閾值（垂直重疊率必須嚴格大於60%）
+        /// </summary>
+        /// <param name="boxA">文字框A</param>
+        /// <param name="boxB">文字框B</param>
+        /// <returns>是否通過v3垂直重疊率檢查</returns>
+        private bool CheckVerticalOverlapV3(Rectangle boxA, Rectangle boxB)
+        {
+            // 計算垂直重疊區域
+            int overlapTop = Math.Max(boxA.Top, boxB.Top);
+            int overlapBottom = Math.Min(boxA.Bottom, boxB.Bottom);
+            int overlapHeight = Math.Max(0, overlapBottom - overlapTop);
+
+            // 計算較小框的高度
+            int smallerHeight = Math.Min(boxA.Height, boxB.Height);
+            if (smallerHeight <= 0) return false;
+
+            // v3標準：計算重疊率（60%閾值）
+            double overlapRatio = (double)overlapHeight / smallerHeight;
+            const double V3_VERTICAL_THRESHOLD = 0.6; // v3固定閾值
+
+            Logger.Debug($"📏 v3垂直重疊率檢查：{overlapRatio:F2} (v3閾值>{V3_VERTICAL_THRESHOLD})");
+            return overlapRatio > V3_VERTICAL_THRESHOLD; // v3規格：嚴格大於60%
+        }
+
+        /// <summary>
         /// 關卡二：檢查相對水平間距
         /// 只有當水平間距小於平均字高的1.5倍時才可能合併
         /// </summary>
@@ -415,6 +613,29 @@ namespace MonLingo.Core.Service
 
             Logger.Debug($"📏 水平間距檢查：{horizontalGap}px vs 閾值{threshold:F1}px（平均字高={avgCharHeight:F1}px）");
             return horizontalGap < threshold;
+        }
+
+        /// <summary>
+        /// v3版本：檢查相對水平間距
+        /// v3標準：使用1.5x平均高度動態閾值（與原版相同但更明確的算法標註）
+        /// </summary>
+        /// <param name="boxA">文字框A</param>
+        /// <param name="boxB">文字框B</param>
+        /// <returns>是否通過v3水平間距檢查</returns>
+        private bool CheckHorizontalSpacingV3(Rectangle boxA, Rectangle boxB)
+        {
+            // v3算法：計算水平間距
+            int horizontalGap = CalculateHorizontalDistance(boxA, boxB);
+
+            // v3算法：計算平均字元高度（動態閾值基準）
+            double avgCharHeight = (boxA.Height + boxB.Height) / 2.0;
+
+            // v3標準：1.5x平均高度動態閾值
+            const double V3_HORIZONTAL_MULTIPLIER = 1.5;
+            double v3Threshold = avgCharHeight * V3_HORIZONTAL_MULTIPLIER;
+
+            Logger.Debug($"📏 v3水平間距檢查：{horizontalGap}px vs v3閾值{v3Threshold:F1}px（{V3_HORIZONTAL_MULTIPLIER}x平均字高={avgCharHeight:F1}px）");
+            return horizontalGap < v3Threshold;
         }
 
         /// <summary>
@@ -481,14 +702,60 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 階段二：智能分欄
-        /// 使用有序聚類演算法識別畫面中的獨立文字區塊或欄位
+        /// v3版本：合併兩個文字行
+        /// v3算法：支持迭代式合併，保持更新後的邊界框和索引追蹤
+        /// </summary>
+        /// <param name="lineA">文字行A（可能是已合併的行）</param>
+        /// <param name="lineB">文字行B（候選合併行）</param>
+        /// <returns>v3合併後的文字行</returns>
+        private LayoutLine MergeTwoLinesV3(LayoutLine lineA, LayoutLine lineB)
+        {
+            // v3算法：確保從左到右的順序（支持動態邊界框）
+            var leftLine = lineA.BoundingBox.Left <= lineB.BoundingBox.Left ? lineA : lineB;
+            var rightLine = lineA.BoundingBox.Left <= lineB.BoundingBox.Left ? lineB : lineA;
+
+            // v3優化：智能空格處理（避免重複空格）
+            string mergedText = $"{leftLine.Text.TrimEnd()} {rightLine.Text.TrimStart()}".Trim();
+
+            // v3算法：動態邊界框合併（支持不規則形狀）
+            var mergedBBox = Rectangle.Union(lineA.BoundingBox, lineB.BoundingBox);
+
+            // v3算法：增強置信度計算（考慮文字品質和長度）
+            double weightA = Math.Max(1, leftLine.Text.Length) * leftLine.Confidence;
+            double weightB = Math.Max(1, rightLine.Text.Length) * rightLine.Confidence;
+            double totalWeight = Math.Max(1, leftLine.Text.Length) + Math.Max(1, rightLine.Text.Length);
+            double mergedConfidence = (weightA + weightB) / totalWeight;
+
+            // v3創建：增強合併後的行物件
+            var mergedLine = new LayoutLine
+            {
+                Text = mergedText,
+                Confidence = Math.Min(1.0, mergedConfidence), // v3限制：確保置信度不超過1.0
+                BoundingBox = mergedBBox,
+                LineHeight = mergedBBox.Height,
+                OriginalIndex = Math.Min(leftLine.OriginalIndex, rightLine.OriginalIndex), // v3保持：最小索引優先
+                MergedFromIndices = new List<int>() // v3初始化：準備合併索引記錄
+            };
+
+            // v3索引追蹤：完整的合併來源記錄
+            mergedLine.MergedFromIndices.AddRange(leftLine.MergedFromIndices ?? new List<int> { leftLine.OriginalIndex });
+            mergedLine.MergedFromIndices.AddRange(rightLine.MergedFromIndices ?? new List<int> { rightLine.OriginalIndex });
+
+            Logger.Debug($"📝 v3合併詳情：「{leftLine.Text}」+「{rightLine.Text}」→「{mergedText}」(置信度:{mergedConfidence:F3})");
+
+            return mergedLine;
+        }
+
+        /// <summary>
+        /// 階段二：智能分欄 (v3版本)
+        /// 使用單次遍歷有序聚類演算法識別畫面中的獨立文字區塊或欄位
+        /// v3特點：消除重複掃描，每個文字行只被有效訪問一次
         /// </summary>
         /// <param name="mergedLines">階段一輸出的完整文字行列表</param>
         /// <returns>按欄位分組的文字行列表</returns>
         private List<List<LayoutLine>> PerformIntelligentColumnDetection(List<LayoutLine> mergedLines)
         {
-            Logger.Debug($"🔄 開始智能分欄，輸入 {mergedLines.Count} 個完整文字行");
+            Logger.Debug($"🔄 開始智能分欄 (v3算法)，輸入 {mergedLines.Count} 個完整文字行");
 
             if (mergedLines.Count == 0)
             {
@@ -497,21 +764,21 @@ namespace MonLingo.Core.Service
             }
 
             // 步驟1：全局預排序（從上到下、從左到右）
-            Logger.Debug("📋 步驟1：全局預排序");
+            Logger.Debug("📋 v3步驟1：全局預排序");
             var sortedLines = GlobalPreSort(mergedLines);
 
-            // 步驟2：有序觸發「滾雪球」聚類
-            Logger.Debug("🌪️ 步驟2：開始有序滾雪球聚類");
-            var columns = OrderedSnowballClustering(sortedLines);
+            // 步驟2：單次遍歷有序聚類 (v3核心算法)
+            Logger.Debug("🌪️ v3步驟2：開始單次遍歷有序聚類");
+            var columns = SinglePassOrderedClusteringV3(sortedLines);
 
-            Logger.Info($"🎯 智能分欄完成：{mergedLines.Count} 行 → {columns.Count} 個欄位");
+            Logger.Info($"🎯 v3智能分欄完成：{mergedLines.Count} 行 → {columns.Count} 個欄位");
             
             // 記錄每個欄位的詳細信息
             for (int i = 0; i < columns.Count; i++)
             {
                 var column = columns[i];
                 var bbox = CalculateColumnBoundingBox(column);
-                Logger.Debug($"📂 欄位{i + 1}：{column.Count} 行，範圍({bbox.X},{bbox.Y},{bbox.Width},{bbox.Height})");
+                Logger.Debug($"📂 v3欄位{i + 1}：{column.Count} 行，範圍({bbox.X},{bbox.Y},{bbox.Width},{bbox.Height})");
             }
 
             return columns;
@@ -534,10 +801,251 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 有序觸發「滾雪球」聚類
+        /// v3版本：單次遍歷有序聚類 (Single-Pass Ordered Clustering)
+        /// 核心特點：消除重複掃描，每個文字行只被訪問一次
         /// </summary>
         /// <param name="sortedLines">已排序的文字行列表</param>
         /// <returns>按欄位分組的文字行列表</returns>
+        private List<List<LayoutLine>> SinglePassOrderedClusteringV3(List<LayoutLine> sortedLines)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            Logger.Debug($"🚀 v3單次遍歷開始，處理 {sortedLines.Count} 行");
+
+            // v3核心數據結構
+            var activeColumns = new List<List<LayoutLine>>(); // 活躍欄位列表
+            var completedColumns = new List<List<LayoutLine>>(); // 已完成欄位列表
+            
+            // 計算全局平均行間距（用於欄位修剪）
+            double globalAvgLineSpacing = CalculateGlobalAverageLineSpacing(sortedLines);
+            Logger.Debug($"📏 v3全局平均行間距：{globalAvgLineSpacing:F1}px");
+
+            // v3主循環：只使用一個for循環遍歷所有行
+            for (int i = 0; i < sortedLines.Count; i++)
+            {
+                var currentLine = sortedLines[i];
+                bool assigned = false;
+
+                Logger.Debug($"🔍 v3處理行{i}: 「{currentLine.Text.Substring(0, Math.Min(30, currentLine.Text.Length))}...」");
+
+                // v3步驟3：歸屬判斷 - 嘗試將當前行歸屬到活躍欄位
+                assigned = ProceedToOwnershipCheckV3(currentLine, activeColumns, i);
+
+                // 如果無法歸入任何活躍欄位，創建新欄位
+                if (!assigned)
+                {
+                    var newColumn = new List<LayoutLine> { currentLine };
+                    activeColumns.Add(newColumn);
+                    
+                    DebugStage2V3(i, currentLine, activeColumns.Count - 1, "新欄位種子");
+                    Logger.Debug($"🌱 v3新種子：行{i}創建欄位{activeColumns.Count}");
+                }
+
+                // v3步驟4：混合模式欄位修剪
+                PerformColumnPruningV3(currentLine, activeColumns, completedColumns, globalAvgLineSpacing, i);
+            }
+
+            // 將所有剩餘的活躍欄位移入已完成列表
+            completedColumns.AddRange(activeColumns);
+
+            Logger.Debug($"✅ v3聚類完成：{completedColumns.Count} 個欄位，活躍欄位最大數={activeColumns.Count}");
+            
+            stopwatch.Stop();
+            int totalLines = completedColumns.Sum(col => col.Count);
+            DebugStagePerformance("v3階段二-單次遍歷有序聚類", sortedLines.Count, completedColumns.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n×m)");
+            
+            return completedColumns;
+        }
+
+        /// <summary>
+        /// v3算法：計算全局平均行間距
+        /// 文檔要求：使用中位數排除極端大間距（如段落間距）的干擾
+        /// </summary>
+        /// <param name="sortedLines">已排序的文字行列表</param>
+        /// <returns>全局平均行間距（像素）</returns>
+        private double CalculateGlobalAverageLineSpacing(List<LayoutLine> sortedLines)
+        {
+            if (sortedLines.Count < 2) return 50.0; // 默認值
+
+            var spacings = new List<double>();
+            
+            // 計算所有相鄰行的垂直間距（相鄰行間距統計）
+            for (int i = 1; i < sortedLines.Count; i++)
+            {
+                var prevLine = sortedLines[i - 1];
+                var currentLine = sortedLines[i];
+                
+                // v3標準：計算真實的垂直間距
+                double spacing = Math.Max(0, currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom);
+                spacings.Add(spacing);
+            }
+
+            // v3核心：使用中位數作為代表值，排除異常大間距的干擾
+            if (spacings.Count == 0) return 50.0;
+            
+            spacings.Sort();
+            double median = spacings.Count % 2 == 0 
+                ? (spacings[spacings.Count / 2 - 1] + spacings[spacings.Count / 2]) / 2.0
+                : spacings[spacings.Count / 2];
+
+            Logger.Debug($"📊 v3行間距統計：{spacings.Count}個相鄰間距，中位數={median:F1}px（排除異常值）");
+            Logger.Debug($"📊 間距範圍：最小={spacings[0]:F1}px，最大={spacings[spacings.Count-1]:F1}px");
+            
+            return Math.Max(10.0, median); // 確保最小值為10px
+        }
+
+        /// <summary>
+        /// v3算法：歸屬判斷 - 嘗試將當前行歸屬到現有的活躍欄位
+        /// </summary>
+        /// <param name="currentLine">當前處理的文字行</param>
+        /// <param name="activeColumns">活躍欄位列表</param>
+        /// <param name="lineIndex">行索引</param>
+        /// <returns>是否成功歸屬</returns>
+        private bool ProceedToOwnershipCheckV3(LayoutLine currentLine, List<List<LayoutLine>> activeColumns, int lineIndex)
+        {
+            // 遍歷所有活躍欄位，尋找可歸屬的欄位
+            for (int columnIndex = 0; columnIndex < activeColumns.Count; columnIndex++)
+            {
+                var column = activeColumns[columnIndex];
+                
+                // v3標準：檢查歸屬條件
+                if (CanAssignToColumnV3(currentLine, column, columnIndex, lineIndex))
+                {
+                    // 成功歸屬：將行添加到欄位並更新邊界
+                    column.Add(currentLine);
+                    
+                    DebugStage2V3(lineIndex, currentLine, columnIndex, "歸屬成功");
+                    Logger.Debug($"✅ v3歸屬：行{lineIndex}加入欄位{columnIndex}（欄位大小：{column.Count}）");
+                    
+                    return true; // 找到歸屬後立即返回
+                }
+            }
+            
+            return false; // 無法歸入任何活躍欄位
+        }
+
+        /// <summary>
+        /// v3算法：混合模式欄位修剪
+        /// 及時識別並移除不可能再增長的欄位
+        /// </summary>
+        /// <param name="currentLine">當前處理的文字行</param>
+        /// <param name="activeColumns">活躍欄位列表</param>
+        /// <param name="completedColumns">已完成欄位列表</param>
+        /// <param name="globalAvgLineSpacing">全局平均行間距</param>
+        /// <param name="currentLineIndex">當前行索引（用於調試）</param>
+        private void PerformColumnPruningV3(LayoutLine currentLine, List<List<LayoutLine>> activeColumns, 
+            List<List<LayoutLine>> completedColumns, double globalAvgLineSpacing, int currentLineIndex = -1)
+        {
+            // v3混合修剪條件：基於全局平均行間距的動態閾值
+            double pruningThreshold = globalAvgLineSpacing * 3.0; // v3標準：3倍行間距
+            
+            var columnsToRemove = new List<int>();
+            
+            // 檢查每個活躍欄位是否應該被修剪
+            for (int i = 0; i < activeColumns.Count; i++)
+            {
+                var column = activeColumns[i];
+                if (column.Count == 0) continue;
+                
+                // 計算當前行與欄位底部的垂直距離
+                var columnBottom = column.Max(line => line.BoundingBox.Bottom);
+                double verticalDistance = Math.Max(0, currentLine.BoundingBox.Top - columnBottom);
+                
+                // 如果距離超過修剪閾值，標記為完成
+                if (verticalDistance > pruningThreshold)
+                {
+                    columnsToRemove.Add(i);
+                    DebugStage2Pruning(currentLineIndex, i, column.Count, verticalDistance, pruningThreshold);
+                    Logger.Debug($"✂️ v3修剪：欄位{i}距離{verticalDistance:F1}px > 閾值{pruningThreshold:F1}px，標記完成");
+                }
+            }
+            
+            // 從後往前移除（避免索引變化問題）
+            for (int i = columnsToRemove.Count - 1; i >= 0; i--)
+            {
+                int columnIndex = columnsToRemove[i];
+                var completedColumn = activeColumns[columnIndex];
+                
+                completedColumns.Add(completedColumn);
+                activeColumns.RemoveAt(columnIndex);
+                
+                Logger.Debug($"📋 v3完成：欄位{columnIndex}移入已完成列表，包含{completedColumn.Count}行");
+            }
+        }
+
+        /// <summary>
+        /// v3算法：檢查當前行是否可以歸屬到指定欄位
+        /// 採用v3標準的歸屬判斷條件
+        /// </summary>
+        /// <param name="currentLine">當前文字行</param>
+        /// <param name="column">目標欄位</param>
+        /// <param name="columnIndex">欄位索引（用於調試）</param>
+        /// <param name="lineIndex">行索引（用於調試）</param>
+        /// <returns>是否可以歸屬</returns>
+        private bool CanAssignToColumnV3(LayoutLine currentLine, List<LayoutLine> column, int columnIndex = -1, int lineIndex = -1)
+        {
+            if (column.Count == 0) return false;
+            
+            var currentBox = currentLine.BoundingBox;
+            
+            // v3標準1：垂直鄰近度檢查
+            // 計算當前行與欄位中所有行的最小垂直距離
+            double minVerticalDistance = double.MaxValue;
+            double avgLineHeightInColumn = column.Average(line => line.BoundingBox.Height);
+            
+            foreach (var existingLine in column)
+            {
+                double verticalDist = CalculateVerticalDistance(currentBox, existingLine.BoundingBox);
+                minVerticalDistance = Math.Min(minVerticalDistance, verticalDist);
+            }
+            
+            double verticalThreshold = avgLineHeightInColumn * 1.2; // v3標準：1.2倍欄位內平均行高
+            bool verticalPassed = minVerticalDistance <= verticalThreshold;
+            if (!verticalPassed)
+            {
+                Logger.Debug($"📏 v3垂直檢查失敗：最小距離{minVerticalDistance:F1}px > 閾值{verticalThreshold:F1}px");
+                return false;
+            }
+            
+            // v3標準2：水平重疊度檢查
+            // 文檔要求：計算當前行與目標欄位邊界框之間的水平重疊範圍
+            var columnLeft = column.Min(line => line.BoundingBox.Left);
+            var columnRight = column.Max(line => line.BoundingBox.Right);
+            
+            double overlapLeft = Math.Max(currentBox.Left, columnLeft);
+            double overlapRight = Math.Min(currentBox.Right, columnRight);
+            double overlapWidth = Math.Max(0, overlapRight - overlapLeft);
+            
+            // v3標準：重疊寬度除以兩者寬度的較小值
+            double currentWidth = currentBox.Width;
+            double columnWidth = columnRight - columnLeft;
+            double minWidth = Math.Min(currentWidth, columnWidth);
+            double overlapRatio = minWidth > 0 ? overlapWidth / minWidth : 0;
+            
+            const double V3_OVERLAP_THRESHOLD = 0.5; // v3標準：50%重疊
+            bool overlapPassed = overlapRatio >= V3_OVERLAP_THRESHOLD;
+            
+            // 添加詳細的歸屬檢查調試信息
+            DebugStage2OwnershipDetail(lineIndex, columnIndex, minVerticalDistance, verticalThreshold, overlapRatio, V3_OVERLAP_THRESHOLD, verticalPassed && overlapPassed);
+            
+            if (!overlapPassed)
+            {
+                Logger.Debug($"📏 v3重疊檢查失敗：重疊率{overlapRatio:F2} < 閾值{V3_OVERLAP_THRESHOLD}");
+                Logger.Debug($"📏 詳細：當前行寬{currentWidth}px，欄位寬{columnWidth}px，重疊寬{overlapWidth}px");
+                return false;
+            }
+            
+            Logger.Debug($"✅ v3歸屬檢查通過：垂直距離{minVerticalDistance:F1}px，重疊率{overlapRatio:F2}");
+            return true;
+        }
+
+        /// <summary>
+        /// 有序觸發「滾雪球」聚類 (舊版本 - 已被v3取代)
+        /// 注意：此方法已被 SinglePassOrderedClusteringV3 取代，保留僅供參考
+        /// </summary>
+        /// <param name="sortedLines">已排序的文字行列表</param>
+        /// <returns>按欄位分組的文字行列表</returns>
+        [Obsolete("此方法已被v3版本取代，請使用 SinglePassOrderedClusteringV3")]
         private List<List<LayoutLine>> OrderedSnowballClustering(List<LayoutLine> sortedLines)
         {
             var columns = new List<List<LayoutLine>>();
@@ -729,13 +1237,16 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 執行段落分割（階段三）
-        /// 使用加權評分系統分析每個欄位中的文字行，進行智能段落分組
+        /// 階段三：混合模式段落分割 (v3版本)
+        /// 採用混合模式段落檢測策略，為不同類型的內容提供最優化的處理路徑
         /// </summary>
         /// <param name="columns">已分欄的文字行</param>
         /// <returns>分割後的段落字典</returns>
         private Dictionary<string, List<LayoutParagraph>> PerformParagraphSegmentation(List<List<LayoutLine>> columns)
         {
+            Logger.Debug($"🔄 v3階段三：開始混合模式段落分割，輸入 {columns.Count} 個欄位");
+            Console.WriteLine($"🔄 v3階段三：開始混合模式段落分割，輸入 {columns.Count} 個欄位");
+            
             var result = new Dictionary<string, List<LayoutParagraph>>();
             
             for (int columnIndex = 0; columnIndex < columns.Count; columnIndex++)
@@ -746,187 +1257,464 @@ namespace MonLingo.Core.Service
                 string columnKey = $"column_{columnIndex + 1}";
                 var columnColor = GetColumnColor(columnIndex);
                 
-                DebugLog($"   處理 {columnKey}：{column.Count} 行，使用顏色 #{columnColor.Name}");
+                Logger.Debug($"📑 v3處理 {columnKey}：{column.Count} 行");
+                Console.WriteLine($"📑 v3處理 {columnKey}：{column.Count} 行");
                 
-                var paragraphs = SegmentColumnIntoParagraphs(column, columnColor, columnKey);
+                // v3核心：混合模式段落檢測
+                var paragraphs = HybridParagraphDetectionV3(column, columnColor, columnKey);
                 result[columnKey] = paragraphs;
                 
-                DebugLog($"   {columnKey} 分割結果：{paragraphs.Count} 個段落");
+                Logger.Debug($"✅ v3完成 {columnKey}：生成 {paragraphs.Count} 個段落");
+                Console.WriteLine($"✅ v3完成 {columnKey}：生成 {paragraphs.Count} 個段落");
+                
+                Logger.Debug($"✅ {columnKey} v3分割完成：{paragraphs.Count} 個段落");
             }
 
+            Logger.Info($"🎯 v3混合模式段落分割完成：處理 {columns.Count} 個欄位");
             return result;
         }
 
         /// <summary>
-        /// 將單個欄位分割成段落
+        /// v3算法：混合模式段落檢測 (Hybrid Paragraph Detection)
+        /// 步驟一：內容類型預檢查
+        /// 步驟二：計算標準行距
+        /// 步驟三：多指標加權決策系統
         /// </summary>
         /// <param name="column">欄位中的文字行</param>
         /// <param name="columnColor">欄位顏色</param>
         /// <param name="columnKey">欄位鍵值</param>
         /// <returns>分割後的段落列表</returns>
-        private List<LayoutParagraph> SegmentColumnIntoParagraphs(List<LayoutLine> column, Color columnColor, string columnKey)
+        private List<LayoutParagraph> HybridParagraphDetectionV3(List<LayoutLine> column, Color columnColor, string columnKey)
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            if (column.Count == 0) return new List<LayoutParagraph>();
+
+            Logger.Debug($"🚀 v3混合檢測開始：{columnKey} ({column.Count}行)");
+
+            // v3步驟一：內容類型預檢查 (Content Type Pre-analysis)
+            var contentType = AnalyzeContentTypeV3(column);
+            Logger.Debug($"📊 v3內容類型：{contentType}");
+
+            switch (contentType)
+            {
+                case ContentType.SingleLine:
+                    var singleResult = HandleSingleLineShortcutV3(column, columnColor, columnKey);
+                    stopwatch.Stop();
+                    DebugStagePerformance("v3階段三-單行捷徑", column.Count, singleResult.Count, stopwatch.Elapsed.TotalMilliseconds, "O(1)");
+                    return singleResult;
+                
+                case ContentType.ListItems:
+                    var listResult = HandleListItemDetectionV3(column, columnColor, columnKey);
+                    stopwatch.Stop();
+                    DebugStagePerformance("v3階段三-列表項目檢測", column.Count, listResult.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n)");
+                    return listResult;
+                
+                case ContentType.ContinuousText:
+                default:
+                    var textResult = HandleContinuousTextV3(column, columnColor, columnKey);
+                    stopwatch.Stop();
+                    DebugStagePerformance("v3階段三-混合模式段落檢測", column.Count, textResult.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n)");
+                    return textResult;
+            }
+        }
+
+        /// <summary>
+        /// v3內容類型枚舉
+        /// </summary>
+        private enum ContentType
+        {
+            SingleLine,      // 單行欄位
+            ListItems,       // 列表項目
+            ContinuousText   // 連續文本
+        }
+
+        /// <summary>
+        /// v3步驟一：內容類型預檢查 (Content Type Pre-analysis)
+        /// </summary>
+        private ContentType AnalyzeContentTypeV3(List<LayoutLine> column)
+        {
+            // 1. 單行欄位捷徑 (Single-Line Shortcut)
+            if (column.Count == 1)
+            {
+                Logger.Debug("🎯 v3預檢查：單行欄位捷徑");
+                return ContentType.SingleLine;
+            }
+
+            // 2. 列表項目識別 (List Item Detection)
+            int listIndicatorCount = 0;
+            foreach (var line in column)
+            {
+                var trimmedText = line.Text.Trim();
+                if (IsListIndicator(trimmedText))
+                {
+                    listIndicatorCount++;
+                }
+            }
+
+            // 如果超過50%的行具有列表特徵，認為是列表
+            double listRatio = (double)listIndicatorCount / column.Count;
+            if (listRatio >= 0.5)
+            {
+                Logger.Debug($"🎯 v3預檢查：列表項目識別 (列表比例:{listRatio:F2})");
+                return ContentType.ListItems;
+            }
+
+            // 3. 連續文本處理 (Continuous Text Handling)
+            Logger.Debug("🎯 v3預檢查：連續文本處理");
+            return ContentType.ContinuousText;
+        }
+
+        /// <summary>
+        /// 檢查文本是否為列表指示符
+        /// </summary>
+        private bool IsListIndicator(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            // 檢查常見列表符號
+            var listPatterns = new[] { "*", "-", "•", "○", "●", "►", "▶" };
+            if (listPatterns.Any(pattern => text.StartsWith(pattern)))
+                return true;
+
+            // 檢查數字列表 (1. 2. 3. 等)
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^\d+[\.\)]\s"))
+                return true;
+
+            // 檢查字母列表 (a) b) c) 等)
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^[a-zA-Z][\.\)]\s"))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// v3處理：單行欄位捷徑 (Single-Line Shortcut)
+        /// </summary>
+        private List<LayoutParagraph> HandleSingleLineShortcutV3(List<LayoutLine> column, Color columnColor, string columnKey)
+        {
+            Logger.Debug("⚡ v3單行捷徑：跳過所有分割邏輯");
+            
+            var paragraph = CreateParagraphV3(column, 0, columnColor);
+            DebugStage3V3(columnKey, 0, column[0], 0, "單行捷徑");
+            
+            return new List<LayoutParagraph> { paragraph };
+        }
+
+        /// <summary>
+        /// v3處理：列表項目識別 (List Item Detection)
+        /// </summary>
+        private List<LayoutParagraph> HandleListItemDetectionV3(List<LayoutLine> column, Color columnColor, string columnKey)
+        {
+            Logger.Debug("📋 v3列表檢測：基於縮排和列表符號的快速分割");
+            
+            // 統計列表指示符數量用於調試
+            int listIndicatorCount = column.Count(line => IsListIndicator(line.Text));
+            DebugStage3ContentType(columnKey, ContentType.ListItems, column.Count, listIndicatorCount);
+            
             var paragraphs = new List<LayoutParagraph>();
             
-            if (column.Count == 0) return paragraphs;
-
-            // 初始化第一個段落
-            var currentParagraph = new List<LayoutLine> { column[0] };
-            DebugStage3(columnKey, 0, column[0], 0, "新段落起始行");
+            // 將每個列表項視為一個獨立段落
+            for (int i = 0; i < column.Count; i++)
+            {
+                var singleLineList = new List<LayoutLine> { column[i] };
+                var paragraph = CreateParagraphV3(singleLineList, i, columnColor);
+                paragraphs.Add(paragraph);
+                
+                DebugStage3V3(columnKey, i, column[i], i, "列表項目分割");
+            }
             
+            return paragraphs;
+        }
+
+        /// <summary>
+        /// v3處理：連續文本處理 (Continuous Text Handling)
+        /// 使用多指標加權決策系統進行精細分割
+        /// </summary>
+        private List<LayoutParagraph> HandleContinuousTextV3(List<LayoutLine> column, Color columnColor, string columnKey)
+        {
+            Logger.Debug("📖 v3連續文本：啟用多指標加權決策系統");
+            
+            // 添加內容類型調試信息
+            DebugStage3ContentType(columnKey, ContentType.ContinuousText, column.Count);
+
+            // v3步驟二：計算標準行距 (Calculate Standard Line Spacing)
+            double standardLineSpacing = CalculateStandardLineSpacingV3(column, columnKey);
+            Logger.Debug($"📏 v3標準行距：{standardLineSpacing:F1}px (中位數)");
+
+            // v3步驟三：多指標加權決策系統 (Multi-Indicator Weighted System)
+            return ApplyWeightedDecisionSystemV3(column, standardLineSpacing, columnColor, columnKey);
+        }        /// <summary>
+        /// v3步驟二：計算標準行距 (Calculate Standard Line Spacing)
+        /// 使用中位數計算標準行內間距，排除極端大間距的干擾
+        /// </summary>
+        private double CalculateStandardLineSpacingV3(List<LayoutLine> column, string columnKey = "未知欄位")
+        {
+            if (column.Count < 2) return 20.0; // 默認值
+
+            var spacings = new List<double>();
+            
+            // 計算所有相鄰行的垂直間距
+            for (int i = 1; i < column.Count; i++)
+            {
+                var prevLine = column[i - 1];
+                var currentLine = column[i];
+                
+                // v3標準：計算真實的垂直間距
+                double spacing = Math.Max(0, currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom);
+                spacings.Add(spacing);
+            }
+
+            // v3核心：使用中位數作為代表值，排除異常大間距的干擾
+            spacings.Sort();
+            double median = spacings.Count % 2 == 0
+                ? (spacings[spacings.Count / 2 - 1] + spacings[spacings.Count / 2]) / 2.0
+                : spacings[spacings.Count / 2];
+                
+            // 添加標準行距計算的調試信息
+            double minSpacing = spacings.Count > 0 ? spacings[0] : 0;
+            double maxSpacing = spacings.Count > 0 ? spacings[spacings.Count - 1] : 0;
+            DebugStage3StandardSpacing("未知欄位", spacings.Count, median, minSpacing, maxSpacing);
+
+            Logger.Debug($"📊 v3間距分析：共{spacings.Count}個間距值，中位數={median:F1}px");
+            return Math.Max(1.0, median); // 確保不為0
+        }
+
+        /// <summary>
+        /// v3步驟三：多指標加權決策系統 (Multi-Indicator Weighted System)
+        /// 合併分數 = 相對距離得分 + 字體高度得分 + 對齊風格得分 + 重疊獎勵得分
+        /// </summary>
+        private List<LayoutParagraph> ApplyWeightedDecisionSystemV3(List<LayoutLine> column, double standardLineSpacing, Color columnColor, string columnKey)
+        {
+            // v3新特性：內容特徵自適應閾值系統
+            double adaptiveThreshold = CalculateAdaptiveThresholdV3(column, standardLineSpacing, columnKey);
+            
+            var paragraphs = new List<LayoutParagraph>();
+            var currentParagraph = new List<LayoutLine> { column[0] };
+            
+            Logger.Debug($"🧮 v3加權系統：自適應閾值={adaptiveThreshold:F2}");
+            Console.WriteLine($"🧮 v3自適應閾值系統：動態閾值={adaptiveThreshold:F2} (基礎2.0+調整)");
+            DebugStage3V3(columnKey, 0, column[0], 0, "段落起始");
+
             for (int i = 1; i < column.Count; i++)
             {
                 var currentLine = column[i];
                 var previousLine = column[i - 1];
                 
-                // 加權評分系統判斷是否分段
-                int score = CalculateContinuityScore(previousLine, currentLine);
+                // 計算合併分數
+                double mergeScore = CalculateMergeScoreV3(previousLine, currentLine, standardLineSpacing);
                 
-                DebugStage3(columnKey, i, currentLine, paragraphs.Count, $"連續性評分{score}");
-                DebugLog($"     行 {i}: \"{currentLine.Text}\" 與前一行連續性評分: {score}");
+                Logger.Debug($"📊 v3分數：行{i} 「{currentLine.Text.Substring(0, Math.Min(20, currentLine.Text.Length))}...」 → {mergeScore:F2}");
+                Console.WriteLine($"📊 v3合併分數：行{i} → {mergeScore:F2} (閾值:{adaptiveThreshold:F2})");
                 
-                // 門檻值：75分（根據PRD規範）
-                if (score >= 75)
+                // 獲取各組件分數用於詳細調試
+                double relativeDistanceScore = CalculateRelativeDistanceScoreV3(previousLine, currentLine, standardLineSpacing);
+                double fontHeightPenalty = CalculateFontHeightPenaltyV3(previousLine, currentLine);
+                double alignmentPenalty = CalculateAlignmentStylePenaltyV3(previousLine, currentLine);
+                double overlapBonus = CalculateOverlapBonusV3(previousLine, currentLine);
+                
+                DebugStage3WeightedScore(i, relativeDistanceScore, fontHeightPenalty, alignmentPenalty, overlapBonus, mergeScore, adaptiveThreshold, mergeScore > adaptiveThreshold);
+                
+                if (mergeScore > adaptiveThreshold)
                 {
-                    // 繼續當前段落
+                    // 合併到當前段落
                     currentParagraph.Add(currentLine);
-                    DebugStage3(columnKey, i, currentLine, paragraphs.Count, $"繼續段落-評分{score}≥75");
-                    DebugLog($"     -> 歸入當前段落（評分 {score} ≥ 75）");
+                    DebugStage3V3(columnKey, i, currentLine, paragraphs.Count, $"合併-分數{mergeScore:F2}");
+                    Console.WriteLine($"🔗 v3決策：行{i} 合併 (分數{mergeScore:F2} > {adaptiveThreshold:F2})");
                 }
                 else
                 {
-                    // 結束當前段落，開始新段落
+                    // 創建新段落
                     if (currentParagraph.Count > 0)
                     {
-                        paragraphs.Add(CreateParagraph(currentParagraph, paragraphs.Count, columnColor));
-                        DebugStage3(columnKey, i-1, previousLine, paragraphs.Count-1, $"段落結束-共{currentParagraph.Count}行");
-                        DebugLog($"     -> 創建新段落 {paragraphs.Count}（評分 {score} < 75）");
+                        paragraphs.Add(CreateParagraphV3(currentParagraph, paragraphs.Count, columnColor));
+                        Logger.Debug($"✂️ v3分割：分數{mergeScore:F2} ≤ {adaptiveThreshold:F2}，創建段落{paragraphs.Count}");
+                        Console.WriteLine($"✂️ v3決策：行{i} 分割 (分數{mergeScore:F2} ≤ {adaptiveThreshold:F2})，創建段落{paragraphs.Count}");
+                        DebugStage3V3(columnKey, i-1, previousLine, paragraphs.Count-1, $"段落結束-{currentParagraph.Count}行");
                     }
                     currentParagraph = new List<LayoutLine> { currentLine };
-                    DebugStage3(columnKey, i, currentLine, paragraphs.Count, $"新段落開始-評分{score}<75");
+                    DebugStage3V3(columnKey, i, currentLine, paragraphs.Count, $"新段落-合併分數{mergeScore:F2}");
                 }
             }
             
             // 處理最後一個段落
             if (currentParagraph.Count > 0)
             {
-                paragraphs.Add(CreateParagraph(currentParagraph, paragraphs.Count, columnColor));
-                DebugStage3(columnKey, column.Count-1, column[column.Count-1], paragraphs.Count-1, $"最終段落-共{currentParagraph.Count}行");
-                DebugLog($"     -> 完成最後段落 {paragraphs.Count}");
+                paragraphs.Add(CreateParagraphV3(currentParagraph, paragraphs.Count, columnColor));
+                DebugStage3V3(columnKey, column.Count-1, column[column.Count-1], paragraphs.Count-1, $"最終段落-{currentParagraph.Count}行");
             }
 
+            Logger.Debug($"🎯 v3決策完成：{paragraphs.Count} 個段落");
+            Console.WriteLine($"🎯 v3段落分析完成：{paragraphs.Count} 個段落");
             return paragraphs;
         }
 
         /// <summary>
-        /// 計算兩行之間的連續性評分（加權評分系統）
+        /// v3新特性：內容特徵自適應閾值計算系統
+        /// 根據欄位的內容特徵動態調整合併閾值
         /// </summary>
-        /// <param name="line1">前一行</param>
-        /// <param name="line2">當前行</param>
-        /// <returns>連續性評分（0-100分）</returns>
-        private int CalculateContinuityScore(LayoutLine line1, LayoutLine line2)
+        private double CalculateAdaptiveThresholdV3(List<LayoutLine> column, double standardLineSpacing, string columnKey)
         {
-            int totalScore = 0;
-
-            // 1. 垂直距離評分（30分）
-            int verticalScore = CalculateVerticalDistanceScore(line1, line2);
-            totalScore += verticalScore;
-
-            // 2. 對齊一致性評分（25分）
-            int alignmentScore = CalculateAlignmentScore(line1, line2);
-            totalScore += alignmentScore;
-
-            // 3. 字體高度相似性評分（25分）
-            int fontHeightScore = CalculateFontHeightScore(line1, line2);
-            totalScore += fontHeightScore;
-
-            // 4. 寬度比例評分（20分）
-            int widthRatioScore = CalculateWidthRatioScore(line1, line2);
-            totalScore += widthRatioScore;
-
-            return Math.Min(100, totalScore); // 確保不超過100分
+            const double BASE_THRESHOLD = 2.0; // 基礎閾值
+            
+            // 1. 行數密度調整
+            double avgLineHeight = column.Average(line => line.LineHeight);
+            double lineDensityFactor = (column.Count / avgLineHeight) * 0.1;
+            lineDensityFactor = Math.Min(lineDensityFactor, 0.5); // 限制最大調整量
+            
+            // 2. 字體一致性加成
+            var lineHeights = column.Select(line => (double)line.LineHeight).ToArray();
+            double heightStdDev = CalculateStandardDeviation(lineHeights);
+            double fontConsistencyBonus = heightStdDev < 0.1 * avgLineHeight ? 0.3 : 0.0;
+            
+            // 3. 標準行距調整
+            double spacingFactor = standardLineSpacing > avgLineHeight ? 0.2 : -0.1; // 行距大時更保守合併
+            
+            // 計算最終閾值
+            double adaptiveThreshold = BASE_THRESHOLD + lineDensityFactor + fontConsistencyBonus + spacingFactor;
+            adaptiveThreshold = Math.Max(1.5, Math.Min(adaptiveThreshold, 4.0)); // 限制在合理範圍內
+            
+            Logger.Debug($"📊 v3自適應閾值計算：基礎{BASE_THRESHOLD} + 密度{lineDensityFactor:F2} + 一致性{fontConsistencyBonus:F1} + 行距{spacingFactor:F1} = {adaptiveThreshold:F2}");
+            Console.WriteLine($"📊 v3自適應閾值詳細：基礎{BASE_THRESHOLD} + 密度{lineDensityFactor:F2} + 一致性{fontConsistencyBonus:F1} + 行距{spacingFactor:F1} = {adaptiveThreshold:F2}");
+            
+            return adaptiveThreshold;
         }
 
         /// <summary>
-        /// 計算垂直距離評分
+        /// 計算標準差的輔助方法
         /// </summary>
-        private int CalculateVerticalDistanceScore(LayoutLine line1, LayoutLine line2)
+        private double CalculateStandardDeviation(double[] values)
         {
-            int verticalDistance = line2.BoundingBox.Top - line1.BoundingBox.Bottom;
-            int avgLineHeight = (line1.LineHeight + line2.LineHeight) / 2;
+            if (values.Length == 0) return 0.0;
             
-            if (avgLineHeight == 0) return 0;
-
-            double ratio = (double)verticalDistance / avgLineHeight;
-            
-            // 根據PRD規範：距離越小評分越高
-            if (ratio <= 0.5) return 30; // 非常緊密
-            if (ratio <= 1.0) return 25; // 緊密
-            if (ratio <= 1.5) return 15; // 中等
-            if (ratio <= 2.0) return 5;  // 稍遠
-            return 0; // 太遠
+            double mean = values.Average();
+            double sumOfSquaredDifferences = values.Select(val => (val - mean) * (val - mean)).Sum();
+            return Math.Sqrt(sumOfSquaredDifferences / values.Length);
         }
 
         /// <summary>
-        /// 計算對齊一致性評分
+        /// v3合併分數計算模型 (加減分混合公式)
+        /// 合併分數 = 相對距離得分 - 字體高度懲罰 - 對齊風格懲罰 + 重疊獎勵得分
         /// </summary>
-        private int CalculateAlignmentScore(LayoutLine line1, LayoutLine line2)
+        private double CalculateMergeScoreV3(LayoutLine prevLine, LayoutLine currentLine, double standardLineSpacing)
         {
-            int leftAlignment = Math.Abs(line1.BoundingBox.Left - line2.BoundingBox.Left);
-            int avgWidth = (line1.BoundingBox.Width + line2.BoundingBox.Width) / 2;
+            // 從基礎分開始計算
+            double mergeScore = 0.0;
             
-            if (avgWidth == 0) return 0;
-
-            double alignmentRatio = (double)leftAlignment / avgWidth;
+            // 1. 相對距離得分 (Relative Distance Score) - 主要得分項
+            double relativeDistanceScore = CalculateRelativeDistanceScoreV3(prevLine, currentLine, standardLineSpacing);
+            mergeScore += relativeDistanceScore;
             
-            // 對齊越好評分越高
-            if (alignmentRatio <= 0.05) return 25; // 完美對齊
-            if (alignmentRatio <= 0.1) return 20;  // 良好對齊
-            if (alignmentRatio <= 0.2) return 15;  // 中等對齊
-            if (alignmentRatio <= 0.3) return 10;  // 稍微偏移
-            return 5; // 對齊不佳
+            // 2. 字體高度懲罰 (Font Height Penalty)
+            double fontHeightPenalty = CalculateFontHeightPenaltyV3(prevLine, currentLine);
+            mergeScore -= fontHeightPenalty;
+            
+            // 3. 對齊風格懲罰 (Alignment Style Penalty)
+            double alignmentStylePenalty = CalculateAlignmentStylePenaltyV3(prevLine, currentLine);
+            mergeScore -= alignmentStylePenalty;
+            
+            // 4. 重疊獎勵得分 (Overlap Bonus Score)
+            double overlapBonus = CalculateOverlapBonusV3(prevLine, currentLine);
+            mergeScore += overlapBonus;
+            
+            Logger.Debug($"   🧮 v3分數明細：相對距離{relativeDistanceScore:F2} - 字體懲罰{fontHeightPenalty:F2} - 對齊懲罰{alignmentStylePenalty:F2} + 重疊獎勵{overlapBonus:F2} = {mergeScore:F2}");
+            
+            return mergeScore; // 允許負分存在
         }
 
         /// <summary>
-        /// 計算字體高度相似性評分
+        /// 1. 相對距離得分 (Relative Distance Score)
+        /// 計算：max(0, 3.0 - (line_i.Y - line_{i-1}.Bottom) / 標準行距)
         /// </summary>
-        private int CalculateFontHeightScore(LayoutLine line1, LayoutLine line2)
+        private double CalculateRelativeDistanceScoreV3(LayoutLine prevLine, LayoutLine currentLine, double standardLineSpacing)
         {
-            if (line1.LineHeight == 0 || line2.LineHeight == 0) return 0;
-
-            double heightRatio = (double)Math.Min(line1.LineHeight, line2.LineHeight) / 
-                                Math.Max(line1.LineHeight, line2.LineHeight);
+            double verticalDistance = Math.Max(0, currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom);
+            double relativeDistance = verticalDistance / standardLineSpacing;
             
-            // 高度越相似評分越高
-            if (heightRatio >= 0.9) return 25; // 非常相似
-            if (heightRatio >= 0.8) return 20; // 相似
-            if (heightRatio >= 0.7) return 15; // 中等相似
-            if (heightRatio >= 0.6) return 10; // 稍微不同
-            return 5; // 差異較大
+            // v3公式：距離越近，得分越高
+            double score = Math.Max(0, 3.0 - relativeDistance);
+            
+            Logger.Debug($"      📏 相對距離：{verticalDistance}px ÷ {standardLineSpacing:F1}px = {relativeDistance:F2} → 得分{score:F2}");
+            return score;
         }
 
         /// <summary>
-        /// 計算寬度比例評分
+        /// 2. 字體高度懲罰 (Font Height Penalty)
+        /// ≤5%差異: 0懲罰, ≤15%差異: 0.3懲罰, >15%差異: 0.5懲罰
         /// </summary>
-        private int CalculateWidthRatioScore(LayoutLine line1, LayoutLine line2)
+        private double CalculateFontHeightPenaltyV3(LayoutLine prevLine, LayoutLine currentLine)
         {
-            if (line1.BoundingBox.Width == 0 || line2.BoundingBox.Width == 0) return 0;
-
-            double widthRatio = (double)Math.Min(line1.BoundingBox.Width, line2.BoundingBox.Width) / 
-                               Math.Max(line1.BoundingBox.Width, line2.BoundingBox.Width);
+            double heightDiff = Math.Abs(prevLine.LineHeight - currentLine.LineHeight);
+            double avgHeight = (prevLine.LineHeight + currentLine.LineHeight) / 2.0;
             
-            // 寬度比例越接近評分越高
-            if (widthRatio >= 0.8) return 20; // 非常接近
-            if (widthRatio >= 0.6) return 15; // 接近
-            if (widthRatio >= 0.4) return 10; // 中等
-            if (widthRatio >= 0.2) return 5;  // 差異較大
-            return 0; // 差異很大
+            if (avgHeight == 0) return 0.0;
+            
+            double heightDiffRatio = heightDiff / avgHeight;
+            
+            if (heightDiffRatio <= 0.05) // ≤5%
+            {
+                Logger.Debug($"      📏 字體高度懲罰：差異{heightDiffRatio:P1} ≤ 5% → 0懲罰");
+                return 0.0;
+            }
+            else if (heightDiffRatio <= 0.15) // ≤15%
+            {
+                Logger.Debug($"      📏 字體高度懲罰：差異{heightDiffRatio:P1} ≤ 15% → 0.3懲罰");
+                return 0.3;
+            }
+            else // >15%
+            {
+                Logger.Debug($"      📏 字體高度懲罰：差異{heightDiffRatio:P1} > 15% → 0.5懲罰");
+                return 0.5;
+            }
         }
 
         /// <summary>
-        /// 創建段落對象
+        /// 3. 對齊風格懲罰 (Alignment Style Penalty)
+        /// 相同對齊: 0懲罰, 不同對齊: 0.2懲罰
         /// </summary>
-        private LayoutParagraph CreateParagraph(List<LayoutLine> lines, int paragraphIndex, Color columnColor)
+        private double CalculateAlignmentStylePenaltyV3(LayoutLine prevLine, LayoutLine currentLine)
+        {
+            const int ALIGNMENT_TOLERANCE = 10; // 對齊容差（像素）
+            
+            // 簡化的對齊檢測：比較左邊界
+            int leftDiff = Math.Abs(prevLine.BoundingBox.Left - currentLine.BoundingBox.Left);
+            
+            if (leftDiff <= ALIGNMENT_TOLERANCE)
+            {
+                Logger.Debug($"      📏 對齊風格懲罰：左邊界差異{leftDiff}px ≤ {ALIGNMENT_TOLERANCE}px → 0懲罰");
+                return 0.0;
+            }
+            else
+            {
+                Logger.Debug($"      📏 對齊風格懲罰：左邊界差異{leftDiff}px > {ALIGNMENT_TOLERANCE}px → 0.2懲罰");
+                return 0.2;
+            }
+        }
+
+        /// <summary>
+        /// 4. 重疊獎勵得分 (Overlap Bonus Score)
+        /// 垂直重疊: 2.0分, 無重疊: 0分
+        /// </summary>
+        private double CalculateOverlapBonusV3(LayoutLine prevLine, LayoutLine currentLine)
+        {
+            double verticalDistance = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
+            
+            if (verticalDistance < 0) // 發生重疊
+            {
+                Logger.Debug($"      📏 重疊獎勵：垂直距離{verticalDistance}px < 0 → 2.0分");
+                return 2.0;
+            }
+            else
+            {
+                Logger.Debug($"      📏 重疊獎勵：垂直距離{verticalDistance}px ≥ 0 → 0分");
+                return 0.0;
+            }
+        }
+
+        /// <summary>
+        /// v3版本：創建段落對象
+        /// </summary>
+        private LayoutParagraph CreateParagraphV3(List<LayoutLine> lines, int paragraphIndex, Color columnColor)
         {
             var boundingBox = CalculateParagraphBoundingBox(lines);
             
