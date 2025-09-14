@@ -14,6 +14,9 @@ namespace MonLingo.Core
         /// </summary>
         public static async Task Main(string[] args)
         {
+            // 設置 Console 編碼為 UTF-8 以支援 emoji 和特殊字符
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+            
             Console.WriteLine("🚀 MonLingo Phase 5 - 核心翻譯功能啟動");
             Console.WriteLine("基於 Gaminik 深度分析的完整實現");
             Console.WriteLine("========================================");

@@ -199,13 +199,19 @@ namespace MonLingo.Core.Service
         /// <param name="totalScore">總分</param>
         /// <param name="threshold">合併閾值</param>
         /// <param name="willMerge">是否合併</param>
+        /// <param name="actualSpacing">實際行距</param>
+        /// <param name="standardSpacing">標準行距</param>
         private void DebugStage3WeightedScore(int lineIndex, double relativeDistanceScore, double fontHeightPenalty, 
-            double alignmentPenalty, double overlapBonus, double totalScore, double threshold, bool willMerge)
+            double alignmentPenalty, double overlapBonus, double totalScore, double threshold, bool willMerge,
+            double actualSpacing = -1, double standardSpacing = -1)
         {
             if (EnableDebugMode)
             {
                 string decision = willMerge ? "🔗合併" : "✂️分割";
-                DebugLog($"   🧮 v3加權分析: 行{lineIndex} | 距離:{relativeDistanceScore:F2} | 字體懲罰:-{fontHeightPenalty:F2} | 對齊懲罰:-{alignmentPenalty:F2} | 重疊:+{overlapBonus:F1} | 總分:{totalScore:F2}/{threshold} | {decision}");
+                string spacingInfo = actualSpacing >= 0 && standardSpacing > 0 
+                    ? $" | 行距:{actualSpacing:F1}px(標準{standardSpacing:F1}px)" 
+                    : "";
+                DebugLog($"   🧮 v3加權分析: 行{lineIndex} | 距離:{relativeDistanceScore:F2} | 字體懲罰:-{fontHeightPenalty:F2} | 對齊懲罰:-{alignmentPenalty:F2} | 重疊:+{overlapBonus:F1}{spacingInfo} | 總分:{totalScore:F2}/{threshold} | {decision}");
             }
         }
 
@@ -241,6 +247,27 @@ namespace MonLingo.Core.Service
         private void DebugStage2(int lineIndex, LayoutLine line, int columnIndex, string reason)
         {
             DebugStage2V3(lineIndex, line, columnIndex, reason);
+        }
+
+        /// <summary>
+        /// 雙峰模型調試輸出方法
+        /// </summary>
+        private void DebugBiPeakModel(string columnKey, BiPeakSpacingModel model, List<double> spacings)
+        {
+            if (!EnableDebugMode) return;
+
+            Console.WriteLine($"🔬 【v3.1雙峰模型分析】欄位: {columnKey}");
+            Console.WriteLine($"  📊 間距統計: 共{model.TotalSpacings}個間距，{model.ValidPeaks}個有效峰值");
+            Console.WriteLine($"  🎯 關鍵峰值: 合併峰值={model.PeakMerge:F1}px，分割峰值={model.PeakSplit:F1}px");
+            Console.WriteLine($"  📏 容差設定: {model.Tolerance:F1}px ({model.PeakMerge * 0.2:F1}px = 合併峰值 × 0.2)");
+            Console.WriteLine($"  🟢 合併區間: [0, {model.MergeZone.Max:F1}px]");
+            Console.WriteLine($"  🔴 分割區間: [{model.SplitZone.Min:F1}px, ∞)");
+            Console.WriteLine($"  🟡 模糊區間: ({model.AmbiguityZone.Min:F1}px, {model.AmbiguityZone.Max:F1}px)");
+            
+            if (spacings.Count > 0)
+            {
+                Console.WriteLine($"  📈 間距分佈: 最小={spacings.Min():F1}px，最大={spacings.Max():F1}px，聚類閾值={model.ClusterThreshold:F1}px");
+            }
         }
 
         /// <summary>
@@ -366,16 +393,7 @@ namespace MonLingo.Core.Service
                 Logger.Info($"✅ v3階段三完成：生成 {layoutResult.Count} 個欄位的段落結構");
                 Console.WriteLine($"✅ v3階段三完成：生成 {layoutResult.Count} 個欄位的段落結構");
                 
-                // 顯示段落詳細信息
-                foreach (var column in layoutResult)
-                {
-                    DebugLog($"   {column.Key}: {column.Value.Count} 個段落");
-                    for (int p = 0; p < column.Value.Count; p++)
-                    {
-                        var paragraph = column.Value[p];
-                        DebugLog($"     段落 {p + 1}: {paragraph.Lines.Count} 行，範圍 ({paragraph.BoundingBox.X},{paragraph.BoundingBox.Y},{paragraph.BoundingBox.Width},{paragraph.BoundingBox.Height})");
-                    }
-                }
+
                 
                 // 返回最終的結構化版面數據
                 var tempLayout = layoutResult;
@@ -875,8 +893,8 @@ namespace MonLingo.Core.Service
                 var prevLine = sortedLines[i - 1];
                 var currentLine = sortedLines[i];
                 
-                // v3標準：計算真實的垂直間距
-                double spacing = Math.Max(0, currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom);
+                // v3.1改進：保留負間距（重疊），提升雙峰模型精度
+                double spacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
                 spacings.Add(spacing);
             }
 
@@ -1334,10 +1352,15 @@ namespace MonLingo.Core.Service
         /// </summary>
         private ContentType AnalyzeContentTypeV3(List<LayoutLine> column)
         {
+            Console.WriteLine($"\n┌─ 【階段3-處理通道選擇】 ───────────────────");
+            
             // 1. 單行欄位捷徑 (Single-Line Shortcut)
             if (column.Count == 1)
             {
                 Logger.Debug("🎯 v3預檢查：單行欄位捷徑");
+                Console.WriteLine("│ 🛤️ 通道選擇：單行欄位捷徑 (Single-Line Shortcut)");
+                Console.WriteLine($"│ 📋 選擇原因：欄位僅含1行，直接創建段落，跳過所有分割邏輯");
+                Console.WriteLine($"└─────────────────────────────────────────\n");
                 return ContentType.SingleLine;
             }
 
@@ -1357,11 +1380,17 @@ namespace MonLingo.Core.Service
             if (listRatio >= 0.5)
             {
                 Logger.Debug($"🎯 v3預檢查：列表項目識別 (列表比例:{listRatio:F2})");
+                Console.WriteLine("│ 🛤️ 通道選擇：列表項目識別 (List Item Detection)");
+                Console.WriteLine($"│ 📋 選擇原因：{listIndicatorCount}/{column.Count}行含列表符號 (比例:{listRatio:F2} ≥ 0.5)，啟用基於縮排和符號的快速分割");
+                Console.WriteLine($"└─────────────────────────────────────────\n");
                 return ContentType.ListItems;
             }
 
             // 3. 連續文本處理 (Continuous Text Handling)
             Logger.Debug("🎯 v3預檢查：連續文本處理");
+            Console.WriteLine("│ 🛤️ 通道選擇：連續文本處理 (Continuous Text Handling)");
+            Console.WriteLine($"│ 📋 選擇原因：{listIndicatorCount}/{column.Count}行含列表符號 (比例:{listRatio:F2} < 0.5)，啟用雙峰驅動多指標加權決策系統");
+            Console.WriteLine($"└─────────────────────────────────────────\n");
             return ContentType.ContinuousText;
         }
 
@@ -1394,9 +1423,11 @@ namespace MonLingo.Core.Service
         private List<LayoutParagraph> HandleSingleLineShortcutV3(List<LayoutLine> column, Color columnColor, string columnKey)
         {
             Logger.Debug("⚡ v3單行捷徑：跳過所有分割邏輯");
+            Console.WriteLine("⚡ 【單行捷徑執行】跳過所有分割邏輯，直接創建段落");
             
             var paragraph = CreateParagraphV3(column, 0, columnColor);
             DebugStage3V3(columnKey, 0, column[0], 0, "單行捷徑");
+            Console.WriteLine($"   📄 創建段落0：「{column[0].Text.Substring(0, Math.Min(30, column[0].Text.Length))}...」");
             
             return new List<LayoutParagraph> { paragraph };
         }
@@ -1407,6 +1438,7 @@ namespace MonLingo.Core.Service
         private List<LayoutParagraph> HandleListItemDetectionV3(List<LayoutLine> column, Color columnColor, string columnKey)
         {
             Logger.Debug("📋 v3列表檢測：基於縮排和列表符號的快速分割");
+            Console.WriteLine("📋 【列表項目執行】基於縮排和符號的快速分割，每行獨立段落");
             
             // 統計列表指示符數量用於調試
             int listIndicatorCount = column.Count(line => IsListIndicator(line.Text));
@@ -1421,9 +1453,12 @@ namespace MonLingo.Core.Service
                 var paragraph = CreateParagraphV3(singleLineList, i, columnColor);
                 paragraphs.Add(paragraph);
                 
+                string indicator = IsListIndicator(column[i].Text.Trim()) ? "✓列表符號" : "✗無符號";
                 DebugStage3V3(columnKey, i, column[i], i, "列表項目分割");
+                Console.WriteLine($"   📄 創建段落{i}：{indicator} 「{column[i].Text.Substring(0, Math.Min(30, column[i].Text.Length))}...」");
             }
             
+            Console.WriteLine($"📋 【列表分割完成】總計{paragraphs.Count}個段落 (每行1個段落)");
             return paragraphs;
         }
 
@@ -1438,46 +1473,203 @@ namespace MonLingo.Core.Service
             // 添加內容類型調試信息
             DebugStage3ContentType(columnKey, ContentType.ContinuousText, column.Count);
 
-            // v3步驟二：計算標準行距 (Calculate Standard Line Spacing)
-            double standardLineSpacing = CalculateStandardLineSpacingV3(column, columnKey);
-            Logger.Debug($"📏 v3標準行距：{standardLineSpacing:F1}px (中位數)");
-
-            // v3步驟三：多指標加權決策系統 (Multi-Indicator Weighted System)
-            return ApplyWeightedDecisionSystemV3(column, standardLineSpacing, columnColor, columnKey);
-        }        /// <summary>
-        /// v3步驟二：計算標準行距 (Calculate Standard Line Spacing)
-        /// 使用中位數計算標準行內間距，排除極端大間距的干擾
-        /// </summary>
-        private double CalculateStandardLineSpacingV3(List<LayoutLine> column, string columnKey = "未知欄位")
-        {
-            if (column.Count < 2) return 20.0; // 默認值
-
-            var spacings = new List<double>();
+            // v3.1步驟二：雙峰驅動標準行距計算模型 (Bi-Peak Driven Standard Line Spacing)
+            var biPeakModel = CalculateBiPeakDrivenLineSpacingV31(column, columnKey);
+            Logger.Debug($"📏 v3.1雙峰模型：合併峰值={biPeakModel.PeakMerge:F1}px，分割峰值={biPeakModel.PeakSplit:F1}px");
             
-            // 計算所有相鄰行的垂直間距
+            Console.WriteLine($"┌─ 【雙峰模型分析結果】 ─────────────────────");
+            Console.WriteLine($"│ 📏 合併峰值：{biPeakModel.PeakMerge:F1}px (段落內間距標準)");
+            Console.WriteLine($"│ 📏 分割峰值：{biPeakModel.PeakSplit:F1}px (段落間間距標準)");
+            Console.WriteLine($"│ 📏 容差範圍：±{biPeakModel.Tolerance:F1}px");
+            Console.WriteLine($"│ 🔍 合併區間：[0, {(biPeakModel.PeakMerge + biPeakModel.Tolerance):F1}]px");
+            Console.WriteLine($"│ 🔍 模糊區間：({(biPeakModel.PeakMerge + biPeakModel.Tolerance):F1}, {(biPeakModel.PeakSplit - biPeakModel.Tolerance):F1})px");
+            Console.WriteLine($"│ 🔍 分割區間：[{(biPeakModel.PeakSplit - biPeakModel.Tolerance):F1}, ∞)px");
+            Console.WriteLine($"└─────────────────────────────────────────");
+
+            // v3.1步驟三：雙峰驅動的多指標加權決策系統 (暫時使用舊方法，稍後更新)
+            return ApplyWeightedDecisionSystemV31(column, biPeakModel, columnColor, columnKey);
+        }        /// <summary>
+        /// v3.1步驟二：穩健的雙峰驅動標準行距計算模型 (Robust Bi-Peak Driven Standard Line Spacing)
+        /// 解決多峰分佈問題，識別 peak_merge 和 peak_split，定義三個決策區間
+        /// </summary>
+        private BiPeakSpacingModel CalculateBiPeakDrivenLineSpacingV31(List<LayoutLine> column, string columnKey = "未知欄位")
+        {
+            Logger.Debug($"    🔬 [v3.1 雙峰驅動模型] 開始分析欄位 '{columnKey}' (共{column.Count}行)");
+            
+            if (column.Count < 2) 
+            {
+                Logger.Debug($"    ⚠️  行數不足，啟用回退機制");
+                var fallbackModel = new BiPeakSpacingModel
+                {
+                    PeakMerge = 20.0,
+                    PeakSplit = 36.0,  // 20.0 * 1.8
+                    Tolerance = 4.0,   // 20.0 * 0.2
+                    MergeZone = new Range { Min = 0, Max = 24.0 },
+                    SplitZone = new Range { Min = 32.0, Max = double.MaxValue },
+                    AmbiguityZone = new Range { Min = 24.0, Max = 32.0 },
+                    TotalSpacings = 0
+                };
+                DebugBiPeakModel(columnKey, fallbackModel, new List<double>());
+                return fallbackModel;
+            }
+
+            // === 步驟 2.1：多峰識別與關鍵角色分配 ===
+            
+            // 1. 收集與排序所有相鄰行間距
+            Logger.Debug($"    📊 步驟2.1-1：收集相鄰行間距");
+            var spacings = new List<double>();
             for (int i = 1; i < column.Count; i++)
             {
                 var prevLine = column[i - 1];
                 var currentLine = column[i];
-                
-                // v3標準：計算真實的垂直間距
-                double spacing = Math.Max(0, currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom);
+                // v3.1改進：保留負間距（重疊），讓雙峰模型感知重疊特徵
+                double spacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
                 spacings.Add(spacing);
+                Logger.Debug($"      行{i-1}→行{i}: 間距={spacing:F1}px{(spacing < 0 ? "(重疊)" : "")}");
+            }
+            spacings.Sort();
+            Logger.Debug($"    📈 排序後間距: [{string.Join(", ", spacings.Select(s => s.ToString("F1")))}]");
+
+            // 2. 基於密度的一維聚類
+            double avgFontHeight = column.Average(line => line.BoundingBox.Height);
+            double clusterThreshold = avgFontHeight * 0.25; // 動態聚類閾值
+            Logger.Debug($"    🎯 步驟2.1-2：聚類分析 (平均字體高度={avgFontHeight:F1}px, 聚類閾值={clusterThreshold:F1}px)");
+
+            var clusters = PerformOneDimensionalClustering(spacings, clusterThreshold);
+            Logger.Debug($"    📦 發現{clusters.Count}個聚類:");
+            for (int i = 0; i < clusters.Count; i++)
+            {
+                var cluster = clusters[i];
+                Logger.Debug($"      簇{i+1}: 成員數={cluster.Count}, 範圍=[{cluster.Min():F1}-{cluster.Max():F1}], 均值={cluster.Average():F1}");
+            }
+            
+            // 3. 關鍵峰值定義 (文檔要求：過濾成員數 ≤ 1 的噪音簇)
+            Logger.Debug($"    🏔️  步驟2.1-3：關鍵峰值定義");
+            var validPeaks = clusters
+                .Where(cluster => cluster.Count > 1) // 過濾成員數 ≤ 1 的噪音簇（文檔規格修正）
+                .Select(cluster => cluster.Average()) // 計算簇的均值
+                .OrderBy(peak => peak)
+                .ToList();
+            Logger.Debug($"    ✅ 有效峰值數量: {validPeaks.Count}, 值: [{string.Join(", ", validPeaks.Select(p => p.ToString("F1")))}]");
+
+            
+            // 4. 回退機制
+            double peakMerge, peakSplit;
+            
+            if (validPeaks.Count == 0)
+            {
+                // 回退機制：找不到有效峰值（文檔規格）
+                Logger.Debug($"    🔄 回退機制：找不到有效峰值，使用平均字體高度");
+                peakMerge = avgFontHeight;
+                peakSplit = peakMerge * 1.8;
+                Logger.Debug($"    📐 回退值: peak_merge={peakMerge:F1}, peak_split={peakSplit:F1}");
+            }
+            else if (validPeaks.Count == 1)
+            {
+                // 回退機制：只有一個有效峰值（文檔規格）
+                Logger.Debug($"    🔄 回退機制：只有一個有效峰值");
+                peakMerge = validPeaks[0];
+                peakSplit = peakMerge * 1.8;
+                Logger.Debug($"    📐 單峰值: peak_merge={peakMerge:F1}, peak_split={peakSplit:F1} (經驗係數1.8)");
+            }
+            else
+            {
+                // 正常情況：定義關鍵峰值（文檔規格）
+                Logger.Debug($"    🎯 正常情況：多峰值模式");
+                peakMerge = validPeaks.First();  // 最小峰值 = 強烈合併信號
+                peakSplit = validPeaks.Last();   // 最大峰值 = 強烈分割信號
+                Logger.Debug($"    🔗 peak_merge={peakMerge:F1} (最小峰值，段落內部標準行距)");
+                Logger.Debug($"    ✂️  peak_split={peakSplit:F1} (最大峰值，段落之間間距)");
             }
 
-            // v3核心：使用中位數作為代表值，排除異常大間距的干擾
-            spacings.Sort();
-            double median = spacings.Count % 2 == 0
-                ? (spacings[spacings.Count / 2 - 1] + spacings[spacings.Count / 2]) / 2.0
-                : spacings[spacings.Count / 2];
-                
-            // 添加標準行距計算的調試信息
-            double minSpacing = spacings.Count > 0 ? spacings[0] : 0;
-            double maxSpacing = spacings.Count > 0 ? spacings[spacings.Count - 1] : 0;
-            DebugStage3StandardSpacing("未知欄位", spacings.Count, median, minSpacing, maxSpacing);
+            // === 步驟 2.2：定義決策區間 ===
+            Logger.Debug($"    🎪 步驟2.2：定義決策區間");
+            double tolerance = peakMerge * 0.2;
+            Logger.Debug($"    📏 容差範圍: {tolerance:F1}px (peak_merge * 0.2)");
+            
+            // 三個決策區間（文檔規格）
+            var mergeZoneMax = peakMerge + tolerance;
+            var splitZoneMin = peakSplit - tolerance;
+            
+            Logger.Debug($"    🟢 合併區間: [0, {mergeZoneMax:F1}] - 段落內部模式");
+            Logger.Debug($"    🔴 分割區間: [{splitZoneMin:F1}, ∞) - 段落之間模式");
+            Logger.Debug($"    🟡 模糊區間: ({mergeZoneMax:F1}, {splitZoneMin:F1}) - 交由其他指標決策");
+            
+            var model = new BiPeakSpacingModel
+            {
+                PeakMerge = peakMerge,
+                PeakSplit = peakSplit,
+                Tolerance = tolerance,
+                MergeZone = new Range { Min = 0, Max = mergeZoneMax },
+                SplitZone = new Range { Min = splitZoneMin, Max = double.MaxValue },
+                AmbiguityZone = new Range { Min = mergeZoneMax, Max = splitZoneMin },
+                TotalSpacings = spacings.Count,
+                ValidPeaks = validPeaks.Count,
+                ClusterThreshold = clusterThreshold
+            };
 
-            Logger.Debug($"📊 v3間距分析：共{spacings.Count}個間距值，中位數={median:F1}px");
-            return Math.Max(1.0, median); // 確保不為0
+            DebugBiPeakModel(columnKey, model, spacings);
+            Logger.Debug($"    ✅ 雙峰驅動模型v3.1建立完成");
+            return model;
+        }
+
+        /// <summary>
+        /// 基於密度的一維聚類算法
+        /// </summary>
+        private List<List<double>> PerformOneDimensionalClustering(List<double> sortedSpacings, double threshold)
+        {
+            var clusters = new List<List<double>>();
+            if (sortedSpacings.Count == 0) return clusters;
+
+            var currentCluster = new List<double> { sortedSpacings[0] };
+            
+            for (int i = 1; i < sortedSpacings.Count; i++)
+            {
+                double diff = sortedSpacings[i] - sortedSpacings[i - 1];
+                
+                if (diff <= threshold)
+                {
+                    // 屬於同一簇
+                    currentCluster.Add(sortedSpacings[i]);
+                }
+                else
+                {
+                    // 創建新簇
+                    clusters.Add(currentCluster);
+                    currentCluster = new List<double> { sortedSpacings[i] };
+                }
+            }
+            
+            // 添加最後一個簇
+            clusters.Add(currentCluster);
+            return clusters;
+        }
+
+        /// <summary>
+        /// 雙峰間距模型數據結構
+        /// </summary>
+        public class BiPeakSpacingModel
+        {
+            public double PeakMerge { get; set; }     // 合併峰值
+            public double PeakSplit { get; set; }     // 分割峰值
+            public double Tolerance { get; set; }     // 容差
+            public Range MergeZone { get; set; }      // 合併區間
+            public Range SplitZone { get; set; }      // 分割區間
+            public Range AmbiguityZone { get; set; }  // 模糊區間
+            public int TotalSpacings { get; set; }    // 總間距數量
+            public int ValidPeaks { get; set; }       // 有效峰值數量
+            public double ClusterThreshold { get; set; } // 聚類閾值
+        }
+
+        public class Range
+        {
+            public double Min { get; set; }
+            public double Max { get; set; }
+            
+            public bool Contains(double value)
+            {
+                return value >= Min && value <= Max;
+            }
         }
 
         /// <summary>
@@ -1513,7 +1705,10 @@ namespace MonLingo.Core.Service
                 double alignmentPenalty = CalculateAlignmentStylePenaltyV3(previousLine, currentLine);
                 double overlapBonus = CalculateOverlapBonusV3(previousLine, currentLine);
                 
-                DebugStage3WeightedScore(i, relativeDistanceScore, fontHeightPenalty, alignmentPenalty, overlapBonus, mergeScore, adaptiveThreshold, mergeScore > adaptiveThreshold);
+                // v3.1改進：計算真實行距（包含負值重疊）
+                double actualSpacing = currentLine.BoundingBox.Top - previousLine.BoundingBox.Bottom;
+                
+                DebugStage3WeightedScore(i, relativeDistanceScore, fontHeightPenalty, alignmentPenalty, overlapBonus, mergeScore, adaptiveThreshold, mergeScore > adaptiveThreshold, actualSpacing, standardLineSpacing);
                 
                 if (mergeScore > adaptiveThreshold)
                 {
@@ -1547,6 +1742,124 @@ namespace MonLingo.Core.Service
             Logger.Debug($"🎯 v3決策完成：{paragraphs.Count} 個段落");
             Console.WriteLine($"🎯 v3段落分析完成：{paragraphs.Count} 個段落");
             return paragraphs;
+        }
+
+        /// <summary>
+        /// v3.1步驟三：雙峰驅動的多指標加權決策系統 (Bi-Peak Driven Multi-Indicator Weighted System)
+        /// 基於雙峰模型計算合併分數，支持三區間決策邏輯
+        /// </summary>
+        private List<LayoutParagraph> ApplyWeightedDecisionSystemV31(List<LayoutLine> column, BiPeakSpacingModel biPeakModel, Color columnColor, string columnKey)
+        {
+            // v3.1新特性：基於雙峰模型的自適應閾值系統
+            double adaptiveThreshold = CalculateAdaptiveThresholdV31(column, biPeakModel, columnKey);
+            
+            var paragraphs = new List<LayoutParagraph>();
+            var currentParagraph = new List<LayoutLine> { column[0] };
+            
+            Logger.Debug($"🧮 v3.1雙峰加權系統：自適應閾值={adaptiveThreshold:F2}");
+            Console.WriteLine($"🧮 v3.1雙峰自適應閾值系統：動態閾值={adaptiveThreshold:F2} (基於雙峰模型)");
+            DebugStage3V3(columnKey, 0, column[0], 0, "段落起始");
+
+            for (int i = 1; i < column.Count; i++)
+            {
+                var currentLine = column[i];
+                var previousLine = column[i - 1];
+                
+                Console.WriteLine($"\n┌─ 【行{i}分析】 ─────────────────────────────");
+                
+                // 使用v3.1雙峰驅動合併分數計算
+                double mergeScore = CalculateMergeScoreV31(previousLine, currentLine, biPeakModel);
+                
+                Logger.Debug($"📊 v3.1分數：行{i} 「{currentLine.Text.Substring(0, Math.Min(20, currentLine.Text.Length))}...」 → {mergeScore:F2}");
+                Console.WriteLine($"│ 📊 最終合併分數：{mergeScore:F2} (閾值:{adaptiveThreshold:F2})");
+                
+                if (mergeScore > adaptiveThreshold)
+                {
+                    // 合併到當前段落
+                    currentParagraph.Add(currentLine);
+                    DebugStage3V3(columnKey, i, currentLine, paragraphs.Count, $"合併-分數{mergeScore:F2}");
+                    Console.WriteLine($"│ 🔗 決策結果：行{i} 合併到段落{paragraphs.Count} (分數{mergeScore:F2} > {adaptiveThreshold:F2})");
+                    Console.WriteLine($"└─────────────────────────────────────────\n");
+                }
+                else
+                {
+                    // 創建新段落
+                    Console.WriteLine($"│ ✂️ 決策結果：行{i} 分割 (分數{mergeScore:F2} ≤ {adaptiveThreshold:F2})，創建段落{paragraphs.Count + 1}");
+                    Console.WriteLine($"└─────────────────────────────────────────\n");
+                    
+                    if (currentParagraph.Count > 0)
+                    {
+                        paragraphs.Add(CreateParagraphV3(currentParagraph, paragraphs.Count, columnColor));
+                        Logger.Debug($"✂️ v3.1分割：分數{mergeScore:F2} ≤ {adaptiveThreshold:F2}，創建段落{paragraphs.Count}");
+                        DebugStage3V3(columnKey, i-1, previousLine, paragraphs.Count-1, $"段落結束-{currentParagraph.Count}行");
+                    }
+                    currentParagraph = new List<LayoutLine> { currentLine };
+                    DebugStage3V3(columnKey, i, currentLine, paragraphs.Count, $"新段落-合併分數{mergeScore:F2}");
+                }
+            }
+            
+            // 處理最後一個段落
+            if (currentParagraph.Count > 0)
+            {
+                paragraphs.Add(CreateParagraphV3(currentParagraph, paragraphs.Count, columnColor));
+                DebugStage3V3(columnKey, column.Count-1, column[column.Count-1], paragraphs.Count-1, $"最終段落-{currentParagraph.Count}行");
+            }
+
+            Logger.Debug($"🎯 v3.1決策完成：{paragraphs.Count} 個段落");
+            Console.WriteLine($"🎯 v3.1雙峰段落分析完成：{paragraphs.Count} 個段落");
+            return paragraphs;
+        }
+
+        /// <summary>
+        /// v3.1基於雙峰模型的自適應閾值計算
+        /// 根據雙峰特徵動態調整合併決策閾值
+        /// </summary>
+        private double CalculateAdaptiveThresholdV31(List<LayoutLine> column, BiPeakSpacingModel biPeakModel, string columnKey)
+        {
+            // v3.1改進：基於合併峰值動態調整基礎閾值，避免小間距文檔閾值過高
+            double baseThreshold = Math.Min(2.0, Math.Max(1.0, biPeakModel.PeakMerge * 1.2));
+            
+            Logger.Debug($"    🎯 v3.1自適應閾值計算：基於雙峰模型 (動態基礎閾值={baseThreshold:F2})");
+            
+            // 1. 雙峰分離度調整 - 雙峰差距越大，需要更保守的合併策略
+            double peakSeparation = biPeakModel.PeakSplit - biPeakModel.PeakMerge;
+            double separationFactor = Math.Min(peakSeparation / biPeakModel.PeakMerge, 1.0) * 0.3; // 降低影響權重
+            Logger.Debug($"      📏 峰值分離度：{peakSeparation:F1}px → 調整因子{separationFactor:F2}");
+            
+            // 2. 峰值可信度調整 - 基於有效峰值數量和間距數量
+            double confidenceFactor = 0.0;
+            if (biPeakModel.ValidPeaks >= 2 && biPeakModel.TotalSpacings >= 3)
+            {
+                // 雙峰模型可信度高，可以更激進的合併
+                confidenceFactor = -0.3;
+                Logger.Debug($"      ✅ 高可信度：有效峰值{biPeakModel.ValidPeaks}個，間距{biPeakModel.TotalSpacings}個 → 調整{confidenceFactor:F1}");
+            }
+            else
+            {
+                // 雙峰模型可信度低，採用保守策略
+                confidenceFactor = 0.2;
+                Logger.Debug($"      ⚠️  低可信度：有效峰值{biPeakModel.ValidPeaks}個，間距{biPeakModel.TotalSpacings}個 → 調整{confidenceFactor:F1}");
+            }
+            
+            // 3. 字體一致性調整
+            var lineHeights = column.Select(line => (double)line.LineHeight).ToArray();
+            double heightStdDev = CalculateStandardDeviation(lineHeights);
+            double avgLineHeight = column.Average(line => line.LineHeight);
+            double fontConsistencyFactor = heightStdDev < 0.1 * avgLineHeight ? -0.2 : 0.1;
+            Logger.Debug($"      🔤 字體一致性：標準差{heightStdDev:F1}px，平均高度{avgLineHeight:F1}px → 調整{fontConsistencyFactor:F1}");
+            
+            // 4. 行數密度調整 - 行數多時需要更謹慎
+            double densityFactor = Math.Min((column.Count - 2) * 0.05, 0.3);
+            Logger.Debug($"      📊 行數密度：{column.Count}行 → 調整{densityFactor:F2}");
+            
+            // 計算最終閾值
+            double adaptiveThreshold = baseThreshold + separationFactor + confidenceFactor + fontConsistencyFactor + densityFactor;
+            adaptiveThreshold = Math.Max(0.8, Math.Min(adaptiveThreshold, 3.5)); // 降低最低閾值，適應緊密間距文檔
+            
+            Logger.Debug($"    🧮 v3.1閾值計算：基礎{baseThreshold:F2} + 分離{separationFactor:F2} + 可信{confidenceFactor:F1} + 字體{fontConsistencyFactor:F1} + 密度{densityFactor:F2} = {adaptiveThreshold:F2}");
+            Console.WriteLine($"🧮 v3.1雙峰自適應閾值：{adaptiveThreshold:F2} (動態基礎{baseThreshold:F2} + 雙峰調整{(separationFactor + confidenceFactor):F2} + 內容調整{(fontConsistencyFactor + densityFactor):F2})");
+            
+            return adaptiveThreshold;
         }
 
         /// <summary>
@@ -1593,8 +1906,120 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
+        /// 雙峰驅動距離得分計算 (v3.1 新方法)
+        /// 基於步驟二識別的 peak_merge 和 peak_split，使用非線性決策函數
+        /// </summary>
+        private double CalculateBiPeakDistanceScoreV31(LayoutLine prevLine, LayoutLine currentLine, BiPeakSpacingModel biPeakModel)
+        {
+            // v3.1改進：計算真實間距（保留負值重疊信息）
+            double currentSpacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
+            
+            // 獲取雙峰模型參數
+            double peakMerge = biPeakModel.PeakMerge;
+            double peakSplit = biPeakModel.PeakSplit;
+            double tolerance = biPeakModel.Tolerance;
+            
+            Logger.Debug($"      🎯 雙峰距離分析：間距={currentSpacing:F1}, peak_merge={peakMerge:F1}, peak_split={peakSplit:F1}, 容差={tolerance:F1}");
+            Console.WriteLine($"│ ⓶ 雙峰分析：合併峰={peakMerge:F1}px, 分割峰={peakSplit:F1}px, 容差={tolerance:F1}px");
+            
+            // 1. 強分割信號：落入分割區間
+            if (currentSpacing >= peakSplit - tolerance)
+            {
+                Logger.Debug($"      🔴 分割區間：{currentSpacing:F1} ≥ {(peakSplit - tolerance):F1} → -10.0分（強制分割）");
+                Console.WriteLine($"│    🔴 分割區間：間距{currentSpacing:F1}px ≥ 分割閾值{(peakSplit - tolerance):F1}px → 強制分割(-10.0分)");
+                return -10.0;  // 給予「否決分」，強制分割
+            }
+            
+            // 2. 強合併信號：落入合併區間
+            if (currentSpacing <= peakMerge + tolerance)
+            {
+                // v3.1改進：理想間距獲得最高分數
+                double distance = Math.Abs(currentSpacing - peakMerge);
+                double toleranceRange = tolerance;
+                
+                // 距離合併峰值越近，分數越高（最高4.0分）
+                double normalizedDistance = Math.Min(1.0, distance / toleranceRange);
+                double finalScore = 4.0 - (normalizedDistance * 1.0); // 4.0 → 3.0分範圍
+                
+                // 特殊處理：0.0px間距（完美貼合）給予額外獎勵
+                if (currentSpacing == 0.0)
+                {
+                    finalScore = Math.Max(finalScore, 4.5); // 確保0.0px獲得最高分
+                }
+                
+                string spacingType = currentSpacing < 0 ? "(重疊)" : currentSpacing == 0 ? "(完美貼合)" : "";
+                Logger.Debug($"      🟢 合併區間：{currentSpacing:F1}{spacingType} ≤ {(peakMerge + tolerance):F1} → {finalScore:F2}分（強合併信號）");
+                Console.WriteLine($"│    🟢 合併區間：間距{currentSpacing:F1}px{spacingType} ≤ 合併閾值{(peakMerge + tolerance):F1}px → 強合併信號({finalScore:F2}分)");
+                return finalScore;
+            }
+            
+            // 3. 模糊區間處理 - v3.1改進：基於相對距離的公平評分算法
+            // 間距落在兩個峰值之間，根據相對於兩個峰值的距離比例給予更公平的分數
+            else
+            {
+                // 計算間距到兩個峰值的距離
+                double distanceFromMerge = Math.Abs(currentSpacing - peakMerge);
+                double distanceFromSplit = Math.Abs(currentSpacing - peakSplit);
+                
+                // v3.1公平評分改進：使用相對距離比例而非絕對位置
+                // 相對合併傾向 = 距離分割峰值的距離 / (距離合併峰值 + 距離分割峰值)
+                // 比例越高(更接近合併峰值)，分數越高
+                double totalDistance = distanceFromMerge + distanceFromSplit;
+                double mergeAffinity = totalDistance > 0 ? distanceFromSplit / totalDistance : 0.5;
+                
+                // 基於相對位置的公平評分：更接近哪個峰值就更偏向哪種決策
+                // 分數範圍：3.5分(極接近合併峰) → 0.5分(極接近分割峰)
+                double ambiguityScore = 0.5 + (mergeAffinity * 3.0);
+                
+                Logger.Debug($"      🟡 模糊區間公平評分：{currentSpacing:F1}px，距合併峰{distanceFromMerge:F1}px，距分割峰{distanceFromSplit:F1}px，合併傾向{mergeAffinity:F2} → {ambiguityScore:F2}分");
+                Console.WriteLine($"│    🟡 模糊區間：間距{currentSpacing:F1}px在[{(peakMerge + tolerance):F1}, {(peakSplit - tolerance):F1}]，距合併峰{distanceFromMerge:F1}px，距分割峰{distanceFromSplit:F1}px → 公平分數({ambiguityScore:F2}分)");
+                return ambiguityScore;
+            }
+        }
+
+        /// <summary>
+        /// v3.1雙峰驅動合併分數計算模型 (文檔規格實現)
+        /// 合併分數 = 雙峰驅動距離得分 - 字體高度懲罰 - 對齊風格懲罰 + 重疊獎勵得分
+        /// </summary>
+        private double CalculateMergeScoreV31(LayoutLine prevLine, LayoutLine currentLine, BiPeakSpacingModel biPeakModel)
+        {
+            // 從基礎分開始計算
+            double mergeScore = 0.0;
+            
+            // 計算實際間距用於調試
+            double actualSpacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
+            string spacingInfo = actualSpacing < 0 ? $"間距={actualSpacing:F1}px(重疊)" : $"間距={actualSpacing:F1}px";
+            
+            Console.WriteLine($"│ ⓵ 實際間距：{spacingInfo}");
+            
+            // 1. 雙峰驅動距離得分 (Bi-Peak Driven Distance Score) - 主要得分項
+            double biPeakDistanceScore = CalculateBiPeakDistanceScoreV31(prevLine, currentLine, biPeakModel);
+            mergeScore += biPeakDistanceScore;
+            
+            // 2. 字體高度懲罰 (Font Height Penalty) - 漸進式容錯模型
+            double fontHeightPenalty = CalculateFontHeightPenaltyV3(prevLine, currentLine);
+            mergeScore -= fontHeightPenalty;
+            Console.WriteLine($"│ ⓷ 字體懲罰：-{fontHeightPenalty:F2} (高度差異)");
+            
+            // 3. 對齊風格懲罰 (Alignment Style Penalty)
+            double alignmentStylePenalty = CalculateAlignmentStylePenaltyV3(prevLine, currentLine);
+            mergeScore -= alignmentStylePenalty;
+            Console.WriteLine($"│ ⓸ 對齊懲罰：-{alignmentStylePenalty:F2} (風格差異)");
+            
+            // 4. 重疊獎勵得分 (Overlap Bonus Score)
+            double overlapBonus = CalculateOverlapBonusV3(prevLine, currentLine);
+            mergeScore += overlapBonus;
+            Console.WriteLine($"│ ⓹ 重疊獎勵：+{overlapBonus:F2} (重疊加分)");
+            
+            Logger.Debug($"   🧮 v3.1雙峰分數明細：雙峰距離{biPeakDistanceScore:F2} - 字體懲罰{fontHeightPenalty:F2} - 對齊懲罰{alignmentStylePenalty:F2} + 重疊獎勵{overlapBonus:F2} = {mergeScore:F2}");
+            Console.WriteLine($"│ ⓺ 分數計算：{biPeakDistanceScore:F2} - {fontHeightPenalty:F2} - {alignmentStylePenalty:F2} + {overlapBonus:F2} = {mergeScore:F2}");
+            
+            return mergeScore;
+        }
+
+        /// <summary>
         /// v3合併分數計算模型 (加減分混合公式)
-        /// 合併分數 = 相對距離得分 - 字體高度懲罰 - 對齊風格懲罰 + 重疊獎勵得分
+        /// 合併分數 = 雙峰驅動距離得分 - 字體高度懲罰 - 對齊風格懲罰 + 重疊獎勵得分
         /// </summary>
         private double CalculateMergeScoreV3(LayoutLine prevLine, LayoutLine currentLine, double standardLineSpacing)
         {
@@ -1639,32 +2064,46 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 2. 字體高度懲罰 (Font Height Penalty)
-        /// ≤5%差異: 0懲罰, ≤15%差異: 0.3懲罰, >15%差異: 0.5懲罰
+        /// 2. 字體高度懲罰 (Font Height Penalty) - v3.1漸進式容錯模型
+        /// 採用漸進式懲罰機制，考慮 OCR 框架誤差與真實字體差異
         /// </summary>
         private double CalculateFontHeightPenaltyV3(LayoutLine prevLine, LayoutLine currentLine)
         {
-            double heightDiff = Math.Abs(prevLine.LineHeight - currentLine.LineHeight);
-            double avgHeight = (prevLine.LineHeight + currentLine.LineHeight) / 2.0;
+            double height1 = prevLine.LineHeight;
+            double height2 = currentLine.LineHeight;
             
-            if (avgHeight == 0) return 0.0;
+            // 計算相對高度差異百分比
+            double heightDiff = Math.Abs(height1 - height2) / Math.Min(height1, height2) * 100;
             
-            double heightDiffRatio = heightDiff / avgHeight;
-            
-            if (heightDiffRatio <= 0.05) // ≤5%
+            if (heightDiff <= 10.0) // ≤10% - OCR 微小誤差容錯範圍
             {
-                Logger.Debug($"      📏 字體高度懲罰：差異{heightDiffRatio:P1} ≤ 5% → 0懲罰");
+                Logger.Debug($"      📏 字體高度懲罰v3.1：差異{heightDiff:F1}% ≤ 10% → 0.0懲罰 (OCR容錯)");
                 return 0.0;
             }
-            else if (heightDiffRatio <= 0.15) // ≤15%
+            else if (heightDiff <= 25.0) // 10-25% - 輕微差異，可能是同字體的 OCR 變異
             {
-                Logger.Debug($"      📏 字體高度懲罰：差異{heightDiffRatio:P1} ≤ 15% → 0.3懲罰");
-                return 0.3;
+                Logger.Debug($"      📏 字體高度懲罰v3.1：差異{heightDiff:F1}% ≤ 25% → 0.1懲罰 (同字體變異)");
+                return 0.1;
             }
-            else // >15%
+            else if (heightDiff <= 50.0) // 25-50% - 中等差異，可能是相鄰字體級別
             {
-                Logger.Debug($"      📏 字體高度懲罰：差異{heightDiffRatio:P1} > 15% → 0.5懲罰");
-                return 0.5;
+                Logger.Debug($"      📏 字體高度懲罰v3.1：差異{heightDiff:F1}% ≤ 50% → 0.4懲罰 (相鄰級別)");
+                return 0.4;
+            }
+            else if (heightDiff <= 80.0) // 50-80% - 顯著差異，不同字體級別
+            {
+                Logger.Debug($"      📏 字體高度懲罰v3.1：差異{heightDiff:F1}% ≤ 80% → 0.8懲罰 (不同級別)");
+                return 0.8;
+            }
+            else if (heightDiff <= 120.0) // 80-120% - 大幅差異，標題與正文級別
+            {
+                Logger.Debug($"      📏 字體高度懲罰v3.1：差異{heightDiff:F1}% ≤ 120% → 1.2懲罰 (標題級別)");
+                return 1.2;
+            }
+            else // >120% - 極大差異，強制分割級別
+            {
+                Logger.Debug($"      📏 字體高度懲罰v3.1：差異{heightDiff:F1}% > 120% → 2.0懲罰 (極端差異)");
+                return 2.0;
             }
         }
 
@@ -1693,20 +2132,22 @@ namespace MonLingo.Core.Service
 
         /// <summary>
         /// 4. 重疊獎勵得分 (Overlap Bonus Score)
-        /// 垂直重疊: 2.0分, 無重疊: 0分
+        /// 垂直重疊或完美貼合: 2.0分, 其他: 0分
+        /// v3.1改進: 0.0px間距也視為極強合併信號
         /// </summary>
         private double CalculateOverlapBonusV3(LayoutLine prevLine, LayoutLine currentLine)
         {
             double verticalDistance = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
             
-            if (verticalDistance < 0) // 發生重疊
+            if (verticalDistance <= 0) // 發生重疊或完美貼合
             {
-                Logger.Debug($"      📏 重疊獎勵：垂直距離{verticalDistance}px < 0 → 2.0分");
+                string type = verticalDistance < 0 ? "重疊" : "完美貼合";
+                Logger.Debug($"      📏 重疊獎勵：垂直距離{verticalDistance}px ≤ 0 → 2.0分({type})");
                 return 2.0;
             }
             else
             {
-                Logger.Debug($"      📏 重疊獎勵：垂直距離{verticalDistance}px ≥ 0 → 0分");
+                Logger.Debug($"      📏 重疊獎勵：垂直距離{verticalDistance}px > 0 → 0分");
                 return 0.0;
             }
         }
