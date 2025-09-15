@@ -29,11 +29,11 @@ namespace MonLingo.Core
                     return;
                 }
                 
-                // 檢查是否為 Phase 5 測試模式
+                // 檢查是否為 Phase 5 測試模式 (已移除)
                 if (args.Length > 0 && args[0] == "--phase5")
                 {
-                    // Phase 5 測試模式：運行 Phase 5 核心翻譯功能測試
-                    Phase5Program.Main(args).Wait();
+                    // Phase 5 測試模式已移除，顯示提示信息
+                    Console.WriteLine("Phase5測試程序已移除。請使用主程序進行測試。");
                     return;
                 }
 
