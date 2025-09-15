@@ -1545,22 +1545,36 @@ namespace MonLingo.Core.Service
             
             // 3. 關鍵峰值定義 (文檔要求：過濾成員數 ≤ 1 的噪音簇)
             Logger.Debug($"    🏔️  步驟2.1-3：關鍵峰值定義");
+            Console.WriteLine($"🔍 【噪音簇檢查】檢查{clusters.Count}個聚類是否有噪音簇 (成員數≤1)");
             
             // 識別並記錄噪音簇 (用戶要求：在調試輸出中記錄被過濾掉的噪音簇)
-            var noiseClusters = clusters.Where(cluster => cluster.Count <= 1).ToList();
-            if (noiseClusters.Any())
+            var filteredClusters = new List<int>();
+            for (int i = 0; i < clusters.Count; i++)
+            {
+                if (clusters[i].Count <= 1)
+                {
+                    filteredClusters.Add(i);
+                }
+            }
+            
+            if (filteredClusters.Any())
             {
                 Logger.Debug($"    🗑️  過濾噪音簇 (成員數≤1):");
-                for (int i = 0; i < noiseClusters.Count; i++)
+                Console.WriteLine($"🗑️  發現並過濾行距噪音簇：");
+                for (int i = 0; i < filteredClusters.Count; i++)
                 {
-                    var noise = noiseClusters[i];
-                    Logger.Debug($"      噪音簇{i+1}: 成員數={noise.Count}, 值={noise.Average():F1}px{(noise.Count == 1 ? " (單點噪音)" : "")}");
+                    int clusterIndex = filteredClusters[i];
+                    var noise = clusters[clusterIndex];
+                    string logMessage = $"      第{clusterIndex+1}個簇: 成員數={noise.Count}, 值={noise.Average():F1}px{(noise.Count == 1 ? " (單點噪音)" : "")}";
+                    Logger.Debug(logMessage);
+                    Console.WriteLine($"    {logMessage}");
                 }
-                Console.WriteLine($"🗑️  過濾了{noiseClusters.Count}個噪音簇 (單點間距值，不具統計意義)");
+                Console.WriteLine($"🗑️  總計過濾了{filteredClusters.Count}個噪音簇 (單點間距值，不具統計意義)");
             }
             else
             {
                 Logger.Debug($"    ✨ 無噪音簇需要過濾");
+                Console.WriteLine($"✨ 檢查完成：所有{clusters.Count}個聚類都是有效的 (成員數>1)，無噪音簇需要過濾");
             }
             
             var validPeaks = clusters
