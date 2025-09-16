@@ -1873,23 +1873,12 @@ namespace MonLingo.Core.Service
                 Logger.Debug($"      ⚠️  低可信度：有效峰值{biPeakModel.ValidPeaks}個，間距{biPeakModel.TotalSpacings}個 → 調整{confidenceFactor:F1}");
             }
             
-            // 3. 字體一致性調整
-            var lineHeights = column.Select(line => (double)line.LineHeight).ToArray();
-            double heightStdDev = CalculateStandardDeviation(lineHeights);
-            double avgLineHeight = column.Average(line => line.LineHeight);
-            double fontConsistencyFactor = heightStdDev < 0.1 * avgLineHeight ? -0.2 : 0.1;
-            Logger.Debug($"      🔤 字體一致性：標準差{heightStdDev:F1}px，平均高度{avgLineHeight:F1}px → 調整{fontConsistencyFactor:F1}");
-            
-            // 4. 行數密度調整 - 行數多時需要更謹慎
-            double densityFactor = Math.Min((column.Count - 2) * 0.05, 0.3);
-            Logger.Debug($"      📊 行數密度：{column.Count}行 → 調整{densityFactor:F2}");
-            
-            // 計算最終閾值
-            double adaptiveThreshold = baseThreshold + separationFactor + confidenceFactor + fontConsistencyFactor + densityFactor;
+            // 計算最終閾值 (移除了內容調整分：字體一致性和行數密度)
+            double adaptiveThreshold = baseThreshold + separationFactor + confidenceFactor;
             adaptiveThreshold = Math.Max(0.8, Math.Min(adaptiveThreshold, 3.5)); // 降低最低閾值，適應緊密間距文檔
             
-            Logger.Debug($"    🧮 v3.1閾值計算：基礎{baseThreshold:F2} + 分離{separationFactor:F2} + 可信{confidenceFactor:F1} + 字體{fontConsistencyFactor:F1} + 密度{densityFactor:F2} = {adaptiveThreshold:F2}");
-            Console.WriteLine($"🧮 v3.1雙峰自適應閾值：{adaptiveThreshold:F2} (動態基礎{baseThreshold:F2} + 雙峰調整{(separationFactor + confidenceFactor):F2} + 內容調整{(fontConsistencyFactor + densityFactor):F2})");
+            Logger.Debug($"    🧮 v3.1閾值計算：基礎{baseThreshold:F2} + 分離{separationFactor:F2} + 可信{confidenceFactor:F1} = {adaptiveThreshold:F2}");
+            Console.WriteLine($"🧮 v3.1雙峰自適應閾值：{adaptiveThreshold:F2} (動態基礎{baseThreshold:F2} + 雙峰調整{(separationFactor + confidenceFactor):F2})");
             
             return adaptiveThreshold;
         }
@@ -1897,44 +1886,23 @@ namespace MonLingo.Core.Service
         /// <summary>
         /// v3新特性：內容特徵自適應閾值計算系統
         /// 根據欄位的內容特徵動態調整合併閾值
+        /// (移除了內容調整分：字體一致性和行數密度)
         /// </summary>
         private double CalculateAdaptiveThresholdV3(List<LayoutLine> column, double standardLineSpacing, string columnKey)
         {
             const double BASE_THRESHOLD = 2.0; // 基礎閾值
             
-            // 1. 行數密度調整
-            double avgLineHeight = column.Average(line => line.LineHeight);
-            double lineDensityFactor = (column.Count / avgLineHeight) * 0.1;
-            lineDensityFactor = Math.Min(lineDensityFactor, 0.5); // 限制最大調整量
+            // 1. 標準行距調整 (主要調整因子)
+            double spacingFactor = standardLineSpacing > column.Average(line => line.LineHeight) ? 0.2 : -0.1; // 行距大時更保守合併
             
-            // 2. 字體一致性加成
-            var lineHeights = column.Select(line => (double)line.LineHeight).ToArray();
-            double heightStdDev = CalculateStandardDeviation(lineHeights);
-            double fontConsistencyBonus = heightStdDev < 0.1 * avgLineHeight ? 0.3 : 0.0;
-            
-            // 3. 標準行距調整
-            double spacingFactor = standardLineSpacing > avgLineHeight ? 0.2 : -0.1; // 行距大時更保守合併
-            
-            // 計算最終閾值
-            double adaptiveThreshold = BASE_THRESHOLD + lineDensityFactor + fontConsistencyBonus + spacingFactor;
+            // 計算最終閾值 (移除了內容調整分：字體一致性和行數密度)
+            double adaptiveThreshold = BASE_THRESHOLD + spacingFactor;
             adaptiveThreshold = Math.Max(1.5, Math.Min(adaptiveThreshold, 4.0)); // 限制在合理範圍內
             
-            Logger.Debug($"📊 v3自適應閾值計算：基礎{BASE_THRESHOLD} + 密度{lineDensityFactor:F2} + 一致性{fontConsistencyBonus:F1} + 行距{spacingFactor:F1} = {adaptiveThreshold:F2}");
-            Console.WriteLine($"📊 v3自適應閾值詳細：基礎{BASE_THRESHOLD} + 密度{lineDensityFactor:F2} + 一致性{fontConsistencyBonus:F1} + 行距{spacingFactor:F1} = {adaptiveThreshold:F2}");
+            Logger.Debug($"📊 v3自適應閾值計算：基礎{BASE_THRESHOLD} + 行距{spacingFactor:F1} = {adaptiveThreshold:F2}");
+            Console.WriteLine($"📊 v3自適應閾值詳細：基礎{BASE_THRESHOLD} + 行距{spacingFactor:F1} = {adaptiveThreshold:F2}");
             
             return adaptiveThreshold;
-        }
-
-        /// <summary>
-        /// 計算標準差的輔助方法
-        /// </summary>
-        private double CalculateStandardDeviation(double[] values)
-        {
-            if (values.Length == 0) return 0.0;
-            
-            double mean = values.Average();
-            double sumOfSquaredDifferences = values.Select(val => (val - mean) * (val - mean)).Sum();
-            return Math.Sqrt(sumOfSquaredDifferences / values.Length);
         }
 
         /// <summary>
