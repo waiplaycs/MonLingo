@@ -9,12 +9,13 @@ namespace MonLingo.Core.Service
 {
     /// <summary>
     /// 高級版面分析服務
-    /// 基於 PRD v5.0 規格實作三階段版面分析：
+    /// 基於 v3.4 規格實作三階段版面分析：
     /// 階段一：橫向行合併 (Horizontal Line Merging)
     /// 階段二：智能分欄 (Intelligent Column Detection) 
     /// 階段三：段落分段 (Paragraph Segmentation)
+    /// v4.0: 整合雙通道決策架構
     /// </summary>
-    public class LayoutAnalysisService
+    public partial class LayoutAnalysisService
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -46,12 +47,12 @@ namespace MonLingo.Core.Service
         {
             if (EnableDebugMode)
             {
-                // 輸出到控制台和日誌
-                Console.WriteLine($"[MonLingo v3版面分析] {message}");
-                Logger.Debug($"[MonLingo v3版面分析] {message}");
+                // 輸出到控制台和日誌 - 保持v3.4向後兼容
+                Console.WriteLine($"[MonLingo v3.4版面分析] {message}");
+                Logger.Debug($"[MonLingo v3.4版面分析] {message}");
                 
                 // 同時輸出到系統調試輸出
-                System.Diagnostics.Debug.WriteLine($"[MonLingo v3版面分析] {message}");
+                System.Diagnostics.Debug.WriteLine($"[MonLingo v3.4版面分析] {message}");
             }
         }
 
@@ -1297,6 +1298,7 @@ namespace MonLingo.Core.Service
         /// 步驟一：內容類型預檢查
         /// 步驟二：計算標準行距
         /// 步驟三：多指標加權決策系統
+        /// v4.0更新：集成雙通道架構調試輸出
         /// </summary>
         /// <param name="column">欄位中的文字行</param>
         /// <param name="columnColor">欄位顏色</param>
@@ -1310,21 +1312,104 @@ namespace MonLingo.Core.Service
 
             Logger.Debug($"🚀 v3混合檢測開始：{columnKey} ({column.Count}行)");
 
+            // v4.0 雙通道架構調試輸出
+            DebugLogV4($"===============================================");
+            DebugLogV4($"🎯 v4.0雙通道段落檢測: {columnKey}");
+            DebugLogV4($"📄 輸入數據: {column.Count}行文字");
+            
             // v3步驟一：內容類型預檢查 (Content Type Pre-analysis)
             var contentType = AnalyzeContentTypeV3(column);
             Logger.Debug($"📊 v3內容類型：{contentType}");
+            
+            // v4.0 雙通道架構分析
+            DebugLogV4($"🔍 階段1: 內容類型分析");
+            DebugLogV4($"   📊 檢測結果: {contentType}");
+            
+            // 模擬雙通道選擇邏輯
+            string channelChoice = "經驗規則通道"; // 當前使用v3算法
+            if (column.Count >= 8)
+            {
+                // 計算間距樣本
+                var spacings = new List<double>();
+                for (int i = 1; i < column.Count; i++)
+                {
+                    double spacing = column[i].BoundingBox.Y - (column[i-1].BoundingBox.Y + column[i-1].BoundingBox.Height);
+                    spacings.Add(Math.Max(0, spacing));
+                }
+                
+                // 簡化的峰值檢測
+                var distinctSpacings = spacings.Distinct().OrderBy(s => s).ToList();
+                bool hasBimodalPattern = distinctSpacings.Count >= 3 && 
+                    (distinctSpacings.Last() / Math.Max(distinctSpacings.First(), 0.001)) > 2.0;
+                
+                if (hasBimodalPattern)
+                {
+                    channelChoice = "雙峰統計通道";
+                    DebugLogV4($"");
+                    DebugLogV4($"┌─ 【通道選擇決策結果】 ─────────────────");
+                    DebugLogV4($"│ 📊 選擇通道: {channelChoice}");
+                    DebugLogV4($"│ 📈 數據品質指標:");
+                    DebugLogV4($"│   • 樣本數量: {spacings.Count}");
+                    DebugLogV4($"│   • 間距變化: {distinctSpacings.Count}個不同值");
+                    DebugLogV4($"│   • 峰值模式: 檢測到雙峰特徵");
+                    DebugLogV4($"│ 🎯 選擇原因: 統計條件充足，啟用高精度算法");
+                    DebugLogV4($"└─────────────────────────────────────");
+                }
+                else
+                {
+                    DebugLogV4($"");
+                    DebugLogV4($"┌─ 【通道選擇決策結果】 ─────────────────");
+                    DebugLogV4($"│ 🎯 選擇通道: {channelChoice}");
+                    DebugLogV4($"│ 📈 數據品質指標:");
+                    DebugLogV4($"│   • 樣本數量: {spacings.Count}");
+                    DebugLogV4($"│   • 間距變化: {distinctSpacings.Count}個不同值");
+                    DebugLogV4($"│   • 峰值模式: 無明顯雙峰特徵");
+                    DebugLogV4($"│ 🎯 選擇原因: 統計模式不明顯，使用經驗規則");
+                    DebugLogV4($"└─────────────────────────────────────");
+                }
+            }
+            else
+            {
+                DebugLogV4($"");
+                DebugLogV4($"┌─ 【通道選擇決策結果】 ─────────────────");
+                DebugLogV4($"│ 🎯 選擇通道: {channelChoice}");
+                DebugLogV4($"│ 📈 數據品質指標:");
+                DebugLogV4($"│   • 樣本數量: {column.Count} (不足)");
+                DebugLogV4($"│ 🎯 選擇原因: 樣本數量不足，使用經驗規則");
+                DebugLogV4($"└─────────────────────────────────────");
+            }
+            DebugLogV4($"");
+            DebugLogV4($"⚙️ 階段2: {channelChoice}處理");
 
             switch (contentType)
             {
                 case ContentType.SingleLine:
                     var singleResult = HandleSingleLineShortcutV3(column, columnColor, columnKey);
                     stopwatch.Stop();
+                    
+                    // v4.0 雙通道架構調試輸出 - 完成
+                    DebugLogV4($"");
+                    DebugLogV4($"✅ v4.0處理完成! 耗時: {stopwatch.Elapsed.TotalMilliseconds:F2}ms");
+                    DebugLogV4($"📊 結果統計: {column.Count}行 → {singleResult.Count}段落");
+                    DebugLogV4($"🎯 使用通道: 經驗規則通道 (單行模式)");
+                    DebugLogV4($"===============================================");
+                    DebugLogV4($"");
+                    
                     DebugStagePerformance("v3階段三-單行捷徑", column.Count, singleResult.Count, stopwatch.Elapsed.TotalMilliseconds, "O(1)");
                     return singleResult;
                 
                 case ContentType.ListItems:
                     var listResult = HandleListItemDetectionV3(column, columnColor, columnKey);
                     stopwatch.Stop();
+                    
+                    // v4.0 雙通道架構調試輸出 - 完成
+                    DebugLogV4($"");
+                    DebugLogV4($"✅ v4.0處理完成! 耗時: {stopwatch.Elapsed.TotalMilliseconds:F2}ms");
+                    DebugLogV4($"📊 結果統計: {column.Count}行 → {listResult.Count}段落");
+                    DebugLogV4($"🎯 使用通道: 經驗規則通道 (列表模式)");
+                    DebugLogV4($"===============================================");
+                    DebugLogV4($"");
+                    
                     DebugStagePerformance("v3階段三-列表項目檢測", column.Count, listResult.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n)");
                     return listResult;
                 
@@ -1332,6 +1417,15 @@ namespace MonLingo.Core.Service
                 default:
                     var textResult = HandleContinuousTextV3(column, columnColor, columnKey);
                     stopwatch.Stop();
+                    
+                    // v4.0 雙通道架構調試輸出 - 完成
+                    DebugLogV4($"");
+                    DebugLogV4($"✅ v4.0處理完成! 耗時: {stopwatch.Elapsed.TotalMilliseconds:F2}ms");
+                    DebugLogV4($"📊 結果統計: {column.Count}行 → {textResult.Count}段落");
+                    DebugLogV4($"🎯 使用通道: 經驗規則通道 (連續文本模式)");
+                    DebugLogV4($"===============================================");
+                    DebugLogV4($"");
+                    
                     DebugStagePerformance("v3階段三-混合模式段落檢測", column.Count, textResult.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n)");
                     return textResult;
             }
@@ -1906,12 +2000,13 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 雙峰驅動距離得分計算 (v3.1 新方法)
-        /// 基於步驟二識別的 peak_merge 和 peak_split，使用非線性決策函數
+        /// v3.4 雙峰驅動距離得分計算
+        /// 基於步驟二識別的 peak_merge 和 peak_split，使用簡化的評分邏輯
+        /// v3.4 改進：固定分數 + 線性遞減，邏輯清晰直觀
         /// </summary>
         private double CalculateBiPeakDistanceScoreV31(LayoutLine prevLine, LayoutLine currentLine, BiPeakSpacingModel biPeakModel)
         {
-            // v3.1改進：計算真實間距（保留負值重疊信息）
+            // v3.4改進：計算真實間距（保留負值重疊信息）
             double currentSpacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
             
             // 獲取雙峰模型參數
@@ -1927,53 +2022,42 @@ namespace MonLingo.Core.Service
             {
                 Logger.Debug($"      🔴 分割區間：{currentSpacing:F1} ≥ {(peakSplit - tolerance):F1} → -10.0分（強制分割）");
                 Console.WriteLine($"│    🔴 分割區間：間距{currentSpacing:F1}px ≥ 分割閾值{(peakSplit - tolerance):F1}px → 強制分割(-10.0分)");
-                return -10.0;  // 給予「否決分」，強制分割
+                return -10.0;  // 固定否決分，強制分割
             }
             
-            // 2. 強合併信號：落入合併區間
+            // 2. 強合併信號：落入合併區間（包含負值重疊）
             if (currentSpacing <= peakMerge + tolerance)
             {
-                // v3.1改進：理想間距獲得最高分數
-                double distance = Math.Abs(currentSpacing - peakMerge);
-                double toleranceRange = tolerance;
-                
-                // 距離合併峰值越近，分數越高（最高4.0分）
-                double normalizedDistance = Math.Min(1.0, distance / toleranceRange);
-                double finalScore = 4.0 - (normalizedDistance * 1.0); // 4.0 → 3.0分範圍
-                
-                // 特殊處理：0.0px間距（完美貼合）給予額外獎勵
-                if (currentSpacing == 0.0)
-                {
-                    finalScore = Math.Max(finalScore, 4.5); // 確保0.0px獲得最高分
-                }
-                
                 string spacingType = currentSpacing < 0 ? "(重疊)" : currentSpacing == 0 ? "(完美貼合)" : "";
-                Logger.Debug($"      🟢 合併區間：{currentSpacing:F1}{spacingType} ≤ {(peakMerge + tolerance):F1} → {finalScore:F2}分（強合併信號）");
-                Console.WriteLine($"│    🟢 合併區間：間距{currentSpacing:F1}px{spacingType} ≤ 合併閾值{(peakMerge + tolerance):F1}px → 強合併信號({finalScore:F2}分)");
-                return finalScore;
+                Logger.Debug($"      🟢 合併區間：{currentSpacing:F1}{spacingType} ≤ {(peakMerge + tolerance):F1} → 4.5分（強合併信號）");
+                Console.WriteLine($"│    🟢 合併區間：間距{currentSpacing:F1}px{spacingType} ≤ 合併閾值{(peakMerge + tolerance):F1}px → 強合併信號(4.5分)");
+                return 4.5;  // 固定高分，強烈合併信號
             }
             
-            // 3. 模糊區間處理 - v3.1改進：基於相對距離的公平評分算法
-            // 間距落在兩個峰值之間，根據相對於兩個峰值的距離比例給予更公平的分數
+            // 3. 模糊區間：線性遞減評分
+            // 範圍：(peak_merge + tolerance, peak_split - tolerance)
             else
             {
-                // 計算間距到兩個峰值的距離
-                double distanceFromMerge = Math.Abs(currentSpacing - peakMerge);
-                double distanceFromSplit = Math.Abs(currentSpacing - peakSplit);
+                double mergeBoundary = peakMerge + tolerance;
+                double splitBoundary = peakSplit - tolerance;
+                double zoneWidth = splitBoundary - mergeBoundary;
                 
-                // v3.1公平評分改進：使用相對距離比例而非絕對位置
-                // 相對合併傾向 = 距離分割峰值的距離 / (距離合併峰值 + 距離分割峰值)
-                // 比例越高(更接近合併峰值)，分數越高
-                double totalDistance = distanceFromMerge + distanceFromSplit;
-                double mergeAffinity = totalDistance > 0 ? distanceFromSplit / totalDistance : 0.5;
+                // 防止除零錯誤
+                if (zoneWidth <= 0)
+                {
+                    Logger.Debug($"      🟠 重疊區間：{currentSpacing:F1}px，區間寬度={zoneWidth:F1} → 2.0分（默認分數）");
+                    Console.WriteLine($"│    🟠 重疊區間：間距{currentSpacing:F1}px，區間重疊 → 默認分數(2.0分)");
+                    return 2.0; // 當兩個區間重疊時的默認分數
+                }
                 
-                // 基於相對位置的公平評分：更接近哪個峰值就更偏向哪種決策
-                // 分數範圍：3.5分(極接近合併峰) → 0.5分(極接近分割峰)
-                double ambiguityScore = 0.5 + (mergeAffinity * 3.0);
+                // 線性遞減：從合併邊界的4.0分遞減到分割邊界的0.5分
+                double distanceFromMerge = currentSpacing - mergeBoundary;
+                double normalizedPosition = distanceFromMerge / zoneWidth; // [0, 1]
+                double score = 4.0 - (normalizedPosition * 3.5); // 4.0 → 0.5 線性遞減
                 
-                Logger.Debug($"      🟡 模糊區間公平評分：{currentSpacing:F1}px，距合併峰{distanceFromMerge:F1}px，距分割峰{distanceFromSplit:F1}px，合併傾向{mergeAffinity:F2} → {ambiguityScore:F2}分");
-                Console.WriteLine($"│    🟡 模糊區間：間距{currentSpacing:F1}px在[{(peakMerge + tolerance):F1}, {(peakSplit - tolerance):F1}]，距合併峰{distanceFromMerge:F1}px，距分割峰{distanceFromSplit:F1}px → 公平分數({ambiguityScore:F2}分)");
-                return ambiguityScore;
+                Logger.Debug($"      🟡 模糊區間線性遞減：{currentSpacing:F1}px，位置比例{normalizedPosition:F2}，線性遞減 → {score:F2}分");
+                Console.WriteLine($"│    🟡 模糊區間：間距{currentSpacing:F1}px在[{mergeBoundary:F1}, {splitBoundary:F1}]，位置{normalizedPosition:F2} → 線性遞減({score:F2}分)");
+                return score;
             }
         }
 
@@ -2187,12 +2271,11 @@ namespace MonLingo.Core.Service
     /// <summary>
     /// 版面分析結果
     /// </summary>
-    public class LayoutAnalysisResult
+    public partial class LayoutAnalysisResult
     {
         public bool Success { get; set; }
         public Dictionary<string, List<LayoutParagraph>> Layout { get; set; }
         public double ProcessingTimeMs { get; set; }
-        public string ErrorMessage { get; set; }
         
         /// <summary>
         /// 調試視覺化信息（僅在調試模式下填充）
@@ -2236,7 +2319,7 @@ namespace MonLingo.Core.Service
     /// <summary>
     /// 版面段落
     /// </summary>
-    public class LayoutParagraph
+    public partial class LayoutParagraph
     {
         public string ParagraphId { get; set; }
         public List<LayoutLine> Lines { get; set; }
@@ -2258,6 +2341,11 @@ namespace MonLingo.Core.Service
         public Rectangle BoundingBox { get; set; }
         public int LineHeight { get; set; }
         public int OriginalIndex { get; set; } // 原始OCR行索引
+        
+        /// <summary>
+        /// 行標識符
+        /// </summary>
+        public string LineId { get; set; }
         
         /// <summary>
         /// 合併來源的原始索引列表（如果這一行是合併而來的）

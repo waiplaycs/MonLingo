@@ -1,0 +1,355 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using NLog;
+
+namespace MonLingo.Core.Service.DualChannel
+{
+    /// <summary>
+    /// 雙峰統計通道處理器 v4.0
+    /// 基於雙峰分佈模型進行段落分割決策
+    /// </summary>
+    public class BimodalStatisticalChannel : IBimodalStatisticalChannel
+    {
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
+        /// <summary>
+        /// 雙峰統計通道配置
+        /// </summary>
+        public class Config
+        {
+            /// <summary>
+            /// 容差係數 (預設: 0.2)
+            /// </summary>
+            public double ToleranceFactor { get; set; } = 0.2;
+            
+            /// <summary>
+            /// 合併閾值 (預設: 2.5)
+            /// </summary>
+            public double MergeThreshold { get; set; } = 2.5;
+            
+            /// <summary>
+            /// 是否啟用調試日誌
+            /// </summary>
+            public bool EnableDebugLog { get; set; } = false;
+        }
+
+        /// <summary>
+        /// 雙峰統計通道統計信息
+        /// </summary>
+        public class Statistics
+        {
+            /// <summary>
+            /// 總處理次數
+            /// </summary>
+            public int TotalProcessed { get; set; }
+            
+            /// <summary>
+            /// 合併決策次數
+            /// </summary>
+            public int MergeDecisions { get; set; }
+            
+            /// <summary>
+            /// 分割決策次數
+            /// </summary>
+            public int SplitDecisions { get; set; }
+            
+            /// <summary>
+            /// 平均得分
+            /// </summary>
+            public double AverageScore { get; set; }
+        }
+
+        private readonly Config _config;
+        private readonly Statistics _statistics = new Statistics();
+
+        public BimodalStatisticalChannel(Config config = null)
+        {
+            _config = config ?? new Config();
+        }
+
+        /// <summary>
+        /// 處理雙峰統計通道的段落分割
+        /// </summary>
+        public List<Paragraph> Process(Column column, ChannelStatistics statistics)
+        {
+            try
+            {
+                Logger.Info($"Starting BimodalStatistical processing for column with {column.Lines.Count} lines");
+                
+                if (column.Lines.Count <= 1)
+                {
+                    return CreateSingleParagraph(column, "單行欄位");
+                }
+
+                // 1. 定義決策區間
+                var zones = DefineDecisionZones(statistics);
+                
+                // 2. 進行多指標加權決策
+                var paragraphs = PerformMultiCriteriaDecision(column, zones, statistics);
+                
+                Logger.Info($"BimodalStatistical completed: {paragraphs.Count} paragraphs created");
+                return paragraphs;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error in BimodalStatistical processing");
+                return CreateSingleParagraph(column, $"處理錯誤: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 定義決策區間
+        /// </summary>
+        private DecisionZones DefineDecisionZones(ChannelStatistics statistics)
+        {
+            double tolerance = statistics.PeakMerge * _config.ToleranceFactor;
+            
+            var zones = new DecisionZones
+            {
+                MergeBoundary = statistics.PeakMerge + tolerance,
+                SplitBoundary = statistics.PeakSplit - tolerance,
+                Tolerance = tolerance
+            };
+
+            if (_config.EnableDebugLog)
+            {
+                Logger.Debug($"Decision zones: Merge[0, {zones.MergeBoundary:F1}], " +
+                           $"Split[{zones.SplitBoundary:F1}, ∞), " +
+                           $"Ambiguity({zones.MergeBoundary:F1}, {zones.SplitBoundary:F1})");
+            }
+
+            return zones;
+        }
+
+        /// <summary>
+        /// 進行多指標加權決策
+        /// </summary>
+        private List<Paragraph> PerformMultiCriteriaDecision(Column column, DecisionZones zones, ChannelStatistics statistics)
+        {
+            var paragraphs = new List<Paragraph>();
+            var currentParagraphLines = new List<LayoutLine> { column.Lines[0] };
+
+            for (int i = 1; i < column.Lines.Count; i++)
+            {
+                var prevLine = column.Lines[i - 1];
+                var currentLine = column.Lines[i];
+                
+                // 計算合併分數
+                var decision = CalculateMergeScore(prevLine, currentLine, zones);
+                
+                if (_config.EnableDebugLog)
+                {
+                    Logger.Debug($"Line {i}: Score={decision.Score:F2}, Decision={decision.ShouldMerge}, Detail={decision.Detail}");
+                }
+
+                if (decision.ShouldMerge && !decision.IsHardSplit)
+                {
+                    // 合併到當前段落
+                    currentParagraphLines.Add(currentLine);
+                }
+                else
+                {
+                    // 創建新段落
+                    var paragraph = CreateParagraph(currentParagraphLines, paragraphs.Count, column.Color, decision.Detail);
+                    paragraphs.Add(paragraph);
+                    
+                    // 開始新段落
+                    currentParagraphLines = new List<LayoutLine> { currentLine };
+                }
+            }
+
+            // 處理最後一個段落
+            if (currentParagraphLines.Any())
+            {
+                var lastParagraph = CreateParagraph(currentParagraphLines, paragraphs.Count, column.Color, "最後段落");
+                paragraphs.Add(lastParagraph);
+            }
+
+            return paragraphs;
+        }
+
+        /// <summary>
+        /// 計算合併分數
+        /// </summary>
+        private MergeDecision CalculateMergeScore(LayoutLine prevLine, LayoutLine currentLine, DecisionZones zones)
+        {
+            // 計算垂直間距
+            double spacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
+            
+            // 1. 雙峰驅動距離得分
+            double distanceScore = CalculateDistanceScore(spacing, zones);
+            
+            // 2. 字體高度懲罰
+            double fontPenalty = CalculateFontHeightPenalty(prevLine, currentLine);
+            
+            // 3. 對齊風格懲罰
+            double alignmentPenalty = CalculateAlignmentPenalty(prevLine, currentLine);
+            
+            // 計算最終分數
+            double finalScore = distanceScore - fontPenalty - alignmentPenalty;
+            
+            var decision = new MergeDecision
+            {
+                Score = finalScore,
+                ShouldMerge = finalScore >= _config.MergeThreshold,
+                IsHardSplit = distanceScore == -10.0, // 強制分割信號
+                Detail = $"距離:{distanceScore:F1} - 字體:{fontPenalty:F1} - 對齊:{alignmentPenalty:F1} = {finalScore:F1}"
+            };
+
+            return decision;
+        }
+
+        /// <summary>
+        /// 雙峰驅動距離得分計算
+        /// </summary>
+        private double CalculateDistanceScore(double spacing, DecisionZones zones)
+        {
+            // 1. 強分割信號：落入分割區間
+            if (spacing >= zones.SplitBoundary)
+            {
+                return -10.0; // 固定否決分，強制分割
+            }
+            
+            // 2. 強合併信號：落入合併區間（包含負值重疊）
+            if (spacing <= zones.MergeBoundary)
+            {
+                return 4.5; // 固定高分，強烈合併信號
+            }
+            
+            // 3. 模糊區間：線性遞減評分
+            double zoneWidth = zones.SplitBoundary - zones.MergeBoundary;
+            
+            if (zoneWidth <= 0)
+            {
+                return 2.0; // 當兩個區間重疊時的默認分數
+            }
+            
+            // 線性遞減：從合併邊界的4.0分遞減到分割邊界的0.5分
+            double distanceFromMerge = spacing - zones.MergeBoundary;
+            double normalizedPosition = distanceFromMerge / zoneWidth; // [0, 1]
+            double score = 4.0 - (normalizedPosition * 3.5); // 4.0 → 0.5 線性遞減
+            
+            return score;
+        }
+
+        /// <summary>
+        /// 字體高度懲罰計算
+        /// </summary>
+        private double CalculateFontHeightPenalty(LayoutLine prevLine, LayoutLine currentLine)
+        {
+            double height1 = prevLine.LineHeight;
+            double height2 = currentLine.LineHeight;
+            
+            // 計算相對高度差異百分比
+            double heightDiff = Math.Abs(height1 - height2) / Math.Min(height1, height2) * 100;
+            
+            if (heightDiff <= 10.0)
+                return 0.0;        // OCR 微小誤差容錯範圍
+            else if (heightDiff <= 25.0)
+                return 0.1;        // 輕微差異，可能是同字體的 OCR 變異
+            else if (heightDiff <= 50.0)
+                return 0.4;        // 中等差異，可能是相鄰字體級別
+            else if (heightDiff <= 80.0)
+                return 0.8;        // 顯著差異，不同字體級別
+            else if (heightDiff <= 120.0)
+                return 1.2;        // 大幅差異，標題與正文級別
+            else
+                return 2.0;        // 極大差異，強制分割級別
+        }
+
+        /// <summary>
+        /// 對齊風格懲罰計算
+        /// </summary>
+        private double CalculateAlignmentPenalty(LayoutLine prevLine, LayoutLine currentLine)
+        {
+            const int ALIGNMENT_TOLERANCE = 10; // 對齊容差（像素）
+            
+            int leftDiff = Math.Abs(prevLine.BoundingBox.Left - currentLine.BoundingBox.Left);
+            
+            return leftDiff <= ALIGNMENT_TOLERANCE ? 0.0 : 0.2;
+        }
+
+        /// <summary>
+        /// 創建單個段落
+        /// </summary>
+        private List<Paragraph> CreateSingleParagraph(Column column, string reason)
+        {
+            var paragraph = CreateParagraph(column.Lines, 0, column.Color, reason);
+            return new List<Paragraph> { paragraph };
+        }
+
+        /// <summary>
+        /// 創建段落對象
+        /// </summary>
+        private Paragraph CreateParagraph(List<LayoutLine> lines, int index, Color columnColor, string detail)
+        {
+            var boundingBox = CalculateBoundingBox(lines);
+            
+            return new Paragraph
+            {
+                ParagraphId = $"P{index + 1}",
+                Lines = new List<LayoutLine>(lines),
+                BoundingBox = boundingBox,
+                ColumnColor = columnColor,
+                CreatedByChannel = ChannelType.BimodalStatistical
+            };
+        }
+
+        /// <summary>
+        /// 計算邊界框
+        /// </summary>
+        private Rectangle CalculateBoundingBox(List<LayoutLine> lines)
+        {
+            if (!lines.Any()) return Rectangle.Empty;
+            
+            int left = lines.Min(l => l.BoundingBox.Left);
+            int top = lines.Min(l => l.BoundingBox.Top);
+            int right = lines.Max(l => l.BoundingBox.Right);
+            int bottom = lines.Max(l => l.BoundingBox.Bottom);
+            
+            return new Rectangle(left, top, right - left, bottom - top);
+        }
+
+        /// <summary>
+        /// 決策區間定義
+        /// </summary>
+        private class DecisionZones
+        {
+            public double MergeBoundary { get; set; }
+            public double SplitBoundary { get; set; }
+            public double Tolerance { get; set; }
+        }
+
+        /// <summary>
+        /// 合併決策結果
+        /// </summary>
+        private class MergeDecision
+        {
+            public double Score { get; set; }
+            public bool ShouldMerge { get; set; }
+            public bool IsHardSplit { get; set; }
+            public string Detail { get; set; }
+        }
+
+        /// <summary>
+        /// 獲取統計信息
+        /// </summary>
+        public Statistics GetStatistics()
+        {
+            return _statistics;
+        }
+
+        /// <summary>
+        /// 重置統計信息
+        /// </summary>
+        public void ResetStatistics()
+        {
+            _statistics.TotalProcessed = 0;
+            _statistics.MergeDecisions = 0;
+            _statistics.SplitDecisions = 0;
+            _statistics.AverageScore = 0.0;
+        }
+    }
+}
