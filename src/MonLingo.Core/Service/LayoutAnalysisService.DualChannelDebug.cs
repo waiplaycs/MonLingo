@@ -13,7 +13,7 @@ namespace MonLingo.Core.Service
     public partial class LayoutAnalysisService
     {
         /// <summary>
-        /// v4.0雙通道調試日誌輸出
+        /// v4.1雙通道調試日誌輸出 (含自適應聚類閾值)
         /// </summary>
         /// <param name="message">調試訊息</param>
         private void DebugLogV4(string message)
@@ -21,11 +21,11 @@ namespace MonLingo.Core.Service
             if (EnableDebugMode)
             {
                 // 輸出到控制台和日誌
-                Console.WriteLine($"[MonLingo v4.0雙通道] {message}");
-                Logger.Debug($"[MonLingo v4.0雙通道] {message}");
+                Console.WriteLine($"[MonLingo v4.1雙通道+自適應閾值] {message}");
+                Logger.Debug($"[MonLingo v4.1雙通道+自適應閾值] {message}");
                 
                 // 同時輸出到系統調試輸出
-                System.Diagnostics.Debug.WriteLine($"[MonLingo v4.0雙通道] {message}");
+                System.Diagnostics.Debug.WriteLine($"[MonLingo v4.1雙通道+自適應閾值] {message}");
             }
         }
 

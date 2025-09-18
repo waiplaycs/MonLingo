@@ -351,8 +351,17 @@ namespace MonLingo.Core.Service
             
             try
             {
-                Logger.Info("🔍 開始執行高級版面分析");
-                DebugLog("=== MonLingo 版面分析開始 ===");
+                Logger.Info("🔍 開始執行高級版面分析 - MonLingo v4.1");
+                DebugLog("=== MonLingo v4.1版面分析開始 ===");
+                
+                if (EnableDebugMode)
+                {
+                    Console.WriteLine("🚀 MonLingo v4.1 版面分析引擎啟動");
+                    Console.WriteLine("📈 新增功能：自適應聚類閾值策略 (取代固定倍數0.25)");
+                    Console.WriteLine("🧠 智能算法：自然間隙分析 + 變異係數校驗");
+                    Console.WriteLine("⚡ 改進效果：自動適應不同文檔密度");
+                    Console.WriteLine("=====================================");
+                }
                 
                 if (ocrResult?.Lines == null || ocrResult.Lines.Length == 0)
                 {
@@ -400,8 +409,18 @@ namespace MonLingo.Core.Service
                 var tempLayout = layoutResult;
 
                 var processingTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
-                Logger.Info($"🎯 版面分析完成，耗時 {processingTime:F1}ms");
-                DebugLog($"🎯 版面分析完成，總耗時 {processingTime:F1}ms");
+                Logger.Info($"🎯 MonLingo v4.1版面分析完成，耗時 {processingTime:F1}ms");
+                DebugLog($"🎯 MonLingo v4.1版面分析完成，總耗時 {processingTime:F1}ms");
+                
+                if (EnableDebugMode)
+                {
+                    Console.WriteLine("=====================================");
+                    Console.WriteLine($"✅ MonLingo v4.1 版面分析完成！");
+                    Console.WriteLine($"⏱️ 總處理時間: {processingTime:F1}ms");
+                    Console.WriteLine($"📊 結果統計: {layoutResult.Count}個欄位");
+                    Console.WriteLine($"🧠 v4.1智能閾值策略已應用");
+                    Console.WriteLine("=====================================");
+                }
 
                 // 生成調試信息
                 var debugInfo = GenerateDebugInfo(layoutResult);
@@ -1314,7 +1333,7 @@ namespace MonLingo.Core.Service
 
             // v4.0 雙通道架構調試輸出
             DebugLogV4($"===============================================");
-            DebugLogV4($"🎯 v4.0雙通道段落檢測: {columnKey}");
+            DebugLogV4($"🎯 v4.1自適應雙通道段落檢測: {columnKey}");
             DebugLogV4($"📄 輸入數據: {column.Count}行文字");
             
             // v3步驟一：內容類型預檢查 (Content Type Pre-analysis)
@@ -1624,10 +1643,22 @@ namespace MonLingo.Core.Service
             spacings.Sort();
             Logger.Debug($"    📈 排序後間距: [{string.Join(", ", spacings.Select(s => s.ToString("F1")))}]");
 
-            // 2. 基於密度的一維聚類
+            // 2. 基於密度的一維聚類 (v4.1 自適應閾值改進)
             double avgFontHeight = column.Average(line => line.BoundingBox.Height);
-            double clusterThreshold = avgFontHeight * 0.25; // 動態聚類閾值
-            Logger.Debug($"    🎯 步驟2.1-2：聚類分析 (平均字體高度={avgFontHeight:F1}px, 聚類閾值={clusterThreshold:F1}px)");
+            
+            // v4.1: 記錄舊版閾值用於比較
+            double oldThreshold = avgFontHeight * 0.25;
+            
+            // v4.1: 使用混合自適應策略
+            double clusterThreshold = DetermineClusterThreshold(spacings, avgFontHeight);
+            
+            // v4.1: 調試輸出和比較
+            string thresholdMethod = double.IsNaN(CalculateGapBasedThreshold(spacings)) ? "變異係數校驗法" : "自然間隙分析法";
+            LogV41AdaptiveThresholdSelection(columnKey, spacings, avgFontHeight, clusterThreshold, thresholdMethod);
+            LogV41ThresholdComparison(columnKey, oldThreshold, clusterThreshold, 
+                "提升不同文檔密度下的聚類穩定性，減少固定閾值敏感性問題");
+            
+            Logger.Debug($"    🎯 步驟2.1-2：聚類分析 (平均字體高度={avgFontHeight:F1}px, v4.1聚類閾值={clusterThreshold:F1}px)");
 
             var clusters = PerformOneDimensionalClustering(spacings, clusterThreshold);
             Logger.Debug($"    📦 發現{clusters.Count}個聚類:");
@@ -2266,6 +2297,189 @@ namespace MonLingo.Core.Service
 
             return new Rectangle(minX, minY, maxX - minX, maxY - minY);
         }
+
+        #region v4.1 自適應聚類閾值方法
+
+        /// <summary>
+        /// v4.1 階段一：自然間隙分析法 (Gap-Based Analysis)
+        /// 分析相鄰間距差值序列，尋找最大"自然斷點"作為閾值
+        /// 類比：如同在山脈中尋找最明顯的峽谷來劃分山峰
+        /// </summary>
+        /// <param name="sortedSpacings">已排序的間距列表</param>
+        /// <returns>自然間隙閾值，若無明顯間隙則返回 double.NaN</returns>
+        private double CalculateGapBasedThreshold(List<double> sortedSpacings)
+        {
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"🔬 v4.1自然間隙分析開始：分析{sortedSpacings.Count}個間距樣本");
+            }
+            
+            if (sortedSpacings.Count < 3) 
+            {
+                if (EnableDebugMode)
+                {
+                    Console.WriteLine($"⚠️ 樣本不足({sortedSpacings.Count}<3)，跳過自然間隙分析");
+                }
+                return double.NaN;
+            }
+            
+            // 計算相鄰間距的差值序列
+            var gaps = new List<double>();
+            for (int i = 1; i < sortedSpacings.Count; i++)
+            {
+                gaps.Add(sortedSpacings[i] - sortedSpacings[i - 1]);
+            }
+            
+            // 尋找最大間隙作為"自然斷點"
+            double maxGap = gaps.Max();
+            double avgGap = gaps.Average();
+            
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"    📏 間隙統計：最大間隙={maxGap:F2}px，平均間隙={avgGap:F2}px");
+                Console.WriteLine($"    📊 顯著性係數：{maxGap/avgGap:F2} (需>=2.0才算顯著)");
+            }
+            
+            // 驗證最大間隙是否"顯著"（是平均間隙的2倍以上）
+            if (maxGap >= avgGap * 2.0)
+            {
+                double threshold = maxGap * 0.6; // 使用最大間隙的60%作為閾值
+                Logger.Debug($"    🎯 自然間隙分析：最大間隙={maxGap:F2}, 平均間隙={avgGap:F2}, 顯著性={maxGap/avgGap:F2}, 閾值={threshold:F2}");
+                
+                if (EnableDebugMode)
+                {
+                    Console.WriteLine($"    ✅ 發現顯著自然間隙！閾值={threshold:F2}px (最大間隙60%)");
+                }
+                
+                return threshold;
+            }
+            
+            Logger.Debug($"    ⚠️ 自然間隙分析：最大間隙={maxGap:F2}, 平均間隙={avgGap:F2}, 顯著性={maxGap/avgGap:F2} < 2.0 (不明顯)");
+            
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"    ❌ 無顯著自然間隙，轉入變異係數校驗");
+            }
+            
+            return double.NaN; // 自然間隙不明顯，需要階段二補償
+        }
+
+        /// <summary>
+        /// v4.1 階段二：變異係數校驗法 (Coefficient of Variation Method)
+        /// 當自然間隙不明顯時，使用統計離散度指標進行補償校驗
+        /// 類比：如同氣象學家在雲層密佈時改用氣壓變化來劃分天氣系統
+        /// </summary>
+        /// <param name="sortedSpacings">已排序的間距列表</param>
+        /// <param name="avgFontHeight">平均字體高度</param>
+        /// <returns>基於變異係數的自適應閾值</returns>
+        private double CalculateAdaptiveThreshold(List<double> sortedSpacings, double avgFontHeight)
+        {
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"🧮 v4.1變異係數校驗啟動：分析間距離散程度");
+            }
+            
+            if (sortedSpacings.Count < 2) 
+            {
+                if (EnableDebugMode)
+                {
+                    Console.WriteLine($"⚠️ 樣本不足，使用預設閾值");
+                }
+                return avgFontHeight * 0.25;
+            }
+            
+            double mean = sortedSpacings.Average();
+            double variance = sortedSpacings.Select(x => Math.Pow(x - mean, 2)).Average();
+            double stdDev = Math.Sqrt(variance);
+            double coefficientOfVariation = stdDev / mean;
+            
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"    📊 統計參數：平均={mean:F2}px，標準差={stdDev:F2}px");
+                Console.WriteLine($"    📈 變異係數：{coefficientOfVariation:F3} (離散程度指標)");
+            }
+            
+            // 根據數據離散程度動態調整閾值倍數
+            double adaptiveFactor;
+            string disperseLevel;
+            if (coefficientOfVariation > 0.8)        // 高離散度：使用較大閾值
+            {
+                adaptiveFactor = 0.35;
+                disperseLevel = "高離散(密度變化大)";
+            }
+            else if (coefficientOfVariation > 0.4)   // 中等離散度：標準閾值
+            {
+                adaptiveFactor = 0.25;
+                disperseLevel = "中等離散(標準密度)";
+            }
+            else                                     // 低離散度：使用較小閾值
+            {
+                adaptiveFactor = 0.15;
+                disperseLevel = "低離散(密度均勻)";
+            }
+            
+            double threshold = avgFontHeight * adaptiveFactor;
+            Logger.Debug($"    📊 變異係數校驗：CV={coefficientOfVariation:F3}, 自適應倍數={adaptiveFactor:F2}, 閾值={threshold:F2}");
+            
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"    🎯 離散等級：{disperseLevel}");
+                Console.WriteLine($"    ⚖️ 自適應閾值：{threshold:F2}px (倍數={adaptiveFactor:F2})");
+            }
+            
+            return threshold;
+        }
+
+        /// <summary>
+        /// v4.1 混合策略整合邏輯
+        /// 整合兩階段自適應閾值策略並提供回退機制
+        /// 優先嘗試自然間隙分析，失敗時回退到變異係數方法
+        /// </summary>
+        /// <param name="sortedSpacings">已排序的間距列表</param>
+        /// <param name="avgFontHeight">平均字體高度</param>
+        /// <returns>最終確定的聚類閾值</returns>
+        private double DetermineClusterThreshold(List<double> sortedSpacings, double avgFontHeight)
+        {
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"🎯 v4.1混合策略整合：智能閾值選擇開始");
+            }
+            
+            // 優先嘗試自然間隙分析
+            double gapBasedThreshold = CalculateGapBasedThreshold(sortedSpacings);
+            if (!double.IsNaN(gapBasedThreshold))
+            {
+                Logger.Debug($"🎯 v4.1 使用自然間隙分析閾值: {gapBasedThreshold:F2}px");
+                
+                if (EnableDebugMode)
+                {
+                    Console.WriteLine($"✅ 階段一成功：使用自然間隙分析結果");
+                    Console.WriteLine($"🎯 最終選擇：自然間隙閾值 = {gapBasedThreshold:F2}px");
+                }
+                
+                return gapBasedThreshold;
+            }
+            
+            // 回退到變異係數方法
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"🔄 回退至階段二：變異係數校驗法");
+            }
+            
+            double adaptiveThreshold = CalculateAdaptiveThreshold(sortedSpacings, avgFontHeight);
+            Logger.Debug($"📊 v4.1 使用變異係數自適應閾值: {adaptiveThreshold:F2}px");
+            
+            if (EnableDebugMode)
+            {
+                Console.WriteLine($"✅ 階段二完成：使用變異係數自適應結果");
+                Console.WriteLine($"🎯 最終選擇：統計分析閾值 = {adaptiveThreshold:F2}px");
+            }
+            
+            return adaptiveThreshold;
+        }
+
+        #endregion
+
     }
 
     /// <summary>

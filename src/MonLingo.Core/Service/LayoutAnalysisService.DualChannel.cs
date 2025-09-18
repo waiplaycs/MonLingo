@@ -304,10 +304,69 @@ namespace MonLingo.Core.Service
                     Layout = new Dictionary<string, List<LayoutParagraph>>(),
                     ProcessingTimeMs = processingTime,
                     ErrorMessage = ex.Message,
-                    Version = "4.0-DualChannel-Error"
+                    Version = "4.1-DualChannel-Error"
                 };
             }
         }
+
+        #region v4.1 自適應聚類閾值調試支持
+
+        /// <summary>
+        /// v4.1 雙通道架構增強調試輸出
+        /// 包含自適應聚類閾值選擇過程的詳細信息
+        /// </summary>
+        /// <param name="columnKey">欄位標識</param>
+        /// <param name="spacings">間距數據</param>
+        /// <param name="avgFontHeight">平均字體高度</param>
+        /// <param name="selectedThreshold">最終選擇的閾值</param>
+        /// <param name="thresholdMethod">閾值選擇方法</param>
+        public void LogV41AdaptiveThresholdSelection(string columnKey, List<double> spacings, 
+            double avgFontHeight, double selectedThreshold, string thresholdMethod)
+        {
+            if (!EnableDebugMode) return;
+
+            DualChannelLogger.Debug($"🎯 【v4.1自適應閾值】欄位 {columnKey}");
+            DualChannelLogger.Debug($"    📊 間距統計: 數量={spacings.Count}, 範圍=[{spacings.Min():F2}, {spacings.Max():F2}]");
+            DualChannelLogger.Debug($"    📏 平均字體高度: {avgFontHeight:F2}px");
+            DualChannelLogger.Debug($"    🎯 選擇方法: {thresholdMethod}");
+            DualChannelLogger.Debug($"    ⚖️ 最終閾值: {selectedThreshold:F2}px");
+            
+            Console.WriteLine($"🎯 【v4.1自適應閾值選擇】欄位 {columnKey}:");
+            Console.WriteLine($"    📊 間距數據: {spacings.Count}個樣本，範圍 [{spacings.Min():F2}, {spacings.Max():F2}]px");
+            Console.WriteLine($"    🧠 智能方法: {thresholdMethod} (取代固定倍數0.25)");
+            Console.WriteLine($"    ⚖️ 最終閾值: {selectedThreshold:F2}px (vs 舊版固定: {avgFontHeight * 0.25:F2}px)");
+            Console.WriteLine($"    ✨ v4.1改進: 自動分析間距分佈，選擇最優聚類參數");
+        }
+
+        /// <summary>
+        /// v4.1 閾值方法比較輸出
+        /// 顯示新舊方法的差異和改進效果
+        /// </summary>
+        /// <param name="columnKey">欄位標識</param>
+        /// <param name="oldThreshold">舊版固定閾值</param>
+        /// <param name="newThreshold">新版自適應閾值</param>
+        /// <param name="improvement">改進描述</param>
+        public void LogV41ThresholdComparison(string columnKey, double oldThreshold, 
+            double newThreshold, string improvement)
+        {
+            if (!EnableDebugMode) return;
+
+            double changePercent = ((newThreshold - oldThreshold) / oldThreshold) * 100;
+            string changeDirection = changePercent > 0 ? "增加" : "減少";
+            
+            DualChannelLogger.Debug($"📈 【v4.1閾值比較】欄位 {columnKey}:");
+            DualChannelLogger.Debug($"    🔄 舊版閾值: {oldThreshold:F2}px (固定倍數 0.25)");
+            DualChannelLogger.Debug($"    🆕 新版閾值: {newThreshold:F2}px (自適應策略)");
+            DualChannelLogger.Debug($"    📊 變化幅度: {changeDirection} {Math.Abs(changePercent):F1}%");
+            DualChannelLogger.Debug($"    ✨ 預期改進: {improvement}");
+            
+            Console.WriteLine($"📈 【v4.1閾值比較】{changeDirection} {Math.Abs(changePercent):F1}% - {improvement}");
+            Console.WriteLine($"    🔄 傳統方法: {oldThreshold:F2}px (固定倍數策略)");
+            Console.WriteLine($"    🆕 智能方法: {newThreshold:F2}px (自適應分析策略)");
+            Console.WriteLine($"    🎯 預期效果: 更精確的文檔密度適應性");
+        }
+
+        #endregion
     }
 }
 
