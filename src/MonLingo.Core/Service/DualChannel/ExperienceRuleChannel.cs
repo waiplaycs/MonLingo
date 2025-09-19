@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text.RegularExpressions;
 using NLog;
 
 namespace MonLingo.Core.Service.DualChannel
@@ -43,14 +42,6 @@ namespace MonLingo.Core.Service.DualChannel
 
         private readonly Config _config;
         
-        /// <summary>
-        /// 列表標識符正則表達式
-        /// </summary>
-        private static readonly Regex ListIndicatorRegex = new Regex(
-            @"^\s*([1-9]\d*[\.\)]\s|[a-zA-Z][\.\)]\s|[•\-\*■□○●▪▫‣⁃]\s)",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase
-        );
-
         public ExperienceRuleChannel(Config config = null)
         {
             _config = config ?? new Config();
@@ -82,8 +73,8 @@ namespace MonLingo.Core.Service.DualChannel
                 // 計算全局統計閾值
                 var thresholds = CalculateGlobalThresholds(globalStatistics);
                 
-                // 進行四策略加減分評分
-                var paragraphs = PerformFourStrategyScoring(column, thresholds);
+                // 進行三策略加減分評分
+                var paragraphs = PerformThreeStrategyScoring(column, thresholds);
                 
                 Logger.Info($"ExperienceRule completed: {paragraphs.Count} paragraphs created");
                 return paragraphs;
@@ -115,9 +106,9 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 進行四策略加減分評分
+        /// 進行三策略加減分評分
         /// </summary>
-        private List<Paragraph> PerformFourStrategyScoring(Column column, GlobalThresholds thresholds)
+        private List<Paragraph> PerformThreeStrategyScoring(Column column, GlobalThresholds thresholds)
         {
             var paragraphs = new List<Paragraph>();
             var currentParagraphLines = new List<LayoutLine> { column.Lines[0] };
@@ -127,8 +118,8 @@ namespace MonLingo.Core.Service.DualChannel
                 var prevLine = column.Lines[i - 1];
                 var currentLine = column.Lines[i];
                 
-                // 進行四策略評分
-                var decision = EvaluateFourStrategies(prevLine, currentLine, thresholds);
+                // 進行三策略評分
+                var decision = EvaluateThreeStrategies(prevLine, currentLine, thresholds);
                 
                 if (_config.EnableDebugLog)
                 {
@@ -165,7 +156,7 @@ namespace MonLingo.Core.Service.DualChannel
         /// <summary>
         /// 評估四個策略並計算最終分數
         /// </summary>
-        private ExperienceRuleDecision EvaluateFourStrategies(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds)
+        private ExperienceRuleDecision EvaluateThreeStrategies(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds)
         {
             var decision = new ExperienceRuleDecision();
             var details = new List<string>();
@@ -178,8 +169,8 @@ namespace MonLingo.Core.Service.DualChannel
             double strategy2Score = EvaluateStrategy2Alignment(prevLine, currentLine);
             details.Add($"對齊:{strategy2Score:F1}");
             
-            // 策略三：基於內容語義的硬性分割檢查
-            var strategy3Result = EvaluateStrategy3Semantic(currentLine);
+            // 策略三：基於統計自適應的合併評分
+            var strategy3Result = EvaluateStrategy3Statistical(prevLine, currentLine, thresholds);
             if (strategy3Result.IsHardSplit)
             {
                 decision.IsHardSplit = true;
@@ -188,22 +179,10 @@ namespace MonLingo.Core.Service.DualChannel
                 return decision;
             }
             double strategy3Score = strategy3Result.Score;
-            details.Add($"語義:{strategy3Score:F1}");
-            
-            // 策略四：基於統計自適應的合併評分
-            var strategy4Result = EvaluateStrategy4Statistical(prevLine, currentLine, thresholds);
-            if (strategy4Result.IsHardSplit)
-            {
-                decision.IsHardSplit = true;
-                decision.ShouldMerge = false;
-                decision.Detail = $"硬性分割: {strategy4Result.Reason}";
-                return decision;
-            }
-            double strategy4Score = strategy4Result.Score;
-            details.Add($"統計:{strategy4Score:F1}");
+            details.Add($"統計:{strategy3Score:F1}");
 
             // 計算最終合併分數
-            decision.FinalScore = strategy1Score + strategy2Score + strategy3Score + strategy4Score;
+            decision.FinalScore = strategy1Score + strategy2Score + strategy3Score;
             decision.ShouldMerge = decision.FinalScore >= _config.MergeThreshold;
             decision.Detail = $"{string.Join(" ", details)} = {decision.FinalScore:F1} (閾值:{_config.MergeThreshold})";
 
@@ -247,30 +226,9 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 策略三：基於內容語義的硬性分割檢查
+        /// 策略三：基於統計自適應的合併評分
         /// </summary>
-        private StrategyResult EvaluateStrategy3Semantic(LayoutLine currentLine)
-        {
-            var result = new StrategyResult();
-            
-            if (ListIndicatorRegex.IsMatch(currentLine.Text))
-            {
-                result.IsHardSplit = true;
-                result.Reason = $"列表標識符: {currentLine.Text.Substring(0, Math.Min(10, currentLine.Text.Length))}...";
-            }
-            else
-            {
-                result.Score = 0.0; // 未觸發時視為 0
-                result.Reason = "無語義線索";
-            }
-            
-            return result;
-        }
-
-        /// <summary>
-        /// 策略四：基於統計自適應的合併評分
-        /// </summary>
-        private StrategyResult EvaluateStrategy4Statistical(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds)
+        private StrategyResult EvaluateStrategy3Statistical(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds)
         {
             var result = new StrategyResult();
             

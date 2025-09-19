@@ -81,20 +81,19 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// v4.0雙通道調試：經驗規則通道四策略評分
+        /// v4.0雙通道調試：經驗規則通道三策略評分
         /// </summary>
         /// <param name="columnId">欄位ID</param>
         /// <param name="lineIndex">行索引</param>
         /// <param name="strategy1Score">策略一得分（字體層次）</param>
         /// <param name="strategy2Score">策略二得分（對齊模式）</param>
-        /// <param name="strategy3Score">策略三得分（語義線索）</param>
-        /// <param name="strategy4Score">策略四得分（統計自適應）</param>
+        /// <param name="strategy3Score">策略三得分（統計自適應）</param>
         /// <param name="finalScore">最終合併分數</param>
         /// <param name="threshold">合併閾值</param>
         /// <param name="decision">是否合併</param>
         /// <param name="isHardSplit">是否硬性分割</param>
         private void DebugExperienceRuleProcessing(string columnId, int lineIndex, double strategy1Score, 
-            double strategy2Score, double strategy3Score, double strategy4Score, double finalScore, 
+            double strategy2Score, double strategy3Score, double finalScore, 
             double threshold, bool decision, bool isHardSplit)
         {
             if (EnableDebugMode)
@@ -108,8 +107,8 @@ namespace MonLingo.Core.Service
                     return;
                 }
                 
-                DebugLogV4($"🎯 經驗規則: {columnId} 行{lineIndex} | 四策略評分");
-                DebugLogV4($"   📝 策略得分: 字體:{strategy1Score:F1} + 對齊:{strategy2Score:F1} + 語義:{strategy3Score:F1} + 統計:{strategy4Score:F1} = {finalScore:F1}");
+                DebugLogV4($"🎯 經驗規則: {columnId} 行{lineIndex} | 三策略評分");
+                DebugLogV4($"   📝 策略得分: 字體:{strategy1Score:F1} + 對齊:{strategy2Score:F1} + 統計:{strategy3Score:F1} = {finalScore:F1}");
                 DebugLogV4($"   {decisionIcon} 決策結果: {decisionText} (閾值:{threshold:F1})");
             }
         }
