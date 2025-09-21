@@ -115,10 +115,11 @@ namespace MonLingo.Core.Service.DualChannel
                 
                 Logger.Debug($"Column with {column.Lines.Count} lines, {spacings.Count} spacings");
                 
-                // 2. 檢查樣本數量是否足夠
+                // 2. 檢查條件1: 樣本數量是否足夠
                 if (spacings.Count < _config.MinSpacingsCount)
                 {
-                    DebugLogV4($"❌ 樣本數量檢查: {spacings.Count} < {_config.MinSpacingsCount} (不足)");
+                    DebugLogV4($"❌ 條件1-樣本數量不足: {spacings.Count} < {_config.MinSpacingsCount}");
+                    DebugLogV4($"📝 原因: 統計樣本過少，無法形成有意義的分佈");
                     DebugLogV4($"🎯 決策: 切換到經驗規則通道");
                     
                     decision.SelectedChannel = ChannelType.ExperienceRule;
@@ -129,7 +130,7 @@ namespace MonLingo.Core.Service.DualChannel
                     return decision;
                 }
                 
-                DebugLogV4($"✅ 樣本數量檢查: {spacings.Count} ≥ {_config.MinSpacingsCount} (充足)");
+                DebugLogV4($"✅ 條件1-樣本數量檢查: {spacings.Count} ≥ {_config.MinSpacingsCount} (充足)");
                 
                 // 3. 進行峰值分析
                 DebugLogV4($"🔬 開始峰值分析...");
@@ -143,9 +144,11 @@ namespace MonLingo.Core.Service.DualChannel
                     DebugLogV4($"   🔹 峰值位置: [{string.Join(", ", peaks.Select(p => $"{p:F1}px"))}]");
                 }
                 
+                // 4. 檢查條件2: 峰值模式是否明顯
                 if (peaks.Count < _config.MinEffectivePeaks)
                 {
-                    DebugLogV4($"❌ 峰值數量檢查: {peaks.Count} < {_config.MinEffectivePeaks} (不足)");
+                    DebugLogV4($"❌ 條件2-峰值模式不明顯: {peaks.Count} < {_config.MinEffectivePeaks}");
+                    DebugLogV4($"📝 原因: 無法找到「段落內」和「段落間」兩種清晰的間距模式");
                     DebugLogV4($"🎯 決策: 切換到經驗規則通道");
                     
                     decision.SelectedChannel = ChannelType.ExperienceRule;
@@ -155,21 +158,22 @@ namespace MonLingo.Core.Service.DualChannel
                     return decision;
                 }
                 
-                DebugLogV4($"✅ 峰值數量檢查: {peaks.Count} ≥ {_config.MinEffectivePeaks} (充足)");
+                DebugLogV4($"✅ 條件2-峰值數量檢查: {peaks.Count} ≥ {_config.MinEffectivePeaks} (充足)");
                 
-                // 4. 檢查峰值區分度
+                // 5. 檢查條件3: 峰值區分度
                 statistics.PeakMerge = peaks.Min();
                 statistics.PeakSplit = peaks.Max();
                 statistics.PeakSeparationRatio = statistics.PeakSplit / Math.Max(statistics.PeakMerge, 0.001); // 避免除零
                 
                 DebugLogV4($"📈 峰值區分度分析:");
-                DebugLogV4($"   🔹 合併峰值: {statistics.PeakMerge:F2}px");
-                DebugLogV4($"   🔹 分割峰值: {statistics.PeakSplit:F2}px");
+                DebugLogV4($"   🔹 段落內峰值(peak_merge): {statistics.PeakMerge:F2}px");
+                DebugLogV4($"   🔹 段落間峰值(peak_split): {statistics.PeakSplit:F2}px");
                 DebugLogV4($"   🔹 區分度比率: {statistics.PeakSeparationRatio:F2}");
                 
                 if (statistics.PeakSeparationRatio <= _config.MinPeakSeparationRatio)
                 {
-                    DebugLogV4($"❌ 區分度檢查: {statistics.PeakSeparationRatio:F2} ≤ {_config.MinPeakSeparationRatio} (過低)");
+                    DebugLogV4($"❌ 條件3-峰值區分度低: {statistics.PeakSeparationRatio:F2} ≤ {_config.MinPeakSeparationRatio}");
+                    DebugLogV4($"📝 原因: 兩個峰值距離太近，統計上無法有效區分，強行使用會導致決策模糊");
                     DebugLogV4($"🎯 決策: 切換到經驗規則通道");
                     
                     decision.SelectedChannel = ChannelType.ExperienceRule;
@@ -179,7 +183,7 @@ namespace MonLingo.Core.Service.DualChannel
                     return decision;
                 }
                 
-                DebugLogV4($"✅ 區分度檢查: {statistics.PeakSeparationRatio:F2} > {_config.MinPeakSeparationRatio} (充足)");
+                DebugLogV4($"✅ 條件3-區分度檢查: {statistics.PeakSeparationRatio:F2} > {_config.MinPeakSeparationRatio} (充足)");
                 
                 // 5. 條件滿足，使用雙峰統計通道
                 decision.SelectedChannel = ChannelType.BimodalStatistical;

@@ -395,13 +395,13 @@ namespace MonLingo.Core.Service
                     DebugLog($"   欄位 {i + 1}: {columns[i].Count} 行，顏色 #{GetColumnColor(i).Name}");
                 }
 
-                // 階段三：段落分段
-                Logger.Info("📑 v3階段三：開始混合模式段落檢測");
-                Console.WriteLine("📑 v3階段三：開始混合模式段落檢測");
-                DebugLog($"📑 v3階段三：對 {columns.Count} 個欄位執行段落分割");
-                var layoutResult = PerformParagraphSegmentation(columns);
-                Logger.Info($"✅ v3階段三完成：生成 {layoutResult.Count} 個欄位的段落結構");
-                Console.WriteLine($"✅ v3階段三完成：生成 {layoutResult.Count} 個欄位的段落結構");
+                // 階段三：段落分段 (v4.0 雙通道架構)
+                Logger.Info("📑 v4階段三：開始雙通道段落檢測");
+                Console.WriteLine("📑 v4階段三：開始雙通道段落檢測");
+                DebugLog($"📑 v4階段三：對 {columns.Count} 個欄位執行雙通道段落分割");
+                var layoutResult = PerformParagraphSegmentationV4(columns);
+                Logger.Info($"✅ v4階段三完成：生成 {layoutResult.Count} 個欄位的段落結構 (雙通道架構)");
+                Console.WriteLine($"✅ v4階段三完成：生成 {layoutResult.Count} 個欄位的段落結構 (雙通道架構)");
                 
 
                 
@@ -1410,7 +1410,7 @@ namespace MonLingo.Core.Service
                     DebugLogV4($"");
                     DebugLogV4($"✅ v4.0處理完成! 耗時: {stopwatch.Elapsed.TotalMilliseconds:F2}ms");
                     DebugLogV4($"📊 結果統計: {column.Count}行 → {singleResult.Count}段落");
-                    DebugLogV4($"🎯 使用通道: 經驗規則通道 (單行模式)");
+                    DebugLogV4($"🎯 使用通道: {channelChoice} (單行模式)");
                     DebugLogV4($"===============================================");
                     DebugLogV4($"");
                     
@@ -1425,7 +1425,7 @@ namespace MonLingo.Core.Service
                     DebugLogV4($"");
                     DebugLogV4($"✅ v4.0處理完成! 耗時: {stopwatch.Elapsed.TotalMilliseconds:F2}ms");
                     DebugLogV4($"📊 結果統計: {column.Count}行 → {listResult.Count}段落");
-                    DebugLogV4($"🎯 使用通道: 經驗規則通道 (列表模式)");
+                    DebugLogV4($"🎯 使用通道: {channelChoice} (列表模式)");
                     DebugLogV4($"===============================================");
                     DebugLogV4($"");
                     
@@ -1441,7 +1441,7 @@ namespace MonLingo.Core.Service
                     DebugLogV4($"");
                     DebugLogV4($"✅ v4.0處理完成! 耗時: {stopwatch.Elapsed.TotalMilliseconds:F2}ms");
                     DebugLogV4($"📊 結果統計: {column.Count}行 → {textResult.Count}段落");
-                    DebugLogV4($"🎯 使用通道: 經驗規則通道 (連續文本模式)");
+                    DebugLogV4($"🎯 使用通道: {channelChoice} (連續文本模式)");
                     DebugLogV4($"===============================================");
                     DebugLogV4($"");
                     
@@ -1650,11 +1650,11 @@ namespace MonLingo.Core.Service
             double oldThreshold = avgFontHeight * 0.25;
             
             // v4.1: 使用混合自適應策略
-            double clusterThreshold = DetermineClusterThreshold(spacings, avgFontHeight);
+            string selectedMethod;
+            double clusterThreshold = DetermineClusterThreshold(spacings, avgFontHeight, out selectedMethod);
             
-            // v4.1: 調試輸出和比較
-            string thresholdMethod = double.IsNaN(CalculateGapBasedThreshold(spacings)) ? "變異係數校驗法" : "自然間隙分析法";
-            LogV41AdaptiveThresholdSelection(columnKey, spacings, avgFontHeight, clusterThreshold, thresholdMethod);
+            // v4.1: 調試輸出和比較 - 使用方法返回的選擇信息
+            LogV41AdaptiveThresholdSelection(columnKey, spacings, avgFontHeight, clusterThreshold, selectedMethod);
             LogV41ThresholdComparison(columnKey, oldThreshold, clusterThreshold, 
                 "提升不同文檔密度下的聚類穩定性，減少固定閾值敏感性問題");
             
@@ -1913,8 +1913,8 @@ namespace MonLingo.Core.Service
             var paragraphs = new List<LayoutParagraph>();
             var currentParagraph = new List<LayoutLine> { column[0] };
             
-            Logger.Debug($"🧮 v3.1雙峰加權系統：自適應閾值={adaptiveThreshold:F2}");
-            Console.WriteLine($"🧮 v3.1雙峰自適應閾值系統：動態閾值={adaptiveThreshold:F2} (基於雙峰模型)");
+            Logger.Debug($"🧮 v4.2雙峰加權系統：自適應閾值={adaptiveThreshold:F2}");
+            Console.WriteLine($"🎯 v4.2最終合併閾值確認：{adaptiveThreshold:F2} (智能相機系統全面啟動)");
             DebugStage3V3(columnKey, 0, column[0], 0, "段落起始");
 
             for (int i = 1; i < column.Count; i++)
@@ -1928,7 +1928,7 @@ namespace MonLingo.Core.Service
                 double mergeScore = CalculateMergeScoreV31(previousLine, currentLine, biPeakModel);
                 
                 Logger.Debug($"📊 v3.1分數：行{i} 「{currentLine.Text.Substring(0, Math.Min(20, currentLine.Text.Length))}...」 → {mergeScore:F2}");
-                Console.WriteLine($"│ 📊 最終合併分數：{mergeScore:F2} (閾值:{adaptiveThreshold:F2})");
+                Console.WriteLine($"│ 📊 最終合併分數：{mergeScore:F2} (v4.2最終合併閾值:{adaptiveThreshold:F2})");
                 
                 if (mergeScore > adaptiveThreshold)
                 {
@@ -1968,10 +1968,167 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// v3.1基於雙峰模型的自適應閾值計算
-        /// 根據雙峰特徵動態調整合併決策閾值
+        /// v4.2 智能自適應閾值系統重構 - 基於統計分佈的動態閾值計算
+        /// 實現文檔中方案4.1-4.5的完整改進方案，解決v3.1的核心問題
         /// </summary>
         private double CalculateAdaptiveThresholdV31(List<LayoutLine> column, BiPeakSpacingModel biPeakModel, string columnKey)
+        {
+            try
+            {
+                Logger.Debug($"    🎯 v4.2智能自適應閾值系統啟動：基於新改進方案 4.1-4.5");
+                
+                // 收集間距數據用於統計分析
+                var spacings = new List<double>();
+                for (int i = 1; i < column.Count; i++)
+                {
+                    double spacing = column[i].BoundingBox.Top - column[i - 1].BoundingBox.Bottom;
+                    spacings.Add(spacing);
+                }
+
+                // 方案4.1：基於統計分佈的動態基礎閾值
+                double baseThreshold = CalculateStatisticalBaseThreshold(spacings, biPeakModel.PeakMerge);
+                Logger.Debug($"      📸 方案4.1 - 智能相機感光度：動態基礎閾值={baseThreshold:F2}");
+
+                // 方案4.2：基於變異係數的分離度調整
+                double separationFactor = CalculateVariationCoefficientSeparation(spacings, biPeakModel);
+                Logger.Debug($"      🎛️  方案4.2 - 智能相機景深控制：分離度調整={separationFactor:F2}");
+
+                // 方案4.3：連續型可信度評分系統
+                double confidenceFactor = CalculateContinuousConfidenceScore(spacings, biPeakModel);
+                Logger.Debug($"      📊 方案4.3 - 智能相機測光權重：可信度調整={confidenceFactor:F2}");
+
+                // 計算初步閾值
+                double preliminaryThreshold = baseThreshold + separationFactor + confidenceFactor;
+                
+                // 方案4.4：基於文檔類型的動態約束範圍
+                double adaptiveThreshold = ApplyDocumentTypeConstraints(preliminaryThreshold, column, spacings);
+                Logger.Debug($"      ⚡ 方案4.4 - 智能相機快門限制：約束後閾值={adaptiveThreshold:F2}");
+
+                // 方案4.5：多層驗證和異常處理機制
+                adaptiveThreshold = ValidateAndHandleAnomalies(adaptiveThreshold, spacings, biPeakModel);
+                Logger.Debug($"      🛡️  方案4.5 - 智能相機安全監控：最終閾值={adaptiveThreshold:F2}");
+
+                Logger.Debug($"    🧮 v4.2完整計算：基礎{baseThreshold:F2} + 分離{separationFactor:F2} + 可信{confidenceFactor:F2} + 約束調整 = {adaptiveThreshold:F2}");
+                Console.WriteLine($"🧮 v4.2智能自適應閾值：{adaptiveThreshold:F2} (統計驅動基礎{baseThreshold:F2} + 智能調整{(separationFactor + confidenceFactor):F2})");
+                Console.WriteLine($"📊 v4.2最終合併閾值：{adaptiveThreshold:F2} - 智能相機系統五階段優化完成");
+                
+                return adaptiveThreshold;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"    ⚠️  v4.2智能閾值計算異常，回退到v3.1機制：{ex.Message}");
+                // 回退到原v3.1實現
+                return CalculateAdaptiveThresholdV31_Legacy(column, biPeakModel, columnKey);
+            }
+        }
+
+        /// <summary>
+        /// 方案4.1：基於統計分佈的動態基礎閾值
+        /// 類比：智能相機自動感光度系統
+        /// </summary>
+        private double CalculateStatisticalBaseThreshold(List<double> spacings, double peakMerge)
+        {
+            if (spacings.Count < 2)
+            {
+                return Math.Max(0.5, peakMerge * 1.2);
+            }
+
+            // 基於間距分佈的百分位數計算
+            double p25 = GetPercentile(spacings, 0.25);  // 第25百分位數
+            double p75 = GetPercentile(spacings, 0.75);  // 第75百分位數
+            double iqr = p75 - p25;  // 四分位距
+
+            double baseThreshold = Math.Max(0.5, Math.Min(peakMerge + iqr * 0.5, peakMerge * 2.0));
+            
+            Logger.Debug($"        📊 統計分析：P25={p25:F2}, P75={p75:F2}, IQR={iqr:F2} → 基礎閾值={baseThreshold:F2}");
+            return baseThreshold;
+        }
+
+        /// <summary>
+        /// 方案4.2：基於變異係數的分離度調整
+        /// 類比：智能相機景深控制系統
+        /// </summary>
+        private double CalculateVariationCoefficientSeparation(List<double> spacings, BiPeakSpacingModel biPeakModel)
+        {
+            if (spacings.Count < 2)
+            {
+                return 0.0;
+            }
+
+            // 避免除零，使用變異係數標準化
+            double cv = CalculateCoefficientOfVariation(spacings);
+            double peakSeparation = biPeakModel.PeakSplit - biPeakModel.PeakMerge;
+            double normalizedSeparation = peakSeparation / (biPeakModel.PeakMerge + 1.0);  // +1避免除零
+            double separationFactor = Math.Tanh(normalizedSeparation) * cv * 0.4;  // 使用tanh防止爆炸
+
+            Logger.Debug($"        🎛️  景深控制：變異係數={cv:F3}, 標準化分離度={normalizedSeparation:F2} → 調整因子={separationFactor:F2}");
+            return separationFactor;
+        }
+
+        /// <summary>
+        /// 方案4.3：連續型可信度評分系統
+        /// 類比：智能相機測光權重分配系統
+        /// </summary>
+        private double CalculateContinuousConfidenceScore(List<double> spacings, BiPeakSpacingModel biPeakModel)
+        {
+            // 基於樣本量和峰值質量的連續評分
+            double sampleScore = Math.Min(1.0, (spacings.Count - 2) / 8.0);  // 樣本量評分
+            double peakQuality = CalculatePeakSeparationQuality(biPeakModel);      // 峰值質量評分
+            double confidenceScore = (sampleScore + peakQuality) / 2.0;     // 綜合可信度
+            double confidenceFactor = (confidenceScore - 0.5) * 0.6;  // 映射到[-0.3, +0.3]
+
+            Logger.Debug($"        📊 測光權重：樣本評分={sampleScore:F2}, 峰值質量={peakQuality:F2}, 綜合可信度={confidenceScore:F2} → 調整因子={confidenceFactor:F2}");
+            return confidenceFactor;
+        }
+
+        /// <summary>
+        /// 方案4.4：基於文檔類型的動態約束範圍
+        /// 類比：智能相機快門速度限制系統
+        /// </summary>
+        private double ApplyDocumentTypeConstraints(double preliminaryThreshold, List<LayoutLine> column, List<double> spacings)
+        {
+            // 根據平均字體大小和間距密度動態調整約束範圍
+            double avgFontSize = CalculateAverageLineHeight(column);
+            double spacingDensity = CalculateSpacingDensity(spacings);
+            double minThreshold = Math.Max(0.2, avgFontSize * 0.05);
+            double maxThreshold = Math.Min(10.0, avgFontSize * 0.8);
+            double adaptiveThreshold = Math.Max(minThreshold, Math.Min(preliminaryThreshold, maxThreshold));
+
+            Logger.Debug($"        ⚡ 快門限制：平均字體={avgFontSize:F1}, 密度={spacingDensity:F2}, 約束範圍=[{minThreshold:F2}, {maxThreshold:F2}] → 調整後={adaptiveThreshold:F2}");
+            return adaptiveThreshold;
+        }
+
+        /// <summary>
+        /// 方案4.5：多層驗證和異常處理機制
+        /// 類比：智能相機拍攝安全監控系統
+        /// </summary>
+        private double ValidateAndHandleAnomalies(double adaptiveThreshold, List<double> spacings, BiPeakSpacingModel biPeakModel)
+        {
+            // 計算結果合理性驗證
+            if (spacings.Count > 0 && adaptiveThreshold > spacings.Max() * 1.5)
+            {
+                // 閾值異常過大，回退到保守策略
+                double fallbackThreshold = spacings.Average() * 1.2;
+                Logger.Warn($"        🛡️  安全監控：閾值異常過大({adaptiveThreshold:F2} > {spacings.Max() * 1.5:F2})，回退到保守策略={fallbackThreshold:F2}");
+                return fallbackThreshold;
+            }
+
+            // 檢查是否有級聯誤差的跡象 - 只在極端異常時才介入
+            if (adaptiveThreshold < 0.1 || adaptiveThreshold > 15.0)
+            {
+                double conservativeThreshold = Math.Max(0.5, Math.Min(adaptiveThreshold, 10.0));
+                Logger.Warn($"        🛡️  安全監控：檢測到極端異常值，應用安全約束={conservativeThreshold:F2}");
+                return conservativeThreshold;
+            }
+
+            Logger.Debug($"        ✅ 安全監控：閾值通過所有驗證檢查");
+            return adaptiveThreshold;
+        }
+
+        /// <summary>
+        /// v3.1原版實現（回退用）
+        /// </summary>
+        private double CalculateAdaptiveThresholdV31_Legacy(List<LayoutLine> column, BiPeakSpacingModel biPeakModel, string columnKey)
         {
             // v3.1改進：基於合併峰值動態調整基礎閾值，避免小間距文檔閾值過高
             double baseThreshold = Math.Min(2.0, Math.Max(1.0, biPeakModel.PeakMerge * 1.2));
@@ -2007,6 +2164,100 @@ namespace MonLingo.Core.Service
             
             return adaptiveThreshold;
         }
+
+        #region v4.2智能自適應閾值系統輔助方法
+
+        /// <summary>
+        /// 計算數列的指定百分位數
+        /// </summary>
+        private double GetPercentile(List<double> values, double percentile)
+        {
+            if (values == null || values.Count == 0)
+                return 0.0;
+
+            var sortedValues = values.OrderBy(x => x).ToList();
+            if (sortedValues.Count == 1)
+                return sortedValues[0];
+
+            double index = percentile * (sortedValues.Count - 1);
+            int lowerIndex = (int)Math.Floor(index);
+            int upperIndex = (int)Math.Ceiling(index);
+
+            if (lowerIndex == upperIndex)
+                return sortedValues[lowerIndex];
+
+            double weight = index - lowerIndex;
+            return sortedValues[lowerIndex] * (1 - weight) + sortedValues[upperIndex] * weight;
+        }
+
+        /// <summary>
+        /// 計算變異係數 (標準差/平均值)
+        /// </summary>
+        private double CalculateCoefficientOfVariation(List<double> values)
+        {
+            if (values == null || values.Count < 2)
+                return 0.0;
+
+            double mean = values.Average();
+            if (Math.Abs(mean) < 1e-10) // 避免除零
+                return 0.0;
+
+            double variance = values.Sum(x => Math.Pow(x - mean, 2)) / values.Count;
+            double standardDeviation = Math.Sqrt(variance);
+            
+            return standardDeviation / Math.Abs(mean);
+        }
+
+        /// <summary>
+        /// 計算峰值分離質量評分
+        /// </summary>
+        private double CalculatePeakSeparationQuality(BiPeakSpacingModel biPeakModel)
+        {
+            if (biPeakModel.ValidPeaks < 2)
+                return 0.0;
+
+            // 基於峰值分離度和峰值數量的質量評分
+            double separation = biPeakModel.PeakSplit - biPeakModel.PeakMerge;
+            double relativeSeparation = separation / (biPeakModel.PeakMerge + 1.0); // 避免除零
+            
+            // 分離度質量：使用 tanh 函數將相對分離度映射到 [0, 1]
+            double separationQuality = Math.Tanh(relativeSeparation / 2.0);
+            
+            // 峰值數量質量：有效峰值越多，質量越高，但有上限
+            double peakCountQuality = Math.Min(1.0, biPeakModel.ValidPeaks / 3.0);
+            
+            // 綜合質量評分
+            return (separationQuality + peakCountQuality) / 2.0;
+        }
+
+        /// <summary>
+        /// 計算欄位平均行高
+        /// </summary>
+        private double CalculateAverageLineHeight(List<LayoutLine> column)
+        {
+            if (column == null || column.Count == 0)
+                return 12.0; // 默認值
+
+            return column.Average(line => line.LineHeight);
+        }
+
+        /// <summary>
+        /// 計算間距密度指標
+        /// </summary>
+        private double CalculateSpacingDensity(List<double> spacings)
+        {
+            if (spacings == null || spacings.Count < 2)
+                return 1.0; // 默認密度
+
+            // 計算間距的變異係數作為密度指標
+            double cv = CalculateCoefficientOfVariation(spacings);
+            
+            // 低變異係數表示高密度（間距相似），高變異係數表示低密度（間距差異大）
+            // 使用反向映射：cv 越小，密度越高
+            return Math.Max(0.1, 2.0 / (1.0 + cv)); // 映射到 [0.1, 2.0] 範圍
+        }
+
+        #endregion
 
         /// <summary>
         /// v3新特性：內容特徵自適應閾值計算系統
@@ -2437,8 +2688,9 @@ namespace MonLingo.Core.Service
         /// </summary>
         /// <param name="sortedSpacings">已排序的間距列表</param>
         /// <param name="avgFontHeight">平均字體高度</param>
+        /// <param name="selectedMethod">輸出所選擇的方法名稱</param>
         /// <returns>最終確定的聚類閾值</returns>
-        private double DetermineClusterThreshold(List<double> sortedSpacings, double avgFontHeight)
+        private double DetermineClusterThreshold(List<double> sortedSpacings, double avgFontHeight, out string selectedMethod)
         {
             if (EnableDebugMode)
             {
@@ -2449,6 +2701,7 @@ namespace MonLingo.Core.Service
             double gapBasedThreshold = CalculateGapBasedThreshold(sortedSpacings);
             if (!double.IsNaN(gapBasedThreshold))
             {
+                selectedMethod = "自然間隙分析法";
                 Logger.Debug($"🎯 v4.1 使用自然間隙分析閾值: {gapBasedThreshold:F2}px");
                 
                 if (EnableDebugMode)
@@ -2461,6 +2714,7 @@ namespace MonLingo.Core.Service
             }
             
             // 回退到變異係數方法
+            selectedMethod = "變異係數校驗法";
             if (EnableDebugMode)
             {
                 Console.WriteLine($"🔄 回退至階段二：變異係數校驗法");

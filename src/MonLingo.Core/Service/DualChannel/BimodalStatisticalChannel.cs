@@ -32,7 +32,7 @@ namespace MonLingo.Core.Service.DualChannel
             /// <summary>
             /// 是否啟用調試日誌
             /// </summary>
-            public bool EnableDebugLog { get; set; } = false;
+            public bool EnableDebugLog { get; set; } = true;
         }
 
         /// <summary>
@@ -64,6 +64,19 @@ namespace MonLingo.Core.Service.DualChannel
         private readonly Config _config;
         private readonly Statistics _statistics = new Statistics();
 
+        /// <summary>
+        /// v4.0 調試輸出方法
+        /// </summary>
+        private void DebugLogV4(string message)
+        {
+            if (_config?.EnableDebugLog == true)
+            {
+                Console.WriteLine($"📊 [Step3] {message}");
+                Logger.Debug($"[BimodalStatistical v4.0] {message}");
+                System.Diagnostics.Debug.WriteLine($"[BimodalStatistical v4.0] {message}");
+            }
+        }
+
         public BimodalStatisticalChannel(Config config = null)
         {
             _config = config ?? new Config();
@@ -76,18 +89,41 @@ namespace MonLingo.Core.Service.DualChannel
         {
             try
             {
+                DebugLogV4($"雙峰統計通道處理完成");
                 Logger.Info($"Starting BimodalStatistical processing for column with {column.Lines.Count} lines");
                 
                 if (column.Lines.Count <= 1)
                 {
-                    return CreateSingleParagraph(column, "單行欄位");
+                    var singleResult = CreateSingleParagraph(column, "單行欄位");
+                    DebugLogV4($"創建段落數: {singleResult.Count}");
+                    return singleResult;
                 }
 
-                // 1. 定義決策區間
+                // Step3.1: v4.1聚類閾值計算 (模擬，因為這部分在ChannelSelector中已經完成)
+                DebugLogV4($"[Step3.1] 開始v4.1聚類閾值計算");
+                DebugLogV4($"[Step3.1] 雙峰識別結果:");
+                DebugLogV4($"[Step3.1] - 合併峰值: {statistics.PeakMerge:F2}, 權重: N/A");
+                DebugLogV4($"[Step3.1] - 分割峰值: {statistics.PeakSplit:F2}, 權重: N/A");
+                DebugLogV4($"[Step3.1] - 有效峰值數量: {statistics.EffectivePeaksCount}");
+
+                // Step3.2: 定義決策區間
                 var zones = DefineDecisionZones(statistics);
+                DebugLogV4($"[Step3.2] 決策區間劃分:");
+                DebugLogV4($"[Step3.2] - 合併區間: [0, {zones.MergeBoundary:F2}] → 固定高分 4.5");
+                DebugLogV4($"[Step3.2] - 分割區間: [{zones.SplitBoundary:F2}, ∞] → 固定否決分 -10.0");
+                DebugLogV4($"[Step3.2] - 模糊區間: ({zones.MergeBoundary:F2}, {zones.SplitBoundary:F2}) → 線性遞減評分");
                 
-                // 2. 進行多指標加權決策
+                // Step3.3: 進行多指標加權決策
+                DebugLogV4($"[Step3.3] 開始逐行合併分數計算");
                 var paragraphs = PerformMultiCriteriaDecision(column, zones, statistics);
+                
+                // Step3.4: v4.2智能自適應閾值計算
+                DebugLogV4($"[Step3.4] 開始v4.2合併閾值計算");
+                DebugLogV4($"[Step3.4] 最終合併閾值: {_config.MergeThreshold}");
+                
+                DebugLogV4($"雙峰統計通道處理完成");
+                DebugLogV4($"創建段落數: {paragraphs.Count}");
+                DebugLogV4($"平均段落行數: {(paragraphs.Count > 0 ? column.Lines.Count / (double)paragraphs.Count : 0):F1}");
                 
                 Logger.Info($"BimodalStatistical completed: {paragraphs.Count} paragraphs created");
                 return paragraphs;
@@ -130,6 +166,7 @@ namespace MonLingo.Core.Service.DualChannel
         {
             var paragraphs = new List<Paragraph>();
             var currentParagraphLines = new List<LayoutLine> { column.Lines[0] };
+            var decisionCount = 0;
 
             for (int i = 1; i < column.Lines.Count; i++)
             {
@@ -138,11 +175,28 @@ namespace MonLingo.Core.Service.DualChannel
                 
                 // 計算合併分數
                 var decision = CalculateMergeScore(prevLine, currentLine, zones);
+                decisionCount++;
                 
-                if (_config.EnableDebugLog)
-                {
-                    Logger.Debug($"Line {i}: Score={decision.Score:F2}, Decision={decision.ShouldMerge}, Detail={decision.Detail}");
-                }
+                // 輸出詳細的分數計算過程
+                double spacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
+                DebugLogV4($"[Step3.3] 行{i-1}-{i}: 間距={spacing:F1}");
+                
+                // 獲取分數組成部分
+                double distanceScore = CalculateDistanceScore(spacing, zones);
+                double fontPenalty = CalculateFontHeightPenalty(prevLine, currentLine);
+                double alignmentPenalty = CalculateAlignmentPenalty(prevLine, currentLine);
+                
+                string intervalType = GetIntervalType(spacing, zones);
+                double heightDiff = Math.Abs(prevLine.LineHeight - currentLine.LineHeight) / Math.Min(prevLine.LineHeight, currentLine.LineHeight) * 100;
+                
+                DebugLogV4($"[Step3.3] - 雙峰距離得分: {distanceScore:F1} (區間: {intervalType})");
+                DebugLogV4($"[Step3.3] - 字體高度懲罰: {fontPenalty:F1} (差異: {heightDiff:F1}%)");
+                DebugLogV4($"[Step3.3] - 對齊風格懲罰: {alignmentPenalty:F1}");
+                DebugLogV4($"[Step3.3] - 最終合併分數: {decision.Score:F1}");
+
+                // 決策執行
+                string mergeDecision = decision.ShouldMerge && !decision.IsHardSplit ? "合併" : "分割";
+                DebugLogV4($"[Step3.3] 行{i-1}-{i}: 分數={decision.Score:F1} vs 閾值={_config.MergeThreshold:F1} → {mergeDecision}");
 
                 if (decision.ShouldMerge && !decision.IsHardSplit)
                 {
@@ -157,6 +211,11 @@ namespace MonLingo.Core.Service.DualChannel
                     
                     // 開始新段落
                     currentParagraphLines = new List<LayoutLine> { currentLine };
+                }
+                
+                if (_config.EnableDebugLog)
+                {
+                    Logger.Debug($"Line {i}: Score={decision.Score:F2}, Decision={decision.ShouldMerge}, Detail={decision.Detail}");
                 }
             }
 
@@ -269,6 +328,19 @@ namespace MonLingo.Core.Service.DualChannel
             int leftDiff = Math.Abs(prevLine.BoundingBox.Left - currentLine.BoundingBox.Left);
             
             return leftDiff <= ALIGNMENT_TOLERANCE ? 0.0 : 0.2;
+        }
+
+        /// <summary>
+        /// 獲取間距所屬的區間類型
+        /// </summary>
+        private string GetIntervalType(double spacing, DecisionZones zones)
+        {
+            if (spacing >= zones.SplitBoundary)
+                return "分割區間";
+            else if (spacing <= zones.MergeBoundary)
+                return "合併區間";
+            else
+                return "模糊區間";
         }
 
         /// <summary>

@@ -19,6 +19,16 @@ namespace MonLingo.Core.Service.DualChannel
         private readonly Config _config;
         
         /// <summary>
+        /// 內容類型枚舉
+        /// </summary>
+        private enum ContentType
+        {
+            SingleLine,      // 單行欄位
+            ListItems,       // 列表項目
+            ContinuousText   // 連續文本
+        }
+        
+        /// <summary>
         /// v4.0 調試輸出方法
         /// </summary>
         private void DebugLogV4(string message)
@@ -70,17 +80,74 @@ namespace MonLingo.Core.Service.DualChannel
                 
                 Logger.Info($"Starting dual-channel processing for column with {column.Lines.Count} lines");
 
-                // 步驟1：通道選擇器決策
-                DebugLogV4($"🔍 階段1: 通道選擇分析");
+                // 步驟1：內容類型預檢查 (Content Type Pre-analysis)
+                DebugLogV4($"🔍 階段1: 內容類型預檢查");
+                var contentType = AnalyzeContentType(column);
+                
+                // 快速處理路徑
+                if (contentType == ContentType.SingleLine)
+                {
+                    DebugLogV4($"[Step1] 快速處理模式啟動");
+                    var singleLineParagraphs = CreateSingleLineParagraphs(column);
+                    var singleProcessingTime = (DateTime.Now - startTime).TotalMilliseconds;
+                    
+                    DebugLogV4($"[Step1] 創建段落: 共{singleLineParagraphs.Count}個段落");
+                    DebugLogV4($"[Step1] 處理完成，跳過通道選擇");
+                    DebugLogV4($"✅ 單行處理完成! 耗時: {singleProcessingTime:F2}ms");
+                    DebugLogV4($"📊 結果統計: {column.Lines.Count}行 → {singleLineParagraphs.Count}段落");
+                    DebugLogV4($"🎯 使用路徑: 單行快速處理");
+                    DebugLogV4($"===============================================");
+                    DebugLogV4($"");
+                    
+                    return singleLineParagraphs;
+                }
+                
+                if (contentType == ContentType.ListItems)
+                {
+                    DebugLogV4($"[Step1] 快速處理模式啟動");
+                    var listParagraphs = CreateListParagraphs(column);
+                    var listProcessingTime = (DateTime.Now - startTime).TotalMilliseconds;
+                    
+                    DebugLogV4($"[Step1] 創建段落: 共{listParagraphs.Count}個段落");
+                    DebugLogV4($"[Step1] 處理完成，跳過通道選擇");
+                    DebugLogV4($"✅ 列表處理完成! 耗時: {listProcessingTime:F2}ms");
+                    DebugLogV4($"📊 結果統計: {column.Lines.Count}行 → {listParagraphs.Count}段落");
+                    DebugLogV4($"🎯 使用路徑: 列表快速處理");
+                    DebugLogV4($"===============================================");
+                    DebugLogV4($"");
+                    
+                    return listParagraphs;
+                }
+
+                // 步驟2：智能通道選擇器決策 (僅用於連續文本)
+                DebugLogV4($"[Step2] 開始智能通道選擇");
                 var decision = _channelSelector.SelectChannel(column);
+                
+                DebugLogV4($"[Step2] 數據質量評估: 行數={column.Lines.Count}, 有效間距數={decision.SpacingsCount}");
                 
                 // v4.0 詳細通道選擇調試輸出
                 string channelIcon = decision.SelectedChannel == ChannelType.BimodalStatistical ? "📊" : "🎯";
-                string channelName = decision.SelectedChannel == ChannelType.BimodalStatistical ? "雙峰統計通道" : "經驗規則通道";
+                string channelName = decision.SelectedChannel == ChannelType.BimodalStatistical ? "BimodalStatisticalChannel" : "ExperienceRuleChannel";
+                string displayChannelName = decision.SelectedChannel == ChannelType.BimodalStatistical ? "雙峰統計通道" : "經驗規則通道";
+                
+                DebugLogV4($"[Step2] 通道選擇結果: {channelName}");
+                
+                // 獲取選擇原因
+                string selectionReason = GetChannelSelectionReason(decision);
+                DebugLogV4($"[Step2] 選擇原因: {selectionReason}");
+                
+                if (decision.SelectedChannel == ChannelType.BimodalStatistical)
+                {
+                    DebugLogV4($"[Step2] → 進入雙峰統計通道 (Step3)");
+                }
+                else
+                {
+                    DebugLogV4($"[Step2] → 進入經驗規則通道 (Step4)");
+                }
                 
                 DebugLogV4($"");
                 DebugLogV4($"┌─ 【通道選擇決策結果】 ─────────────────");
-                DebugLogV4($"│ {channelIcon} 選擇通道: {channelName}");
+                DebugLogV4($"│ {channelIcon} 選擇通道: {displayChannelName}");
                 DebugLogV4($"│ 📈 數據品質指標:");
                 DebugLogV4($"│   • 樣本數量: {decision.SpacingsCount}");
                 DebugLogV4($"│   • 有效峰值: {decision.EffectivePeaks}");
@@ -93,8 +160,6 @@ namespace MonLingo.Core.Service.DualChannel
                     DebugLogV4($"│   • 標準差: {decision.Statistics.GlobalStdDev:F2}px");
                 }
                 
-                // 顯示選擇原因
-                string selectionReason = GetChannelSelectionReason(decision);
                 DebugLogV4($"│ 🎯 選擇原因: {selectionReason}");
                 DebugLogV4($"└─────────────────────────────────────");
                 DebugLogV4($"");
@@ -102,31 +167,31 @@ namespace MonLingo.Core.Service.DualChannel
                 Logger.Info($"Channel decision: {decision.SelectedChannel}, Confidence: {decision.Confidence:F2}, " +
                            $"SpacingsCount: {decision.SpacingsCount}, EffectivePeaks: {decision.EffectivePeaks}");
 
-                // 步驟2：根據決策選擇處理通道
-                DebugLogV4($"⚙️ 階段2: {channelName}處理");
+                // 步驟3或4：根據決策選擇處理通道
                 List<Paragraph> paragraphs;
                 
                 if (decision.SelectedChannel == ChannelType.BimodalStatistical)
                 {
-                    DebugLogV4($"📊 執行雙峰統計算法...");
+                    DebugLogV4($"⚙️ 執行雙峰統計算法...");
                     paragraphs = _bimodalChannel.Process(column, decision.Statistics);
                 }
                 else
                 {
-                    DebugLogV4($"🎯 執行經驗規則算法...");
+                    DebugLogV4($"⚙️ 執行經驗規則算法...");
                     paragraphs = _experienceChannel.Process(column, decision.Statistics);
                 }
 
-                // 步驟3：後處理驗證和優化
-                DebugLogV4($"🔧 階段3: 後處理與驗證");
+                // 步驟4：後處理驗證和優化
+                DebugLogV4($"🔧 階段4: 後處理與驗證");
                 paragraphs = PostProcessParagraphs(paragraphs, column, decision);
 
                 var processingTime = (DateTime.Now - startTime).TotalMilliseconds;
+                string usedChannelName = decision.SelectedChannel == ChannelType.BimodalStatistical ? "雙峰統計通道" : "經驗規則通道";
                 
                 DebugLogV4($"");
                 DebugLogV4($"✅ 處理完成! 耗時: {processingTime:F2}ms");
                 DebugLogV4($"📊 結果統計: {column.Lines.Count}行 → {paragraphs.Count}段落");
-                DebugLogV4($"🎯 使用通道: {channelName}");
+                DebugLogV4($"🎯 使用通道: {usedChannelName}");
                 DebugLogV4($"===============================================");
                 DebugLogV4($"");
 
@@ -304,6 +369,119 @@ namespace MonLingo.Core.Service.DualChannel
             _channelSelector.ResetStatistics();
             _bimodalChannel.ResetStatistics();
             Logger.Info("All dual-channel statistics reset");
+        }
+        
+        /// <summary>
+        /// 內容類型預檢查 (Content Type Pre-analysis)
+        /// </summary>
+        private ContentType AnalyzeContentType(Column column)
+        {
+            DebugLogV4($"[Step1] 開始內容類型預分析");
+            DebugLogV4($"[Step1] 欄位信息: 行數={column.Lines.Count}, 平均字符數={column.Lines.Average(l => l.Text?.Length ?? 0):F1}");
+            
+            // 1. 單行欄位捷徑 (Single-Line Shortcut)
+            if (column.Lines.Count == 1)
+            {
+                DebugLogV4($"[Step1] 內容類型判定結果: SingleLine");
+                DebugLogV4($"[Step1] 檢測到單行內容，使用快速處理模式");
+                Logger.Debug("v4內容分析：單行欄位捷徑");
+                return ContentType.SingleLine;
+            }
+
+            // 2. 列表項目識別 (List Item Detection)
+            int listIndicatorCount = 0;
+            foreach (var line in column.Lines)
+            {
+                var trimmedText = line.Text.Trim();
+                if (IsListIndicator(trimmedText))
+                {
+                    listIndicatorCount++;
+                }
+            }
+
+            // 如果超過50%的行具有列表特徵，認為是列表
+            double listRatio = (double)listIndicatorCount / column.Lines.Count;
+            if (listRatio >= 0.5)
+            {
+                DebugLogV4($"[Step1] 內容類型判定結果: ListItems");
+                DebugLogV4($"[Step1] 檢測到列表項目內容，使用快速處理模式");
+                Logger.Debug($"v4內容分析：列表項目識別 (列表比例:{listRatio:F2})");
+                return ContentType.ListItems;
+            }
+
+            // 3. 連續文本處理 (Continuous Text Handling)
+            DebugLogV4($"[Step1] 內容類型判定結果: ContinuousText");
+            DebugLogV4($"[Step1] 檢測到連續文本內容，需進行通道選擇");
+            Logger.Debug("v4內容分析：連續文本處理");
+            return ContentType.ContinuousText;
+        }
+        
+        /// <summary>
+        /// 檢查文本是否為列表指示符
+        /// </summary>
+        private bool IsListIndicator(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            
+            // 常見列表符號
+            var listPrefixes = new[] { "•", "·", "▪", "▫", "◦", "‣", "⁃", "*", "-", "+" };
+            foreach (var prefix in listPrefixes)
+            {
+                if (text.StartsWith(prefix)) return true;
+            }
+            
+            // 數字編號 (1. 2. 3. 等)
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^\d+\.\s+"))
+                return true;
+                
+            // 字母編號 (a) b) c) 等)
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^[a-zA-Z]\)\s+"))
+                return true;
+                
+            return false;
+        }
+        
+        /// <summary>
+        /// 創建單行段落
+        /// </summary>
+        private List<Paragraph> CreateSingleLineParagraphs(Column column)
+        {
+            var paragraph = new Paragraph
+            {
+                ParagraphId = "P1_SINGLE",
+                Lines = new List<LayoutLine>(column.Lines),
+                BoundingBox = column.BoundingBox,
+                ColumnColor = column.Color,
+                CreatedByChannel = ChannelType.ExperienceRule,
+                ChannelConfidence = 1.0
+            };
+            
+            return new List<Paragraph> { paragraph };
+        }
+        
+        /// <summary>
+        /// 創建列表段落（每行一個段落）
+        /// </summary>
+        private List<Paragraph> CreateListParagraphs(Column column)
+        {
+            var paragraphs = new List<Paragraph>();
+            
+            for (int i = 0; i < column.Lines.Count; i++)
+            {
+                var line = column.Lines[i];
+                var paragraph = new Paragraph
+                {
+                    ParagraphId = $"P{i + 1}_LIST",
+                    Lines = new List<LayoutLine> { line },
+                    BoundingBox = line.BoundingBox,
+                    ColumnColor = column.Color,
+                    CreatedByChannel = ChannelType.ExperienceRule,
+                    ChannelConfidence = 0.9
+                };
+                paragraphs.Add(paragraph);
+            }
+            
+            return paragraphs;
         }
     }
 
