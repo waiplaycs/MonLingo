@@ -15,14 +15,39 @@ namespace MonLingo.Core.Service.DualChannel
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>
-        /// 經驗規則通道配置
+        /// 經驗規則通道配置 v4.3
         /// </summary>
         public class Config
         {
             /// <summary>
-            /// 合併閾值 T_merge (預設: 3.0)
+            /// 高品質數據合併評分閾值 (有效間距 ≥ 6) [v4.3更新]
             /// </summary>
-            public double MergeThreshold { get; set; } = 3.0;
+            public double HighQualityMergeThreshold { get; set; } = 2.0;
+            
+            /// <summary>
+            /// 中品質數據合併評分閾值 (有效間距 4-5) [v4.3更新]
+            /// </summary>
+            public double MediumQualityMergeThreshold { get; set; } = 1.5;
+            
+            /// <summary>
+            /// 低品質數據合併評分閾值 (有效間距 ≤ 3) [v4.3更新]
+            /// </summary>
+            public double LowQualityMergeThreshold { get; set; } = 1.0;
+            
+            /// <summary>
+            /// 策略三高權重加分 [v4.3更新]
+            /// </summary>
+            public double Strategy3HighScore { get; set; } = 3.0;
+            
+            /// <summary>
+            /// 策略三中權重加分 [v4.3更新]
+            /// </summary>
+            public double Strategy3MediumScore { get; set; } = 2.0;
+            
+            /// <summary>
+            /// 策略三低權重加分 [v4.3更新]
+            /// </summary>
+            public double Strategy3LowScore { get; set; } = 1.0;
             
             /// <summary>
             /// 全局統計係數 - 分割閾值 (預設: 1.0)
@@ -61,22 +86,49 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 合併閾值屬性
+        /// 合併閾值屬性 (向後兼容) [v4.3更新]
+        /// 實際使用動態閾值，此屬性僅用於接口兼容性
         /// </summary>
-        public double MergeThreshold 
-        { 
-            get => _config.MergeThreshold; 
-            set => _config.MergeThreshold = value; 
+        public double MergeThreshold { get; set; } = 2.0; // 預設中等品質閾值
+        
+        /// <summary>
+        /// 根據數據品質計算動態合併評分閾值 [v4.3更新]
+        /// </summary>
+        private double CalculateDynamicMergeThreshold(int effectiveSpacingCount)
+        {
+            if (effectiveSpacingCount >= 6)
+                return _config.HighQualityMergeThreshold;    // 高品質：2.0分
+            else if (effectiveSpacingCount >= 4)
+                return _config.MediumQualityMergeThreshold;  // 中品質：1.5分
+            else
+                return _config.LowQualityMergeThreshold;     // 低品質：1.0分
         }
 
         /// <summary>
-        /// 處理經驗規則通道的段落分割
+        /// 獲取數據品質等級描述 [v4.3更新]
+        /// </summary>
+        private string GetQualityLevel(int effectiveSpacingCount)
+        {
+            if (effectiveSpacingCount >= 6)
+                return "高品質";
+            else if (effectiveSpacingCount >= 4)
+                return "中品質";
+            else
+                return "低品質";
+        }
+
+        /// <summary>
+        /// 處理經驗規則通道的段落分割 [v4.3更新]
         /// </summary>
         public List<Paragraph> Process(Column column, ChannelStatistics globalStatistics)
         {
             try
             {
-                DebugLogV4($"經驗規則通道啟動");
+                DebugLogV4($"經驗規則通道啟動 [v4.3版本]");
+                DebugLogV4($"🚀 v4.3核心改進:");
+                DebugLogV4($"  - 動態合併評分閾值 (根據數據品質調整)");
+                DebugLogV4($"  - 策略三多級加分機制 (+1.0~+3.0分)");
+                DebugLogV4($"  - 平衡的評分系統確保合併決策可達成性");
                 
                 // 根據實際數據分析觸發條件
                 DebugLogV4($"觸發條件分析: 雙峰統計模型失效");
@@ -133,9 +185,12 @@ namespace MonLingo.Core.Service.DualChannel
                 // 進行三策略加減分評分
                 var paragraphs = PerformThreeStrategyScoring(column, thresholds);
                 
-                DebugLogV4($"經驗規則通道處理完成");
-                DebugLogV4($"創建段落數: {paragraphs.Count}");
-                DebugLogV4($"決策準確度: 0.85"); // 模擬準確度值
+                DebugLogV4($"經驗規則通道處理完成 [v4.3版本]");
+                DebugLogV4($"✅ v4.3成果總結:");
+                DebugLogV4($"  - 使用動態合併評分閾值: {CalculateDynamicMergeThreshold(column.Lines.Count - 1):F1}分");
+                DebugLogV4($"  - 策略三多級加分機制已應用");
+                DebugLogV4($"  - 創建段落數: {paragraphs.Count}");
+                DebugLogV4($"  - 平衡評分系統確保決策可達成性");
                 
                 Logger.Info($"ExperienceRule completed: {paragraphs.Count} paragraphs created");
                 return paragraphs;
@@ -190,7 +245,7 @@ namespace MonLingo.Core.Service.DualChannel
                 var currentLine = column.Lines[i];
                 
                 // 進行三策略評分 - 這裡會輸出詳細的調試信息
-                var decision = EvaluateThreeStrategies(prevLine, currentLine, thresholds);
+                var decision = EvaluateThreeStrategies(prevLine, currentLine, thresholds, i - 1, i, column.Lines.Count);
                 
                 if (_config.EnableDebugLog)
                 {
@@ -225,14 +280,28 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 評估三個策略並計算最終分數
+        /// 評估三個策略並計算最終分數 [v4.3更新]
         /// </summary>
-        private ExperienceRuleDecision EvaluateThreeStrategies(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds)
+        private ExperienceRuleDecision EvaluateThreeStrategies(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds, int prevLineIndex, int currentLineIndex, int totalLineCount)
         {
             var decision = new ExperienceRuleDecision();
             var details = new List<string>();
 
-            DebugLogV4($"策略評估開始 (行{currentLine.LineId}):");
+            // 計算有效間距數量（總行數-1）
+            int effectiveSpacingCount = totalLineCount - 1;
+            
+            // 計算動態合併評分閾值 [v4.3更新]
+            double dynamicMergeThreshold = CalculateDynamicMergeThreshold(effectiveSpacingCount);
+
+            // 截取行內容用於顯示（最多20個字符）
+            string prevLineText = prevLine.Text?.Length > 20 ? prevLine.Text.Substring(0, 17) + "..." : prevLine.Text ?? "";
+            string currentLineText = currentLine.Text?.Length > 20 ? currentLine.Text.Substring(0, 17) + "..." : currentLine.Text ?? "";
+
+            DebugLogV4($"策略評估開始 (行{prevLineIndex}-{currentLineIndex}):");
+            DebugLogV4($"- 上行: 「{prevLineText}」");
+            DebugLogV4($"- 當行: 「{currentLineText}」");
+            DebugLogV4($"- 資料品質: {GetQualityLevel(effectiveSpacingCount)} (有效間距:{effectiveSpacingCount})"); // [v4.3更新]
+            DebugLogV4($"- 動態合併評分閾值: {dynamicMergeThreshold:F1}分 [v4.3機制]"); // [v4.3更新]
             
             // 策略一：基於字體層次的扣分
             double strategy1Score = EvaluateStrategy1FontHierarchy(prevLine, currentLine);
@@ -255,13 +324,13 @@ namespace MonLingo.Core.Service.DualChannel
             double strategy3Score = strategy3Result.Score;
             details.Add($"統計:{strategy3Score:F1}");
 
-            // 計算最終合併分數
+            // 計算最終合併分數 [v4.3更新]
             decision.FinalScore = strategy1Score + strategy2Score + strategy3Score;
-            decision.ShouldMerge = decision.FinalScore >= _config.MergeThreshold;
-            decision.Detail = $"{string.Join(" ", details)} = {decision.FinalScore:F1} (閾值:{_config.MergeThreshold})";
+            decision.ShouldMerge = decision.FinalScore >= dynamicMergeThreshold;
+            decision.Detail = $"{string.Join(" ", details)} = {decision.FinalScore:F1} (動態閾值:{dynamicMergeThreshold:F1}) [v4.3]";
 
-            DebugLogV4($"- 最終評分: {decision.FinalScore:F1} (閾值: {_config.MergeThreshold})");
-            DebugLogV4($"- 決策結果: {(decision.ShouldMerge ? "合併" : "分割")}");
+            DebugLogV4($"- 最終評分: {decision.FinalScore:F1} (動態閾值: {dynamicMergeThreshold:F1}) [v4.3機制]");
+            DebugLogV4($"- 決策結果: {(decision.ShouldMerge ? "合併" : "分割")} [平衡評分系統]");
 
             return decision;
         }
@@ -335,7 +404,7 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 策略三：基於統計自適應的合併評分
+        /// 策略三：基於統計自適應的多級加分機制 [v4.3更新]
         /// </summary>
         private StrategyResult EvaluateStrategy3Statistical(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds)
         {
@@ -344,9 +413,15 @@ namespace MonLingo.Core.Service.DualChannel
             // 計算當前行距
             double spacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
             
-            DebugLogV4($"- 策略3(統計自適應): 行距:{spacing:F1}px");
-            DebugLogV4($"  - 合併閾值: {thresholds.MergeThreshold:F1}px");
-            DebugLogV4($"  - 分割閾值: {thresholds.SplitThreshold:F1}px");
+            // 計算關鍵閾值點 [v4.3更新]
+            double highWeightThreshold = thresholds.MergeThreshold * 0.8;  // 高權重加分邊界
+            double splitThresholdReduced = thresholds.SplitThreshold * 0.6; // 分割閾值縮減邊界
+            
+            DebugLogV4($"- 策略3(統計自適應v4.3): 行距:{spacing:F1}px");
+            DebugLogV4($"  - 統計合併間距閾值: {thresholds.MergeThreshold:F1}px (用於判斷行距大小)");
+            DebugLogV4($"  - 統計分割間距閾值: {thresholds.SplitThreshold:F1}px (硬性分割邊界)");
+            DebugLogV4($"  - 高權重閾值: {highWeightThreshold:F1}px (×0.8)");
+            DebugLogV4($"  - 低權重閾值: {splitThresholdReduced:F1}px (×0.6)"); // [v4.3更新]
             
             if (spacing > thresholds.SplitThreshold)
             {
@@ -355,19 +430,33 @@ namespace MonLingo.Core.Service.DualChannel
                 result.Reason = $"間距過大: {spacing:F1}px > {thresholds.SplitThreshold:F1}px";
                 DebugLogV4($"  - 結果: 硬性分割 ({result.Reason})");
             }
+            else if (spacing < highWeightThreshold)
+            {
+                // 高權重合併加分 (+3.0分) [v4.3更新]
+                result.Score = _config.Strategy3HighScore;
+                result.Reason = $"間距極小: {spacing:F1}px < {highWeightThreshold:F1}px";
+                DebugLogV4($"  - 結果: 高權重合併加分+{result.Score:F1} (強烈支援合併) [v4.3]");
+            }
             else if (spacing < thresholds.MergeThreshold)
             {
-                // 合併加分
-                result.Score = 1.0;
+                // 中權重合併加分 (+2.0分) [v4.3更新]
+                result.Score = _config.Strategy3MediumScore;
                 result.Reason = $"間距偏小: {spacing:F1}px < {thresholds.MergeThreshold:F1}px";
-                DebugLogV4($"  - 結果: 加分+{result.Score:F1} ({result.Reason})");
+                DebugLogV4($"  - 結果: 中權重合併加分+{result.Score:F1} (適度支援合併) [v4.3]");
+            }
+            else if (spacing <= splitThresholdReduced)
+            {
+                // 低權重合併加分 (+1.0分) [v4.3更新]  
+                result.Score = _config.Strategy3LowScore;
+                result.Reason = $"模糊區間偏向合併: {spacing:F1}px ≤ {splitThresholdReduced:F1}px";
+                DebugLogV4($"  - 結果: 低權重合併加分+{result.Score:F1} (模糊區間偏向合併) [v4.3]");
             }
             else
             {
-                // 模糊區間：無加分
+                // 完全模糊區間：無加分 [v4.3更新]
                 result.Score = 0.0;
-                result.Reason = $"模糊區間: {spacing:F1}px";
-                DebugLogV4($"  - 結果: 模糊區間，無加分 ({result.Reason})");
+                result.Reason = $"完全模糊區間: {spacing:F1}px";
+                DebugLogV4($"  - 結果: 完全模糊區間，無加分 [v4.3]");
             }
             
             return result;

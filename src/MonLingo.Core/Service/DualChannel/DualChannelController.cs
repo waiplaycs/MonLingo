@@ -121,7 +121,13 @@ namespace MonLingo.Core.Service.DualChannel
 
                 // 步驟2：智能通道選擇器決策 (僅用於連續文本)
                 DebugLogV4($"[Step2] 開始智能通道選擇");
-                var decision = _channelSelector.SelectChannel(column);
+                
+                // 計算全局統計數據
+                var globalStatistics = ChannelSelector.CalculateGlobalStatistics(new[] { column });
+                Console.WriteLine($"🔧 [DEBUG] 全局統計計算完成: 平均={globalStatistics.GlobalMean:F1}px, 標準差={globalStatistics.GlobalStdDev:F1}px, 樣本數={globalStatistics.TotalSpacings}");
+                DebugLogV4($"[Step2] 全局統計計算完成: 平均={globalStatistics.GlobalMean:F1}px, 標準差={globalStatistics.GlobalStdDev:F1}px, 樣本數={globalStatistics.TotalSpacings}");
+                
+                var decision = _channelSelector.SelectChannel(column, globalStatistics);
                 
                 DebugLogV4($"[Step2] 數據質量評估: 行數={column.Lines.Count}, 有效間距數={decision.SpacingsCount}");
                 
@@ -178,7 +184,7 @@ namespace MonLingo.Core.Service.DualChannel
                 else
                 {
                     DebugLogV4($"⚙️ 執行經驗規則算法...");
-                    paragraphs = _experienceChannel.Process(column, decision.Statistics);
+                    paragraphs = _experienceChannel.Process(column, globalStatistics);
                 }
 
                 // 步驟4：後處理驗證和優化
