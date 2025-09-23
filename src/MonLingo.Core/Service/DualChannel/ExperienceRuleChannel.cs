@@ -50,6 +50,11 @@ namespace MonLingo.Core.Service.DualChannel
             public double Strategy3LowScore { get; set; } = 1.0;
             
             /// <summary>
+            /// 策略四智能加分 [v4.4更新]
+            /// </summary>
+            public double Strategy4SmartBonus { get; set; } = 1.5;
+            
+            /// <summary>
             /// 全局統計係數 - 分割閾值 (預設: 1.0)
             /// </summary>
             public double GlobalSplitFactor { get; set; } = 1.0;
@@ -66,6 +71,7 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         private readonly Config _config;
+        private int _currentProcessingTotalLines; // 當前處理的總行數 [v4.4新增]
         
         /// <summary>
         /// v4.0 調試輸出方法
@@ -179,11 +185,14 @@ namespace MonLingo.Core.Service.DualChannel
                     return singleResult;
                 }
 
+                // 設置當前處理的總行數 [v4.4更新]
+                _currentProcessingTotalLines = column.Lines.Count - 1; // 間距數 = 行數 - 1
+                
                 // 計算全局統計閾值
                 var thresholds = CalculateGlobalThresholds(globalStatistics);
                 
                 // 進行三策略加減分評分
-                var paragraphs = PerformThreeStrategyScoring(column, thresholds);
+                var paragraphs = PerformThreeStrategyScoring(column, thresholds, globalStatistics);
                 
                 DebugLogV4($"經驗規則通道處理完成 [v4.3版本]");
                 DebugLogV4($"✅ v4.3成果總結:");
@@ -216,9 +225,7 @@ namespace MonLingo.Core.Service.DualChannel
             // 根據文檔輸出詳細的全局統計信息
             DebugLogV4($"全局統計分析:");
             DebugLogV4($"- 平均行距: {globalStatistics.GlobalMean:F1}px");
-            DebugLogV4($"- 標準差: {globalStatistics.GlobalStdDev:F1}px");
-            DebugLogV4($"- 分割因子: {_config.GlobalSplitFactor}");
-            DebugLogV4($"- 合併因子: {_config.GlobalMergeFactor}");
+            DebugLogV4($"- 標準差: {globalStatistics.GlobalStdDev:F1}px (衡量行距一致性程度)");
             DebugLogV4($"閾值計算結果:");
             DebugLogV4($"- 分割閾值: {thresholds.SplitThreshold:F1}px (μ + {_config.GlobalSplitFactor}σ)");
             DebugLogV4($"- 合併閾值: {thresholds.MergeThreshold:F1}px (μ - {_config.GlobalMergeFactor}σ)");
@@ -232,9 +239,9 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 進行三策略加減分評分
+        /// 進行三策略加減分評分 [v4.4更新]
         /// </summary>
-        private List<Paragraph> PerformThreeStrategyScoring(Column column, GlobalThresholds thresholds)
+        private List<Paragraph> PerformThreeStrategyScoring(Column column, GlobalThresholds thresholds, ChannelStatistics globalStatistics)
         {
             var paragraphs = new List<Paragraph>();
             var currentParagraphLines = new List<LayoutLine> { column.Lines[0] };
@@ -244,8 +251,8 @@ namespace MonLingo.Core.Service.DualChannel
                 var prevLine = column.Lines[i - 1];
                 var currentLine = column.Lines[i];
                 
-                // 進行三策略評分 - 這裡會輸出詳細的調試信息
-                var decision = EvaluateThreeStrategies(prevLine, currentLine, thresholds, i - 1, i, column.Lines.Count);
+                // 進行三策略評分 - 這裡會輸出詳細的調試信息 [v4.4更新]
+                var decision = EvaluateThreeStrategies(prevLine, currentLine, thresholds, i - 1, i, column.Lines.Count, globalStatistics);
                 
                 if (_config.EnableDebugLog)
                 {
@@ -280,9 +287,9 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 評估三個策略並計算最終分數 [v4.3更新]
+        /// 評估三個策略並計算最終分數 [v4.4更新]
         /// </summary>
-        private ExperienceRuleDecision EvaluateThreeStrategies(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds, int prevLineIndex, int currentLineIndex, int totalLineCount)
+        private ExperienceRuleDecision EvaluateThreeStrategies(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds, int prevLineIndex, int currentLineIndex, int totalLineCount, ChannelStatistics globalStatistics)
         {
             var decision = new ExperienceRuleDecision();
             var details = new List<string>();
@@ -311,8 +318,8 @@ namespace MonLingo.Core.Service.DualChannel
             double strategy2Score = EvaluateStrategy2Alignment(prevLine, currentLine);
             details.Add($"對齊:{strategy2Score:F1}");
             
-            // 策略三：基於統計自適應的合併評分
-            var strategy3Result = EvaluateStrategy3Statistical(prevLine, currentLine, thresholds);
+            // 策略三：基於統計自適應的合併評分 [v4.4更新]
+            var strategy3Result = EvaluateStrategy3Statistical(prevLine, currentLine, thresholds, globalStatistics);
             if (strategy3Result.IsHardSplit)
             {
                 decision.IsHardSplit = true;
@@ -324,19 +331,27 @@ namespace MonLingo.Core.Service.DualChannel
             double strategy3Score = strategy3Result.Score;
             details.Add($"統計:{strategy3Score:F1}");
 
-            // 計算最終合併分數 [v4.3更新]
-            decision.FinalScore = strategy1Score + strategy2Score + strategy3Score;
-            decision.ShouldMerge = decision.FinalScore >= dynamicMergeThreshold;
-            decision.Detail = $"{string.Join(" ", details)} = {decision.FinalScore:F1} (動態閾值:{dynamicMergeThreshold:F1}) [v4.3]";
+            // 策略四：全局平均智能加分 [v4.4更新]
+            double strategy4Score = EvaluateStrategy4GlobalAverage(prevLine, currentLine, strategy3Score, globalStatistics);
+            if (strategy4Score > 0)
+            {
+                details.Add($"智能+{strategy4Score:F1}");
+            }
 
-            DebugLogV4($"- 最終評分: {decision.FinalScore:F1} (動態閾值: {dynamicMergeThreshold:F1}) [v4.3機制]");
-            DebugLogV4($"- 決策結果: {(decision.ShouldMerge ? "合併" : "分割")} [平衡評分系統]");
+            // 計算最終合併分數 [v4.4更新]
+            decision.FinalScore = strategy1Score + strategy2Score + strategy3Score + strategy4Score;
+            decision.ShouldMerge = decision.FinalScore >= dynamicMergeThreshold;
+            decision.Detail = $"{string.Join(" ", details)} = {decision.FinalScore:F1} (動態閾值:{dynamicMergeThreshold:F1}) [v4.4]";
+
+            DebugLogV4($"- 最終評分: {decision.FinalScore:F1} (動態閾值: {dynamicMergeThreshold:F1}) [v4.4機制]");
+            DebugLogV4($"- 決策結果: {(decision.ShouldMerge ? "合併" : "分割")} [四策略評分系統]");
 
             return decision;
         }
 
         /// <summary>
-        /// 策略一：基於字體層次的扣分
+        /// 策略一：基於字體層次的扣分 - 漸進式容錯模型
+        /// 參考雙峰通道的字體高度懲罰機制，考慮OCR框架誤差
         /// </summary>
         private double EvaluateStrategy1FontHierarchy(LayoutLine prevLine, LayoutLine currentLine)
         {
@@ -349,20 +364,36 @@ namespace MonLingo.Core.Service.DualChannel
             double score;
             string reason;
             
-            if (heightDiff <= 5.0)
+            // 漸進式懲罰階梯 - 參考雙峰通道設計，但調整為負分
+            if (heightDiff <= 10.0)
             {
-                score = 0.0;     // 無扣分
-                reason = "字體尺寸一致";
+                score = 0.0;     // OCR微小誤差容錯範圍，無懲罰
+                reason = "OCR容錯範圍";
             }
-            else if (heightDiff <= 15.0)
+            else if (heightDiff <= 25.0)
             {
-                score = -1.0;    // 輕度扣分
-                reason = "字體輕微差異";
+                score = -0.1;    // 輕微差異，可能是同字體的OCR變異
+                reason = "同字體變異";
+            }
+            else if (heightDiff <= 50.0)
+            {
+                score = -0.4;    // 中等差異，可能是相鄰字體級別
+                reason = "相鄰字體級別";
+            }
+            else if (heightDiff <= 80.0)
+            {
+                score = -0.8;    // 顯著差異，不同字體級別
+                reason = "不同字體級別";
+            }
+            else if (heightDiff <= 120.0)
+            {
+                score = -1.2;    // 大幅差異，標題與正文級別
+                reason = "標題與正文級別";
             }
             else
             {
-                score = -2.0;    // 重度扣分
-                reason = "字體顯著差異";
+                score = -2.0;    // 極大差異，強制分割級別
+                reason = "極大差異";
             }
             
             DebugLogV4($"- 策略1(字體層次): {height1:F1}px vs {height2:F1}px, 差異:{heightDiff:F1}%, {reason}, 扣分:{score:F1}");
@@ -404,9 +435,9 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 策略三：基於統計自適應的多級加分機制 [v4.3更新]
+        /// 策略三：基於統計自適應的多級加分機制 [v4.4更新]
         /// </summary>
-        private StrategyResult EvaluateStrategy3Statistical(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds)
+        private StrategyResult EvaluateStrategy3Statistical(LayoutLine prevLine, LayoutLine currentLine, GlobalThresholds thresholds, ChannelStatistics globalStatistics)
         {
             var result = new StrategyResult();
             
@@ -416,12 +447,14 @@ namespace MonLingo.Core.Service.DualChannel
             // 計算關鍵閾值點 [v4.3更新]
             double highWeightThreshold = thresholds.MergeThreshold * 0.8;  // 高權重加分邊界
             double splitThresholdReduced = thresholds.SplitThreshold * 0.6; // 分割閾值縮減邊界
+            double globalMean = globalStatistics.GlobalMean; // 全局平均值 [v4.4新增]
             
             DebugLogV4($"- 策略3(統計自適應v4.3): 行距:{spacing:F1}px");
+            DebugLogV4($"  - 全局平均行距: {globalMean:F1}px (策略四參考基準) [v4.4新增]");
             DebugLogV4($"  - 統計合併間距閾值: {thresholds.MergeThreshold:F1}px (用於判斷行距大小)");
             DebugLogV4($"  - 統計分割間距閾值: {thresholds.SplitThreshold:F1}px (硬性分割邊界)");
             DebugLogV4($"  - 高權重閾值: {highWeightThreshold:F1}px (×0.8)");
-            DebugLogV4($"  - 低權重閾值: {splitThresholdReduced:F1}px (×0.6)"); // [v4.3更新]
+            DebugLogV4($"  - 低權重閾值: {splitThresholdReduced:F1}px (×0.6)");
             
             if (spacing > thresholds.SplitThreshold)
             {
@@ -460,6 +493,30 @@ namespace MonLingo.Core.Service.DualChannel
             }
             
             return result;
+        }
+
+        /// <summary>
+        /// 策略四：全局平均智能加分機制 [v4.4更新]
+        /// 當策略三給出低權重合併加分(+1.0)且間距≤全局平均時，額外提供+1.5分支持
+        /// </summary>
+        private double EvaluateStrategy4GlobalAverage(LayoutLine prevLine, LayoutLine currentLine, double strategy3Score, ChannelStatistics globalStatistics)
+        {
+            // 檢查策略四觸發條件
+            if (Math.Abs(strategy3Score - _config.Strategy3LowScore) < 0.001) // strategy3Score == 1.0
+            {
+                double spacing = currentLine.BoundingBox.Top - prevLine.BoundingBox.Bottom;
+                double globalMean = globalStatistics.GlobalMean;
+                
+                if (spacing <= globalMean)
+                {
+                    double strategy4Score = _config.Strategy4SmartBonus;
+                    DebugLogV4($"- 策略4(全局平均智能加分)+{strategy4Score:F1} (輔助合併支持) [v4.4新增]");
+                    DebugLogV4($"  - 觸發條件: 策略3低權重(+{strategy3Score:F1}) + 間距({spacing:F1}px) ≤ 全局平均({globalMean:F1}px)");
+                    return strategy4Score;
+                }
+            }
+            
+            return 0.0; // 不滿足條件時不加分
         }
 
         /// <summary>
