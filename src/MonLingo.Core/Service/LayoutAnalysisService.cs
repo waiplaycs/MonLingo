@@ -47,12 +47,12 @@ namespace MonLingo.Core.Service
         {
             if (EnableDebugMode)
             {
-                // 輸出到控制台和日誌 - 保持v3.4向後兼容
-                Console.WriteLine($"[MonLingo v3.4版面分析] {message}");
-                Logger.Debug($"[MonLingo v3.4版面分析] {message}");
+                // 輸出到控制台和日誌 - v3.5索引穩定性版本
+                Console.WriteLine($"[MonLingo v3.5版面分析] {message}");
+                Logger.Debug($"[MonLingo v3.5版面分析] {message}");
                 
                 // 同時輸出到系統調試輸出
-                System.Diagnostics.Debug.WriteLine($"[MonLingo v3.4版面分析] {message}");
+                System.Diagnostics.Debug.WriteLine($"[MonLingo v3.5版面分析] {message}");
             }
         }
 
@@ -135,7 +135,7 @@ namespace MonLingo.Core.Service
         {
             if (EnableDebugMode)
             {
-                DebugLog($"   ✂️ v3欄位修剪: 行{currentLineIndex}觸發 | 欄位{columnIndex}({columnSize}行) | 距離:{verticalDistance:F1}px > 閾值:{threshold:F1}px");
+                DebugLog($"   ✂️ v3.5欄位修剪: 行{currentLineIndex}觸發 | 欄位{columnIndex}({columnSize}行) | 距離:{verticalDistance:F1}px > 閾值:{threshold:F1}px");
             }
         }
 
@@ -841,6 +841,7 @@ namespace MonLingo.Core.Service
         /// <summary>
         /// v3版本：單次遍歷有序聚類 (Single-Pass Ordered Clustering)
         /// 核心特點：消除重複掃描，每個文字行只被訪問一次
+        /// v3.5更新：修剪欄位不重新索引，保持索引穩定性
         /// </summary>
         /// <param name="sortedLines">已排序的文字行列表</param>
         /// <returns>按欄位分組的文字行列表</returns>
@@ -850,8 +851,9 @@ namespace MonLingo.Core.Service
             
             Logger.Debug($"🚀 v3單次遍歷開始，處理 {sortedLines.Count} 行");
 
-            // v3核心數據結構
-            var activeColumns = new List<List<LayoutLine>>(); // 活躍欄位列表
+            // v3.5核心數據結構：使用標記陣列避免索引混亂
+            var activeColumns = new List<List<LayoutLine>>(); // 活躍欄位列表（不物理移除）
+            var prunedColumns = new List<bool>(); // 標記陣列：追蹤哪些欄位已被修剪
             var completedColumns = new List<List<LayoutLine>>(); // 已完成欄位列表
             
             // 計算全局平均行間距（用於欄位修剪）
@@ -866,31 +868,38 @@ namespace MonLingo.Core.Service
 
                 Logger.Debug($"🔍 v3處理行{i}: 「{currentLine.Text.Substring(0, Math.Min(30, currentLine.Text.Length))}...」");
 
-                // v3步驟3：歸屬判斷 - 嘗試將當前行歸屬到活躍欄位
-                assigned = ProceedToOwnershipCheckV3(currentLine, activeColumns, i);
+                // v3.5步驟1：先執行欄位修剪檢查（在歸屬檢查之前）
+                PerformColumnPruningV3_5(currentLine, activeColumns, prunedColumns, completedColumns, globalAvgLineSpacing, i);
+
+                // v3步驟2：歸屬判斷 - 嘗試將當前行歸屬到活躍欄位
+                assigned = ProceedToOwnershipCheckV3_5(currentLine, activeColumns, prunedColumns, i);
 
                 // 如果無法歸入任何活躍欄位，創建新欄位
                 if (!assigned)
                 {
                     var newColumn = new List<LayoutLine> { currentLine };
                     activeColumns.Add(newColumn);
+                    prunedColumns.Add(false); // 新欄位初始狀態為未修剪
                     
                     DebugStage2V3(i, currentLine, activeColumns.Count - 1, "新欄位種子");
-                    Logger.Debug($"🌱 v3新種子：行{i}創建欄位{activeColumns.Count}");
+                    Logger.Debug($"🌱 v3新種子：行{i}創建欄位{activeColumns.Count - 1}");
                 }
-
-                // v3步驟4：混合模式欄位修剪
-                PerformColumnPruningV3(currentLine, activeColumns, completedColumns, globalAvgLineSpacing, i);
             }
 
-            // 將所有剩餘的活躍欄位移入已完成列表
-            completedColumns.AddRange(activeColumns);
+            // 將所有未修剪的活躍欄位移入已完成列表
+            for (int i = 0; i < activeColumns.Count; i++)
+            {
+                if (!prunedColumns[i] && activeColumns[i].Count > 0)
+                {
+                    completedColumns.Add(activeColumns[i]);
+                }
+            }
 
-            Logger.Debug($"✅ v3聚類完成：{completedColumns.Count} 個欄位，活躍欄位最大數={activeColumns.Count}");
+            Logger.Debug($"✅ v3.5聚類完成：{completedColumns.Count} 個欄位，活躍欄位最大數={activeColumns.Count}");
             
             stopwatch.Stop();
             int totalLines = completedColumns.Sum(col => col.Count);
-            DebugStagePerformance("v3階段二-單次遍歷有序聚類", sortedLines.Count, completedColumns.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n×m)");
+            DebugStagePerformance("v3.5階段二-單次遍歷有序聚類(索引穩定)", sortedLines.Count, completedColumns.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n×m)");
             
             return completedColumns;
         }
@@ -963,6 +972,63 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
+        /// v3.5算法：歸屬判斷 - 嘗試將當前行歸屬到現有的活躍欄位（跳過已修剪欄位）
+        /// 核心改進：避免索引混亂，跳過已修剪欄位而不物理移除
+        /// </summary>
+        /// <param name="currentLine">當前處理的文字行</param>
+        /// <param name="activeColumns">活躍欄位列表</param>
+        /// <param name="prunedColumns">修剪標記陣列</param>
+        /// <param name="lineIndex">行索引</param>
+        /// <returns>是否成功歸屬</returns>
+        private bool ProceedToOwnershipCheckV3_5(LayoutLine currentLine, List<List<LayoutLine>> activeColumns, List<bool> prunedColumns, int lineIndex)
+        {
+            // v3.5調試：輸出當前欄位狀態
+            DebugLog($"   🔍 v3.5歸屬檢查開始：行{lineIndex}，活躍欄位數={activeColumns.Count}，修剪陣列長度={prunedColumns.Count}");
+            
+            // v3.5調試：顯示修剪陣列狀態
+            string prunedStatus = "";
+            for (int i = 0; i < prunedColumns.Count; i++)
+            {
+                prunedStatus += $"欄位{i}:{(prunedColumns[i] ? "已修剪" : "活躍")} ";
+            }
+            DebugLog($"   🗂️ 修剪狀態：{prunedStatus}");
+            
+            // 遍歷所有活躍欄位，跳過已修剪的欄位
+            for (int columnIndex = 0; columnIndex < activeColumns.Count; columnIndex++)
+            {
+                // v3.5關鍵：跳過已修剪的欄位，避免索引混亂
+                if (columnIndex >= prunedColumns.Count)
+                {
+                    DebugLog($"   ⚠️ v3.5索引錯誤：欄位{columnIndex}超出修剪陣列範圍{prunedColumns.Count}");
+                    break;
+                }
+                
+                if (prunedColumns[columnIndex])
+                {
+                    DebugLog($"   ⏭️ v3.5跳過已修剪欄位{columnIndex}");
+                    continue;
+                }
+
+                var column = activeColumns[columnIndex];
+                
+                // v3標準：檢查歸屬條件
+                if (CanAssignToColumnV3(currentLine, column, columnIndex, lineIndex))
+                {
+                    // 成功歸屬：將行添加到欄位並更新邊界
+                    column.Add(currentLine);
+                    
+                    DebugStage2V3(lineIndex, currentLine, columnIndex, "歸屬成功");
+                    Logger.Debug($"✅ v3.5歸屬：行{lineIndex}加入欄位{columnIndex}（欄位大小：{column.Count}）");
+                    
+                    return true; // 找到歸屬後立即返回
+                }
+            }
+            
+            DebugLog($"   ❌ v3.5歸屬失敗：行{lineIndex}無法歸入任何活躍欄位");
+            return false; // 無法歸入任何活躍欄位
+        }
+
+        /// <summary>
         /// v3算法：混合模式欄位修剪
         /// 及時識別並移除不可能再增長的欄位
         /// </summary>
@@ -1012,6 +1078,54 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
+        /// v3.5算法：混合模式欄位修剪（標記模式）
+        /// 核心改進：不物理移除欄位，只標記為已修剪，避免索引混亂
+        /// </summary>
+        /// <param name="currentLine">當前處理的文字行</param>
+        /// <param name="activeColumns">活躍欄位列表</param>
+        /// <param name="prunedColumns">修剪標記陣列</param>
+        /// <param name="completedColumns">已完成欄位列表</param>
+        /// <param name="globalAvgLineSpacing">全局平均行間距</param>
+        /// <param name="currentLineIndex">當前行索引（用於調試）</param>
+        private void PerformColumnPruningV3_5(LayoutLine currentLine, List<List<LayoutLine>> activeColumns, 
+            List<bool> prunedColumns, List<List<LayoutLine>> completedColumns, double globalAvgLineSpacing, int currentLineIndex = -1)
+        {
+            // v3混合修剪條件：基於全局平均行間距的動態閾值
+            double pruningThreshold = globalAvgLineSpacing * 3.0; // v3標準：3倍行間距
+            
+            // v3.5調試：詳細距離檢查輸出
+            DebugLog($"   🔍 v3.5修剪檢查：行{currentLineIndex}，閾值={pruningThreshold:F1}px，當前行Top={currentLine.BoundingBox.Top:F1}px");
+            
+            // 檢查每個活躍欄位是否應該被修剪
+            for (int i = 0; i < activeColumns.Count; i++)
+            {
+                // 跳過已經修剪的欄位
+                if (prunedColumns[i]) continue;
+                
+                var column = activeColumns[i];
+                if (column.Count == 0) continue;
+                
+                // 計算當前行與欄位底部的垂直距離
+                var columnBottom = column.Max(line => line.BoundingBox.Bottom);
+                double verticalDistance = Math.Max(0, currentLine.BoundingBox.Top - columnBottom);
+                
+                // v3.5調試：顯示每個欄位的距離計算
+                DebugLog($"   📏 欄位{i}距離檢查：欄位底部={columnBottom:F1}px，距離={verticalDistance:F1}px，是否修剪={(verticalDistance > pruningThreshold ? "是" : "否")}");
+                
+                // 如果距離超過修剪閾值，標記為已修剪
+                if (verticalDistance > pruningThreshold)
+                {
+                    // v3.5關鍵：只標記為已修剪，不物理移除
+                    prunedColumns[i] = true;
+                    completedColumns.Add(column);
+                    
+                    DebugStage2Pruning(currentLineIndex, i, column.Count, verticalDistance, pruningThreshold);
+                    DebugLog($"   ✂️ v3.5修剪：欄位{i}距離{verticalDistance:F1}px > 閾值{pruningThreshold:F1}px，標記已修剪（索引保持）");
+                }
+            }
+        }
+
+        /// <summary>
         /// v3算法：檢查當前行是否可以歸屬到指定欄位
         /// 採用v3標準的歸屬判斷條件
         /// </summary>
@@ -1026,6 +1140,9 @@ namespace MonLingo.Core.Service
             
             var currentBox = currentLine.BoundingBox;
             
+            // v3.5調試：顯示歸屬檢查開始
+            DebugLog($"   🔍 v3.5開始檢查欄位{columnIndex}：行{lineIndex}");
+            
             // v3標準1：垂直鄰近度檢查
             // 計算當前行與欄位中所有行的最小垂直距離
             double minVerticalDistance = double.MaxValue;
@@ -1037,8 +1154,12 @@ namespace MonLingo.Core.Service
                 minVerticalDistance = Math.Min(minVerticalDistance, verticalDist);
             }
             
-            double verticalThreshold = avgLineHeightInColumn * 1.2; // v3標準：1.2倍欄位內平均行高
+            double verticalThreshold = avgLineHeightInColumn * 1.5; // v3.5標準：1.5倍欄位內平均行高（解決小字型行影響）
             bool verticalPassed = minVerticalDistance <= verticalThreshold;
+            
+            // v3.5調試：顯示垂直檢查結果
+            DebugLog($"   📏 v3.5垂直檢查欄位{columnIndex}：距離={minVerticalDistance:F1}px，閾值={verticalThreshold:F1}px，通過={verticalPassed}");
+            
             if (!verticalPassed)
             {
                 Logger.Debug($"📏 v3垂直檢查失敗：最小距離{minVerticalDistance:F1}px > 閾值{verticalThreshold:F1}px");
