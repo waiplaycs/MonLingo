@@ -107,13 +107,8 @@ namespace MonLingo.Core.Service.DualChannel
                     return singleResult;
                 }
 
-                // Step3.1: v4.1聚類閾值計算 (模擬，因為這部分在ChannelSelector中已經完成)
-                DebugLogV4($"[Step3.1] 開始v4.1聚類閾值計算");
-                DebugLogV4($"[Step3.1] 雙峰識別結果:");
-                DebugLogV4($"[Step3.1] - 合併峰值: {statistics.PeakMerge:F2}, 權重: N/A");
-                DebugLogV4($"[Step3.1] - 分割峰值: {statistics.PeakSplit:F2}, 權重: N/A");
-                DebugLogV4($"[Step3.1] - 有效峰值數量: {statistics.EffectivePeaksCount}");
-
+                // Step3.1: v4.1聚類閾值計算 (已在ChannelSelector中完成並輸出調試訊息)
+                
                 // Step3.2: 定義決策區間
                 var zones = DefineDecisionZones(statistics);
                 DebugLogV4($"[Step3.2] 決策區間劃分:");
@@ -124,7 +119,7 @@ namespace MonLingo.Core.Service.DualChannel
                 // Step3.4: v4.2智能自適應閾值計算
                 DebugLogV4($"[Step3.4] 開始v4.2智能自適應合併閾值計算");
                 double adaptiveThreshold = CalculateV42AdaptiveThreshold(column, statistics);
-                DebugLogV4($"[Step3.4] v4.2智能自適應閾值: {adaptiveThreshold:F2} (方案4.1-4.5組合)");
+                DebugLogV4($"[Step3.4] v4.2智能自適應閾值: {adaptiveThreshold:F2} (模糊區間中點策略)");
                 
                 // Step3.3: 進行多指標加權決策 (使用自適應閾值)
                 DebugLogV4($"[Step3.3] 開始逐行合併分數計算 (使用v4.2自適應閾值)");
@@ -206,7 +201,7 @@ namespace MonLingo.Core.Service.DualChannel
                 // v4.2決策執行 - 使用自適應閾值
                 bool shouldMergeAdaptive = decision.Score >= adaptiveThreshold && !decision.IsHardSplit;
                 string mergeDecision = shouldMergeAdaptive ? "合併" : "分割";
-                DebugLogV4($"[Step3.3] 行{i-1}-{i}: 分數={decision.Score:F1} vs v4.2閾值={adaptiveThreshold:F1} → {mergeDecision}");
+                DebugLogV4($"[Step3.3] 行{i-1}-{i}: 分數={decision.Score:F2} vs v4.2閾值={adaptiveThreshold:F2} → {mergeDecision}");
 
                 if (shouldMergeAdaptive)
                 {
@@ -217,7 +212,7 @@ namespace MonLingo.Core.Service.DualChannel
                 {
                     // v4.2創建新段落 (自適應閾值分割決策)
                     var paragraph = CreateParagraph(currentParagraphLines, paragraphs.Count, column.Color, 
-                        $"{decision.Detail} [v4.2自適應閾值={adaptiveThreshold:F1}]");
+                        $"{decision.Detail} [v4.2自適應閾值={adaptiveThreshold:F2}]");
                     paragraphs.Add(paragraph);
                     
                     // 開始新段落
@@ -437,7 +432,23 @@ namespace MonLingo.Core.Service.DualChannel
 
         /// <summary>
         /// v4.2智能自適應合併閾值計算
-        /// 集成文檔定義的方案4.1-4.5智能閾值系統
+        /// <summary>
+        /// v4.2智能自適應合併閾值計算
+        /// 核心策略：返回模糊區間中點對應的評分值(2.25)作為合併閾值
+        /// 
+        /// 設計理念：
+        /// 步驟3.3的模糊區間評分系統：score = 4.0 - (normalized_position × 3.5)
+        /// - 合併邊界(0%位置) → 評分4.0
+        /// - 分割邊界(100%位置) → 評分0.5
+        /// - 中點(50%位置) → 評分2.25 ← 這就是v4.2閾值
+        /// 
+        /// 當間距位於模糊區間50%位置時：
+        /// normalized_position = 0.5
+        /// score = 4.0 - (0.5 × 3.5) = 2.25
+        /// 
+        /// 決策邏輯：
+        /// - 評分 ≥ 2.25 → 更接近合併邊界 → 執行合併
+        /// - 評分 < 2.25 → 更接近分割邊界 → 執行分割
         /// </summary>
         private double CalculateV42AdaptiveThreshold(Column column, ChannelStatistics statistics)
         {
@@ -449,26 +460,17 @@ namespace MonLingo.Core.Service.DualChannel
                     return _config.MergeThreshold;
                 }
 
-                // 使用Column中已有的LayoutLine列表 (無需轉換)
-                var layoutLines = column.Lines;
+                // v4.2核心策略：模糊區間中點評分閾值
+                // 基於步驟3.3的線性評分公式：score = 4.0 - (normalized_position × 3.5)
+                // 當 normalized_position = 0.5 (模糊區間中點):
+                // score = 4.0 - (0.5 × 3.5) = 4.0 - 1.75 = 2.25
+                const double AMBIGUITY_ZONE_MIDPOINT_SCORE = 2.25;
 
-                // 構建BiPeakSpacingModel
-                var biPeakModel = new LayoutAnalysisService.BiPeakSpacingModel
-                {
-                    PeakMerge = statistics.PeakMerge,
-                    PeakSplit = statistics.PeakSplit,
-                    Tolerance = statistics.PeakMerge * _config.ToleranceFactor,
-                    ValidPeaks = statistics.EffectivePeaksCount,
-                    TotalSpacings = Math.Max(0, layoutLines.Count - 1)
-                };
-
-                // 實現v4.2智能自適應閾值計算的核心邏輯
-                var adaptiveThreshold = CalculateV42AdaptiveThresholdCore(layoutLines, biPeakModel);
-
-                DebugLogV4($"[Step3.4] v4.2智能閾值完成: {adaptiveThreshold:F2} (替代固定閾值{_config.MergeThreshold})");
-                DebugLogV4($"[Step3.4] - 方案4.1-4.5組合: 統計驅動 + 變異調整 + 可信度評分 + 約束範圍 + 異常處理");
+                DebugLogV4($"[Step3.4] v4.2合併閾值: {AMBIGUITY_ZONE_MIDPOINT_SCORE} (模糊區間中點評分)");
+                DebugLogV4($"[Step3.4] - 說明: 模糊區間評分範圍[4.0, 0.5]的中點值");
+                DebugLogV4($"[Step3.4] - 決策邏輯: 評分≥{AMBIGUITY_ZONE_MIDPOINT_SCORE}→合併 | 評分<{AMBIGUITY_ZONE_MIDPOINT_SCORE}→分割");
                 
-                return adaptiveThreshold;
+                return AMBIGUITY_ZONE_MIDPOINT_SCORE;
             }
             catch (Exception ex)
             {
@@ -476,181 +478,6 @@ namespace MonLingo.Core.Service.DualChannel
                 Logger.Warn($"V4.2 adaptive threshold calculation failed: {ex.Message}");
                 return _config.MergeThreshold;
             }
-        }
-
-        /// <summary>
-        /// v4.2智能自適應閾值計算核心邏輯
-        /// 實現文檔定義的方案4.1-4.5組合系統
-        /// </summary>
-        private double CalculateV42AdaptiveThresholdCore(List<LayoutLine> layoutLines, LayoutAnalysisService.BiPeakSpacingModel biPeakModel)
-        {
-            try
-            {
-                // 收集間距數據
-                var spacings = new List<double>();
-                for (int i = 1; i < layoutLines.Count; i++)
-                {
-                    double spacing = layoutLines[i].BoundingBox.Top - layoutLines[i - 1].BoundingBox.Bottom;
-                    spacings.Add(spacing);
-                }
-
-                if (spacings.Count < 2)
-                    return _config.MergeThreshold;
-
-                // 方案4.1：基於統計分佈的動態基礎閾值
-                double baseThreshold = CalculateStatisticalBaseThreshold(spacings, biPeakModel.PeakMerge);
-                DebugLogV4($"[Step3.4] - 方案4.1 基礎閾值: {baseThreshold:F2}");
-
-                // 方案4.2：基於變異係數的分離度調整
-                double separationFactor = CalculateVariationCoefficientSeparation(spacings, biPeakModel);
-                DebugLogV4($"[Step3.4] - 方案4.2 分離調整: {separationFactor:F2}");
-
-                // 方案4.3：連續型可信度評分系統
-                double confidenceFactor = CalculateContinuousConfidenceScore(spacings, biPeakModel);
-                DebugLogV4($"[Step3.4] - 方案4.3 可信度調整: {confidenceFactor:F2}");
-
-                // 計算初步閾值
-                double preliminaryThreshold = baseThreshold + separationFactor + confidenceFactor;
-
-                // 方案4.4：基於文檔類型的動態約束範圍
-                double adaptiveThreshold = ApplyDocumentTypeConstraints(preliminaryThreshold, layoutLines, spacings);
-                DebugLogV4($"[Step3.4] - 方案4.4 約束後閾值: {adaptiveThreshold:F2}");
-
-                // 方案4.5：多層驗證和異常處理機制
-                adaptiveThreshold = ValidateAndHandleAnomalies(adaptiveThreshold, spacings, biPeakModel);
-                DebugLogV4($"[Step3.4] - 方案4.5 最終閾值: {adaptiveThreshold:F2}");
-
-                return adaptiveThreshold;
-            }
-            catch (Exception ex)
-            {
-                DebugLogV4($"[Step3.4] v4.2核心計算異常: {ex.Message}");
-                return _config.MergeThreshold;
-            }
-        }
-
-        /// <summary>
-        /// 方案4.1：基於統計分佈的動態基礎閾值
-        /// </summary>
-        private double CalculateStatisticalBaseThreshold(List<double> spacings, double peakMerge)
-        {
-            if (spacings.Count < 2)
-                return Math.Max(0.5, peakMerge * 1.2);
-
-            var sortedSpacings = spacings.OrderBy(x => x).ToList();
-            double p25 = GetPercentile(sortedSpacings, 0.25);
-            double p75 = GetPercentile(sortedSpacings, 0.75);
-            double iqr = p75 - p25;
-
-            return Math.Max(0.5, Math.Min(peakMerge + iqr * 0.5, peakMerge * 2.0));
-        }
-
-        /// <summary>
-        /// 方案4.2：基於變異係數的分離度調整
-        /// </summary>
-        private double CalculateVariationCoefficientSeparation(List<double> spacings, LayoutAnalysisService.BiPeakSpacingModel biPeakModel)
-        {
-            double cv = CalculateCoefficientOfVariation(spacings);
-            double peakSeparation = biPeakModel.PeakSplit - biPeakModel.PeakMerge;
-            double normalizedSeparation = peakSeparation / (biPeakModel.PeakMerge + 1.0);
-            
-            return Math.Tanh(normalizedSeparation) * cv * 0.4;
-        }
-
-        /// <summary>
-        /// 方案4.3：連續型可信度評分系統
-        /// </summary>
-        private double CalculateContinuousConfidenceScore(List<double> spacings, LayoutAnalysisService.BiPeakSpacingModel biPeakModel)
-        {
-            double sampleScore = Math.Min(1.0, (biPeakModel.TotalSpacings - 2) / 8.0);
-            double peakQuality = CalculatePeakSeparationQuality(biPeakModel);
-            double confidenceScore = (sampleScore + peakQuality) / 2.0;
-            
-            return (confidenceScore - 0.5) * 0.6;
-        }
-
-        /// <summary>
-        /// 方案4.4：基於文檔類型的動態約束範圍
-        /// </summary>
-        private double ApplyDocumentTypeConstraints(double preliminaryThreshold, List<LayoutLine> layoutLines, List<double> spacings)
-        {
-            double avgFontSize = layoutLines.Average(line => line.LineHeight);
-            double minThreshold = Math.Max(0.2, avgFontSize * 0.05);
-            double maxThreshold = Math.Min(10.0, avgFontSize * 0.8);
-            
-            return Math.Max(minThreshold, Math.Min(preliminaryThreshold, maxThreshold));
-        }
-
-        /// <summary>
-        /// 方案4.5：多層驗證和異常處理機制
-        /// </summary>
-        private double ValidateAndHandleAnomalies(double adaptiveThreshold, List<double> spacings, LayoutAnalysisService.BiPeakSpacingModel biPeakModel)
-        {
-            if (spacings.Count > 0 && adaptiveThreshold > spacings.Max() * 1.5)
-            {
-                adaptiveThreshold = spacings.Average() * 1.2;
-                DebugLogV4($"[Step3.4] 閾值異常調整: 降低到 {adaptiveThreshold:F2}");
-            }
-
-            if (adaptiveThreshold < 0.1 || adaptiveThreshold > 15.0)
-            {
-                adaptiveThreshold = Math.Max(0.5, Math.Min(adaptiveThreshold, 10.0));
-                DebugLogV4($"[Step3.4] 極端值約束: 調整到 {adaptiveThreshold:F2}");
-            }
-
-            return adaptiveThreshold;
-        }
-
-        /// <summary>
-        /// 計算百分位數
-        /// </summary>
-        private double GetPercentile(List<double> sortedValues, double percentile)
-        {
-            if (sortedValues.Count == 0) return 0;
-            if (sortedValues.Count == 1) return sortedValues[0];
-            
-            double index = percentile * (sortedValues.Count - 1);
-            int lowerIndex = (int)Math.Floor(index);
-            int upperIndex = (int)Math.Ceiling(index);
-            
-            if (lowerIndex == upperIndex)
-                return sortedValues[lowerIndex];
-            
-            double weight = index - lowerIndex;
-            return sortedValues[lowerIndex] * (1 - weight) + sortedValues[upperIndex] * weight;
-        }
-
-        /// <summary>
-        /// 計算變異係數
-        /// </summary>
-        private double CalculateCoefficientOfVariation(List<double> values)
-        {
-            if (values.Count < 2) return 0;
-            
-            double mean = values.Average();
-            if (Math.Abs(mean) < 1e-10) return 0;
-            
-            double variance = values.Sum(x => Math.Pow(x - mean, 2)) / values.Count;
-            double stdDev = Math.Sqrt(variance);
-            
-            return stdDev / Math.Abs(mean);
-        }
-
-        /// <summary>
-        /// 計算峰值分離質量評分
-        /// </summary>
-        private double CalculatePeakSeparationQuality(LayoutAnalysisService.BiPeakSpacingModel biPeakModel)
-        {
-            if (biPeakModel.ValidPeaks < 2)
-                return 0.0;
-
-            double separation = biPeakModel.PeakSplit - biPeakModel.PeakMerge;
-            double relativeSeparation = separation / (biPeakModel.PeakMerge + 1.0);
-            
-            double separationQuality = Math.Tanh(relativeSeparation / 2.0);
-            double peakCountQuality = Math.Min(1.0, biPeakModel.ValidPeaks / 3.0);
-            
-            return (separationQuality + peakCountQuality) / 2.0;
         }
     }
 }
