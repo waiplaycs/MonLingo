@@ -112,9 +112,16 @@ namespace MonLingo.Core.Service.DualChannel
                 // Step3.2: 定義決策區間
                 var zones = DefineDecisionZones(statistics);
                 DebugLogV4($"[Step3.2] 決策區間劃分:");
-                DebugLogV4($"[Step3.2] - 合併區間: [0, {zones.MergeBoundary:F2}] → 固定高分 4.5");
+                
+                // 顯示合併峰值是否為負(重疊情況)
+                if (statistics.PeakMerge < 0)
+                {
+                    DebugLogV4($"[Step3.2] - 合併峰值: {statistics.PeakMerge:F2}px (負值=文字重疊)");
+                }
+                
+                DebugLogV4($"[Step3.2] - 合併區間: [{zones.MergeStart:F2}, {zones.MergeBoundary:F2}] → 固定高分 4.5");
                 DebugLogV4($"[Step3.2] - 分割區間: [{zones.SplitBoundary:F2}, ∞] → 固定否決分 -10.0");
-                DebugLogV4($"[Step3.2] - 模糊區間: ({zones.MergeBoundary:F2}, {zones.SplitBoundary:F2}) → 線性遞減評分");
+                DebugLogV4($"[Step3.2] - 模糊區間: ({zones.AmbiguityStart:F2}, {zones.SplitBoundary:F2}) → 線性遞減評分");
                 
                 // Step3.4: v4.2智能自適應閾值計算
                 DebugLogV4($"[Step3.4] 開始v4.2智能自適應合併閾值計算");
@@ -144,20 +151,47 @@ namespace MonLingo.Core.Service.DualChannel
         /// </summary>
         private DecisionZones DefineDecisionZones(ChannelStatistics statistics)
         {
-            double tolerance = statistics.PeakMerge * _config.ToleranceFactor;
+            // 容差必須為正數 (基於峰值絕對值計算)
+            double tolerance = Math.Abs(statistics.PeakMerge) * _config.ToleranceFactor;
+            
+            // 合併區間、模糊區間計算:
+            // 正常情況 (PeakMerge ≥ 0):
+            //   - 合併區間: [0, PeakMerge + tolerance]
+            //   - 模糊區間: (PeakMerge + tolerance, PeakSplit - tolerance)
+            // 重疊情況 (PeakMerge < 0):
+            //   - 合併區間: [PeakMerge, 0 + tolerance]
+            //   - 模糊區間: (0 + tolerance, PeakSplit - tolerance)
+            double mergeStart, mergeBoundary, ambiguityStart;
+            
+            if (statistics.PeakMerge >= 0)
+            {
+                // 正常情況: 從0開始
+                mergeStart = 0;
+                mergeBoundary = statistics.PeakMerge + tolerance;
+                ambiguityStart = mergeBoundary; // 模糊區間從合併邊界開始
+            }
+            else
+            {
+                // 重疊情況: 從負值開始到0+容差
+                mergeStart = statistics.PeakMerge;
+                mergeBoundary = 0 + tolerance;
+                ambiguityStart = 0 + tolerance; // 模糊區間從0+容差開始
+            }
             
             var zones = new DecisionZones
             {
-                MergeBoundary = statistics.PeakMerge + tolerance,
+                MergeStart = mergeStart,
+                MergeBoundary = mergeBoundary,
+                AmbiguityStart = ambiguityStart,
                 SplitBoundary = statistics.PeakSplit - tolerance,
                 Tolerance = tolerance
             };
 
             if (_config.EnableDebugLog)
             {
-                Logger.Debug($"Decision zones: Merge[0, {zones.MergeBoundary:F1}], " +
+                Logger.Debug($"Decision zones: Merge[{zones.MergeStart:F1}, {zones.MergeBoundary:F1}], " +
                            $"Split[{zones.SplitBoundary:F1}, ∞), " +
-                           $"Ambiguity({zones.MergeBoundary:F1}, {zones.SplitBoundary:F1})");
+                           $"Ambiguity({zones.AmbiguityStart:F1}, {zones.SplitBoundary:F1})");
             }
 
             return zones;
@@ -283,17 +317,17 @@ namespace MonLingo.Core.Service.DualChannel
                 return 4.5; // 固定高分，強烈合併信號
             }
             
-            // 3. 模糊區間：線性遞減評分
-            double zoneWidth = zones.SplitBoundary - zones.MergeBoundary;
+            // 3. 模糊區間：線性遞減評分 (從AmbiguityStart到SplitBoundary)
+            double zoneWidth = zones.SplitBoundary - zones.AmbiguityStart;
             
             if (zoneWidth <= 0)
             {
                 return 2.0; // 當兩個區間重疊時的默認分數
             }
             
-            // 線性遞減：從合併邊界的4.0分遞減到分割邊界的0.5分
-            double distanceFromMerge = spacing - zones.MergeBoundary;
-            double normalizedPosition = distanceFromMerge / zoneWidth; // [0, 1]
+            // 線性遞減：從模糊區間起點的4.0分遞減到分割邊界的0.5分
+            double distanceFromAmbiguityStart = spacing - zones.AmbiguityStart;
+            double normalizedPosition = distanceFromAmbiguityStart / zoneWidth; // [0, 1]
             double score = 4.0 - (normalizedPosition * 3.5); // 4.0 → 0.5 線性遞減
             
             return score;
@@ -345,8 +379,10 @@ namespace MonLingo.Core.Service.DualChannel
                 return "分割區間";
             else if (spacing <= zones.MergeBoundary)
                 return "合併區間";
-            else
+            else if (spacing > zones.AmbiguityStart)
                 return "模糊區間";
+            else
+                return "合併區間"; // 介於MergeBoundary和AmbiguityStart之間 (重疊情況下不存在)
         }
 
         /// <summary>
@@ -395,9 +431,11 @@ namespace MonLingo.Core.Service.DualChannel
         /// </summary>
         private class DecisionZones
         {
-            public double MergeBoundary { get; set; }
-            public double SplitBoundary { get; set; }
-            public double Tolerance { get; set; }
+            public double MergeStart { get; set; }      // 合併區間起點 (可能為負值)
+            public double MergeBoundary { get; set; }   // 合併區間終點
+            public double AmbiguityStart { get; set; }  // 模糊區間起點
+            public double SplitBoundary { get; set; }   // 分割區間起點
+            public double Tolerance { get; set; }       // 容差值
         }
 
         /// <summary>

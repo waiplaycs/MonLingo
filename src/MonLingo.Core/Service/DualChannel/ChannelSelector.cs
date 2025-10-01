@@ -249,7 +249,7 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 基於密度的一維聚類進行峰值分析
+        /// 基於密度的一維聚類進行峰值分析（含值域轉換）
         /// </summary>
         private List<double> AnalyzePeaks(List<double> spacings, Column column)
         {
@@ -263,47 +263,68 @@ namespace MonLingo.Core.Service.DualChannel
             
             double clusterThreshold = CalculateClusterThreshold(sortedSpacings, avgFontHeight);
             
-            // 排序間距值已完成
+            // 🔧 值域轉換：聚類分析也需要使用轉換後的數據
+            double minSpacing = sortedSpacings.Min();
+            List<double> adjustedSpacingsForClustering;
+            double offset = 0;
             
-            // 聚類分析
-            var clusters = new List<List<double>>();
-            var currentCluster = new List<double> { sortedSpacings[0] };
-            
-            for (int i = 1; i < sortedSpacings.Count; i++)
+            if (minSpacing < 0)
             {
-                double diff = sortedSpacings[i] - sortedSpacings[i - 1];
+                offset = -minSpacing;
+                adjustedSpacingsForClustering = sortedSpacings.Select(s => s + offset).ToList();
+                Console.WriteLine($"📊 [Step3] [Step3.1] 🔧 聚類分析應用值域轉換 (偏移量: +{offset:F2}px)");
+            }
+            else
+            {
+                adjustedSpacingsForClustering = sortedSpacings.ToList();
+            }
+            
+            // 聚類分析（使用轉換後數據）
+            var clusters = new List<List<double>>();
+            var currentCluster = new List<double> { adjustedSpacingsForClustering[0] };
+            
+            for (int i = 1; i < adjustedSpacingsForClustering.Count; i++)
+            {
+                double diff = adjustedSpacingsForClustering[i] - adjustedSpacingsForClustering[i - 1];
                 
                 if (diff <= clusterThreshold)
                 {
                     // 屬於同一簇
-                    currentCluster.Add(sortedSpacings[i]);
+                    currentCluster.Add(adjustedSpacingsForClustering[i]);
                 }
                 else
                 {
                     // 開始新簇
                     clusters.Add(currentCluster);
-                    currentCluster = new List<double> { sortedSpacings[i] };
+                    currentCluster = new List<double> { adjustedSpacingsForClustering[i] };
                 }
             }
             clusters.Add(currentCluster); // 加入最後一個簇
             
             Console.WriteLine($"📊 [Step3] [Step3.1] 📊 聚類結果 | 總簇數={clusters.Count} | 閾值={clusterThreshold:F2}px");
             
-            // 過濾噪音簇並計算峰值
-            var peaks = new List<double>();
+            // 過濾噪音簇並計算峰值（轉換後數據）
+            var peaksAdjusted = new List<double>();
             foreach (var cluster in clusters)
             {
                 if (cluster.Count > 1) // 過濾單點噪音
                 {
-                    double peak = cluster.Average(); // 簇的均值作為峰值
-                    peaks.Add(peak);
-                    Console.WriteLine($"📊 [Step3] [Step3.1] ✓ 有效峰值: {peak:F2}px (簇大小: {cluster.Count})");
+                    double peakAdjusted = cluster.Average(); // 簇的均值作為峰值（轉換後）
+                    peaksAdjusted.Add(peakAdjusted);
+                    
+                    // 轉換回原始值域顯示
+                    double peakOriginal = peakAdjusted - offset;
+                    Console.WriteLine($"📊 [Step3] [Step3.1] ✓ 有效峰值: {peakOriginal:F2}px (簇大小: {cluster.Count})");
                 }
                 else
                 {
-                    Console.WriteLine($"📊 [Step3] [Step3.1] ✗ 噪音點過濾: {cluster[0]:F2}px");
+                    double noisePtOriginal = cluster[0] - offset;
+                    Console.WriteLine($"📊 [Step3] [Step3.1] ✗ 噪音點過濾: {noisePtOriginal:F2}px");
                 }
             }
+            
+            // 🔄 將峰值轉換回原始值域
+            var peaks = peaksAdjusted.Select(p => p - offset).ToList();
             
             Console.WriteLine($"📊 [Step3] [Step3.1] ✅ 峰值分析完成 | 有效峰值數={peaks.Count}");
             
@@ -311,67 +332,119 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 計算聚類閾值 - 三層自適應機制
+        /// 計算聚類閾值 - 三層自適應機制（含值域轉換防護）
         /// </summary>
         private double CalculateClusterThreshold(List<double> sortedSpacings, double avgFontHeight)
         {
-            // 方案1: Gap-based 分析 (尋找最大自然間隙)
-            if (sortedSpacings.Count >= 5)
+            if (sortedSpacings.Count < 2)
+            {
+                double fallback = avgFontHeight * _config.ClusterThresholdFactor;
+                Console.WriteLine($"📊 [Step3] [Step3.1] ⚠️ 樣本不足(n={sortedSpacings.Count}) | 使用固定係數={_config.ClusterThresholdFactor:F2} | 閾值={fallback:F2}px");
+                return fallback;
+            }
+            
+            // 🔧 方案一：值域轉換（Domain Shift）
+            double minSpacing = sortedSpacings.Min();
+            List<double> adjustedSpacings;
+            double offset = 0;
+            
+            if (minSpacing < 0)
+            {
+                // 計算偏移量使最小值為0
+                offset = -minSpacing;
+                adjustedSpacings = sortedSpacings.Select(s => s + offset).ToList();
+                
+                Console.WriteLine($"📊 [Step3] [Step3.1] 🔧 檢測到負間距，應用值域轉換");
+                Console.WriteLine($"📊 [Step3] [Step3.1] - 原始範圍: [{minSpacing:F2}, {sortedSpacings.Max():F2}]px");
+                Console.WriteLine($"📊 [Step3] [Step3.1] - 偏移量: +{offset:F2}px");
+                Console.WriteLine($"📊 [Step3] [Step3.1] - 轉換後範圍: [0, {adjustedSpacings.Max():F2}]px");
+            }
+            else
+            {
+                // 無需轉換
+                adjustedSpacings = sortedSpacings.ToList();
+                Console.WriteLine($"📊 [Step3] [Step3.1] ✓ 間距全為正值，無需值域轉換");
+            }
+            
+            // 使用轉換後的數據進行三層機制分析
+            return CalculateThresholdFromAdjustedData(adjustedSpacings, avgFontHeight);
+        }
+
+        /// <summary>
+        /// 基於調整後數據計算閾值（三層機制）
+        /// </summary>
+        private double CalculateThresholdFromAdjustedData(List<double> adjustedSpacings, double avgFontHeight)
+        {
+            // 階段一: Gap-based 分析 (尋找最大自然間隙)
+            if (adjustedSpacings.Count >= 5)
             {
                 var gaps = new List<(double gap, int index)>();
-                for (int i = 1; i < sortedSpacings.Count; i++)
+                for (int i = 1; i < adjustedSpacings.Count; i++)
                 {
-                    double gap = sortedSpacings[i] - sortedSpacings[i - 1];
+                    double gap = adjustedSpacings[i] - adjustedSpacings[i - 1];
                     gaps.Add((gap, i));
                 }
                 
                 var maxGap = gaps.OrderByDescending(g => g.gap).First();
-                double gapThreshold = maxGap.gap * 0.5; // 使用最大間隙的50%作為閾值
+                double gapThreshold = maxGap.gap * 0.6; // 使用最大間隙的60%作為閾值
                 
                 // 驗證間隙有效性 (最大間隙應大於中位間隙的2倍)
                 double medianGap = gaps.Select(g => g.gap).OrderBy(g => g).ElementAt(gaps.Count / 2);
                 if (maxGap.gap > medianGap * 2.0)
                 {
-                    Console.WriteLine($"📊 [Step3] [Step3.1] 🎯 方案1 Gap-based | 最大間隙={maxGap.gap:F2}px(位置{maxGap.index}) | 中位間隙={medianGap:F2}px | 閾值={gapThreshold:F2}px");
+                    Console.WriteLine($"📊 [Step3] [Step3.1] 🎯 階段一 Gap-based | 最大間隙={maxGap.gap:F2}px(位置{maxGap.index}) | 中位間隙={medianGap:F2}px | 閾值={gapThreshold:F2}px");
                     return gapThreshold;
                 }
+                else
+                {
+                    Console.WriteLine($"📊 [Step3] [Step3.1] ⚠️ 階段一失效 | 最大間隙不顯著({maxGap.gap:F2} < {medianGap * 2.0:F2}) | 進入階段二");
+                }
             }
             
-            // 方案2: CV (Coefficient of Variation) 方法
-            if (sortedSpacings.Count >= 3)
+            // 階段二: CV (Coefficient of Variation) 方法
+            if (adjustedSpacings.Count >= 3)
             {
-                double mean = sortedSpacings.Average();
-                double variance = sortedSpacings.Select(s => Math.Pow(s - mean, 2)).Average();
-                double stdDev = Math.Sqrt(variance);
-                double cv = stdDev / mean; // 變異係數
+                double mean = adjustedSpacings.Average();
                 
-                // 根據變異程度選擇係數
-                double cvFactor;
-                string cvLevel;
-                if (cv < 0.5) // 低變異
+                // 防範措施：檢查平均值是否過小
+                if (mean < 0.01)
                 {
-                    cvFactor = 0.15;
-                    cvLevel = "低變異";
+                    Console.WriteLine($"📊 [Step3] [Step3.1] ⚠️ 階段二失效 | 平均值過小({mean:F4}px) | 進入階段三");
                 }
-                else if (cv < 1.0) // 中等變異
+                else
                 {
-                    cvFactor = 0.25;
-                    cvLevel = "中等變異";
+                    double variance = adjustedSpacings.Select(s => Math.Pow(s - mean, 2)).Average();
+                    double stdDev = Math.Sqrt(variance);
+                    double cv = stdDev / mean; // 變異係數
+                    
+                    // 根據變異程度選擇係數
+                    double cvFactor;
+                    string cvLevel;
+                    if (cv > 0.8) // 高變異
+                    {
+                        cvFactor = 0.35;
+                        cvLevel = "高變異";
+                    }
+                    else if (cv > 0.4) // 中等變異
+                    {
+                        cvFactor = 0.25;
+                        cvLevel = "中等變異";
+                    }
+                    else // 低變異
+                    {
+                        cvFactor = 0.15;
+                        cvLevel = "低變異";
+                    }
+                    
+                    double cvThreshold = avgFontHeight * cvFactor;
+                    Console.WriteLine($"📊 [Step3] [Step3.1] 📊 階段二 CV方法 | 平均={mean:F2}px | 標準差={stdDev:F2}px | CV={cv:F2}({cvLevel}) | 係數={cvFactor:F2} | 閾值={cvThreshold:F2}px");
+                    return cvThreshold;
                 }
-                else // 高變異
-                {
-                    cvFactor = 0.35;
-                    cvLevel = "高變異";
-                }
-                
-                double cvThreshold = avgFontHeight * cvFactor;
-                Console.WriteLine($"📊 [Step3] [Step3.1] 📊 方案2 CV方法 | CV={cv:F2}({cvLevel}) | 係數={cvFactor:F2} | 閾值={cvThreshold:F2}px");
-                return cvThreshold;
             }
             
-            // 方案3: 固定後備閾值
+            // 階段三: 固定後備閾值
             double fallbackThreshold = avgFontHeight * _config.ClusterThresholdFactor;
-            Console.WriteLine($"📊 [Step3] [Step3.1] ⚠️ 方案3 固定後備 | 樣本不足(n={sortedSpacings.Count}) | 經典係數={_config.ClusterThresholdFactor:F2} | 閾值={fallbackThreshold:F2}px");
+            Console.WriteLine($"📊 [Step3] [Step3.1] ⚠️ 階段三 固定後備 | 樣本不足(n={adjustedSpacings.Count}) | 經典係數={_config.ClusterThresholdFactor:F2} | 閾值={fallbackThreshold:F2}px");
             return fallbackThreshold;
         }
 
