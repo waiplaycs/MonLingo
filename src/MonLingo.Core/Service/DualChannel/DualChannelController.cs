@@ -66,9 +66,11 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 處理單個欄位的段落分割
+        /// 處理單個欄位的段落分割 [v4.7更新]
         /// </summary>
-        public List<Paragraph> ProcessColumn(Column column)
+        /// <param name="column">待處理的欄位</param>
+        /// <param name="globalStatistics">全局統計數據(可選),如果為null則計算當前欄位的局部統計</param>
+        public List<Paragraph> ProcessColumn(Column column, ChannelStatistics globalStatistics = null)
         {
             var startTime = DateTime.Now;
             
@@ -122,10 +124,17 @@ namespace MonLingo.Core.Service.DualChannel
                 // 步驟2：智能通道選擇器決策 (僅用於連續文本)
                 DebugLogV4($"[Step2] 開始智能通道選擇");
                 
-                // 計算全局統計數據
-                var globalStatistics = ChannelSelector.CalculateGlobalStatistics(new[] { column });
-                Console.WriteLine($"🔧 [DEBUG] 全局統計計算完成: 平均={globalStatistics.GlobalMean:F1}px, 標準差={globalStatistics.GlobalStdDev:F1}px, 樣本數={globalStatistics.TotalSpacings}");
-                DebugLogV4($"[Step2] 全局統計計算完成: 平均={globalStatistics.GlobalMean:F1}px, 標準差={globalStatistics.GlobalStdDev:F1}px, 樣本數={globalStatistics.TotalSpacings}");
+                // 如果沒有傳入全局統計,則計算當前欄位的統計(向後兼容)
+                if (globalStatistics == null)
+                {
+                    globalStatistics = ChannelSelector.CalculateGlobalStatistics(new[] { column });
+                    DebugLogV4($"⚠️  [Step2] 未提供全局統計,計算當前欄位局部統計: 平均={globalStatistics.GlobalMean:F1}px, 標準差={globalStatistics.GlobalStdDev:F1}px, 樣本數={globalStatistics.TotalSpacings}");
+                    Logger.Warn($"Using local statistics for column {column.ColumnId} - this may affect stability for small columns");
+                }
+                else
+                {
+                    DebugLogV4($"✅ [Step2] 使用預計算的全局統計: 平均={globalStatistics.GlobalMean:F1}px, 標準差={globalStatistics.GlobalStdDev:F1}px, 樣本數={globalStatistics.TotalSpacings}");
+                }
                 
                 var decision = _channelSelector.SelectChannel(column, globalStatistics);
                 
@@ -224,19 +233,39 @@ namespace MonLingo.Core.Service.DualChannel
         }
 
         /// <summary>
-        /// 批量處理多個欄位
+        /// 批量處理多個欄位 [v4.7更新]
+        /// v4.7改進: 預先計算全局統計並共享給所有欄位,確保經驗規則通道使用真正的全文檔級統計
         /// </summary>
         public Dictionary<string, List<Paragraph>> ProcessColumns(List<Column> columns)
         {
             var results = new Dictionary<string, List<Paragraph>>();
             
             Logger.Info($"Starting batch dual-channel processing for {columns.Count} columns");
+            
+            // v4.7關鍵改進: 預先計算全局統計(基於所有欄位)並緩存
+            DebugLogV4($"===============================================");
+            DebugLogV4($"🌍 [v4.7] 預計算全局統計 (Document-Level Statistics)");
+            DebugLogV4($"📊 統計範圍: {columns.Count}個欄位的所有行距數據");
+            
+            var globalStatistics = ChannelSelector.CalculateGlobalStatistics(columns);
+            
+            DebugLogV4($"✅ 全局統計計算完成:");
+            DebugLogV4($"   • 平均行距: {globalStatistics.GlobalMean:F1}px");
+            DebugLogV4($"   • 標準差: {globalStatistics.GlobalStdDev:F1}px");
+            DebugLogV4($"   • 總樣本數: {globalStatistics.TotalSpacings}個間距");
+            DebugLogV4($"   • 統計穩定性: {(globalStatistics.TotalSpacings >= 20 ? "高" : globalStatistics.TotalSpacings >= 10 ? "中" : "低")}");
+            DebugLogV4($"📌 此統計值將供所有欄位的經驗規則通道共享使用");
+            DebugLogV4($"===============================================");
+            DebugLogV4($"");
+            
+            Logger.Info($"Global statistics calculated: Mean={globalStatistics.GlobalMean:F1}px, StdDev={globalStatistics.GlobalStdDev:F1}px, Samples={globalStatistics.TotalSpacings}");
 
             foreach (var column in columns)
             {
                 try
                 {
-                    var paragraphs = ProcessColumn(column);
+                    // v4.7改進: 傳入全局統計,所有欄位共享同一套統計基準
+                    var paragraphs = ProcessColumn(column, globalStatistics);
                     results[column.ColumnId] = paragraphs;
                 }
                 catch (Exception ex)

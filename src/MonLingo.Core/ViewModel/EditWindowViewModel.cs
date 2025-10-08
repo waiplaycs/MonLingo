@@ -116,6 +116,42 @@ namespace MonLingo.Core.ViewModel
                 WindowCloseRequested?.Invoke(this, new EditWindowCloseEventArgs { IsConfirmed = false });
             });
 
+        private ICommand _copyOriginalTextCommand;
+        public ICommand CopyOriginalTextCommand =>
+            _copyOriginalTextCommand ??= new RelayCommand(() =>
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(OriginalText))
+                    {
+                        System.Windows.Clipboard.SetText(OriginalText);
+                        Logger.Info("原文已複製到剪貼簿");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "複製原文失敗");
+                }
+            });
+
+        private ICommand _copyTranslatedTextCommand;
+        public ICommand CopyTranslatedTextCommand =>
+            _copyTranslatedTextCommand ??= new RelayCommand(() =>
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(TranslatedText))
+                    {
+                        System.Windows.Clipboard.SetText(TranslatedText);
+                        Logger.Info("譯文已複製到剪貼簿");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "複製譯文失敗");
+                }
+            });
+
         #endregion
 
         #region 事件
