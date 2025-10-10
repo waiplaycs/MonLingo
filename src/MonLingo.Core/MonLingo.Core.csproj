@@ -36,7 +36,9 @@
     <PackageReference Include="GuerrillaNtp" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Http.Polly" />
     <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="OpenAI" />
     <PackageReference Include="PaddleOCRSharp" />
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="NLog" />
@@ -44,6 +46,7 @@
   <PackageReference Include="OpenCvSharp4" />
     <!-- Phase 4 音訊與網路功能 -->
     <PackageReference Include="NAudio" />
+    <PackageReference Include="System.Text.Json" />
     <PackageReference Include="Whisper.net" />
     <PackageReference Include="Downloader" />
   </ItemGroup>
