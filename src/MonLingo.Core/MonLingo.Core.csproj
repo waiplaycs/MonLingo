@@ -69,6 +69,9 @@
     <None Update="NLog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- 包含 Native DLL -->
     <None Include="..\..\MonLingo.Native.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
