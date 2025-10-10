@@ -340,11 +340,17 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 完整版面分析入口
+        /// 完整版面分析入口 (舊版 - 已廢棄)
         /// 執行三階段處理流程，返回結構化版面數據
         /// </summary>
         /// <param name="ocrResult">原始OCR識別結果</param>
         /// <returns>結構化版面分析結果</returns>
+        /// <remarks>
+        /// ⚠️ 此方法已被 AnalyzeLayoutV2() 替代
+        /// 新架構使用AI驅動的智能翻譯層處理段落合併
+        /// 建議使用: AnalyzeLayoutV2() + AITranslationService.SmartTranslateBatchAsync()
+        /// </remarks>
+        [Obsolete("此方法已廢棄,請使用 AnalyzeLayoutV2() 配合 AITranslationService 進行智能翻譯", false)]
         public LayoutAnalysisResult AnalyzeLayout(OcrResult ocrResult)
         {
             var startTime = DateTime.UtcNow;
@@ -1396,11 +1402,17 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 階段三：混合模式段落分割 (v3版本)
+        /// 階段三：混合模式段落分割 (v3版本 - 已廢棄)
         /// 採用混合模式段落檢測策略，為不同類型的內容提供最優化的處理路徑
         /// </summary>
         /// <param name="columns">已分欄的文字行</param>
         /// <returns>分割後的段落字典</returns>
+        /// <remarks>
+        /// ⚠️ 此方法已被AI驅動的智能翻譯層替代
+        /// 新架構: AnalyzeLayoutV2() → AITranslationService.SmartTranslateBatchAsync()
+        /// AI翻譯層會自動處理段落合併,無需算法計算
+        /// </remarks>
+        [Obsolete("此方法已廢棄,段落合併現由AI翻譯層智能處理", false)]
         private Dictionary<string, List<LayoutParagraph>> PerformParagraphSegmentation(List<List<LayoutLine>> columns)
         {
             Logger.Debug($"🔄 v3階段三：開始混合模式段落分割，輸入 {columns.Count} 個欄位");
@@ -1434,7 +1446,7 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// v3算法：混合模式段落檢測 (Hybrid Paragraph Detection)
+        /// v3算法：混合模式段落檢測 (Hybrid Paragraph Detection - 已廢棄)
         /// 步驟一：內容類型預檢查
         /// 步驟二：計算標準行距
         /// 步驟三：多指標加權決策系統
@@ -1444,6 +1456,12 @@ namespace MonLingo.Core.Service
         /// <param name="columnColor">欄位顏色</param>
         /// <param name="columnKey">欄位鍵值</param>
         /// <returns>分割後的段落列表</returns>
+        /// <remarks>
+        /// ⚠️ 此複雜算法已被AI智能翻譯替代
+        /// 新方案使用GPT-4o-mini進行語義理解和段落合併
+        /// 優勢: 更高準確率、無需參數調優、支持多語言
+        /// </remarks>
+        [Obsolete("此複雜算法已廢棄,改用AI智能翻譯進行段落合併", false)]
         private List<LayoutParagraph> HybridParagraphDetectionV3(List<LayoutLine> column, Color columnColor, string columnKey)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -1722,10 +1740,18 @@ namespace MonLingo.Core.Service
 
             // v3.1步驟三：雙峰驅動的多指標加權決策系統 (暫時使用舊方法，稍後更新)
             return ApplyWeightedDecisionSystemV31(column, biPeakModel, columnColor, columnKey);
-        }        /// <summary>
-        /// v3.1步驟二：穩健的雙峰驅動標準行距計算模型 (Robust Bi-Peak Driven Standard Line Spacing)
+        }        
+        
+        /// <summary>
+        /// v3.1步驟二：穩健的雙峰驅動標準行距計算模型 (Robust Bi-Peak Driven Standard Line Spacing - 已廢棄)
         /// 解決多峰分佈問題，識別 peak_merge 和 peak_split，定義三個決策區間
         /// </summary>
+        /// <remarks>
+        /// ⚠️ 此複雜的統計模型已被AI替代
+        /// 不再需要: 雙峰識別、聚類分析、變異係數計算
+        /// AI可直接理解文本語義進行段落劃分
+        /// </remarks>
+        [Obsolete("複雜的雙峰統計模型已廢棄,改用AI語義理解", false)]
         private BiPeakSpacingModel CalculateBiPeakDrivenLineSpacingV31(List<LayoutLine> column, string columnKey = "未知欄位")
         {
             Logger.Debug($"    🔬 [v3.1 雙峰驅動模型] 開始分析欄位 '{columnKey}' (共{column.Count}行)");
@@ -2023,9 +2049,15 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// v3.1步驟三：雙峰驅動的多指標加權決策系統 (Bi-Peak Driven Multi-Indicator Weighted System)
+        /// v3.1步驟三：雙峰驅動的多指標加權決策系統 (Bi-Peak Driven Multi-Indicator Weighted System - 已廢棄)
         /// 基於雙峰模型計算合併分數，支持三區間決策邏輯
         /// </summary>
+        /// <remarks>
+        /// ⚠️ 此加權決策系統已被AI替代
+        /// 不再需要: 自適應閾值、合併分數計算、多指標權重
+        /// AI通過語義理解自動完成段落劃分
+        /// </remarks>
+        [Obsolete("加權決策系統已廢棄,改用AI智能決策", false)]
         private List<LayoutParagraph> ApplyWeightedDecisionSystemV31(List<LayoutLine> column, BiPeakSpacingModel biPeakModel, Color columnColor, string columnKey)
         {
             // v3.1新特性：基於雙峰模型的自適應閾值系統
