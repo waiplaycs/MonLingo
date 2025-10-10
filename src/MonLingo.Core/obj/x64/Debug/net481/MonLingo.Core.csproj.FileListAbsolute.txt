@@ -268,3 +268,4 @@ C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\Polly.Ext
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\System.ClientModel.dll
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\System.IO.Pipelines.dll
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\System.Memory.Data.dll
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\appsettings.json

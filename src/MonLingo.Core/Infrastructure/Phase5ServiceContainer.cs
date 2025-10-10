@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MonLingo.Core.Service;
+using MonLingo.Core.Service.AI;
 
 namespace MonLingo.Core.Infrastructure
 {
@@ -61,6 +62,13 @@ namespace MonLingo.Core.Infrastructure
             // 🎯 使用真正的 PaddleOCR 服務（已下載模型）
             services.AddSingleton<MonLingo.Core.Service.IOcrService, MonLingo.Core.Service.RealOcrService>();
             services.AddSingleton<MonLingo.Core.Service.ITranslateService, MonLingo.Core.Service.TranslateService>();
+            
+            // 🤖 AI翻譯服務 - Phase 3新增
+            services.AddSingleton<IAITranslationService>(provider =>
+            {
+                var config = AITranslationConfigLoader.LoadFromFile("appsettings.json");
+                return new AITranslationService(config);
+            });
             
             // 最後註冊高層服務
             services.AddSingleton<MonLingo.Core.Service.ITranslationPipelineManager, MonLingo.Core.Service.TranslationPipelineManager>();

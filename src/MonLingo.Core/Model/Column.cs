@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Drawing;
+using MonLingo.Core.Service; // 引用LayoutLine
 
 namespace MonLingo.Core.Model
 {

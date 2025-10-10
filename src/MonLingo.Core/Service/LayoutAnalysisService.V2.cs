@@ -79,22 +79,6 @@ namespace MonLingo.Core.Service
                 OriginalLines = ocrResult.Lines.Length
             };
         }
-
-        /// <summary>
-        /// 計算欄位的整體邊界框
-        /// </summary>
-        private Rectangle CalculateColumnBoundingBox(List<LayoutLine> lines)
-        {
-            if (lines == null || lines.Count == 0) 
-                return Rectangle.Empty;
-
-            int minX = lines.Min(line => line.BoundingBox.Left);
-            int minY = lines.Min(line => line.BoundingBox.Top);
-            int maxX = lines.Max(line => line.BoundingBox.Right);
-            int maxY = lines.Max(line => line.BoundingBox.Bottom);
-
-            return new Rectangle(minX, minY, maxX - minX, maxY - minY);
-        }
     }
 
     /// <summary>

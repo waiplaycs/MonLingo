@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -9,6 +10,8 @@ using System.Windows.Forms;
 using MonLingo.Core.View.Windows;
 using MonLingo.Core.Infrastructure;
 using MonLingo.Core.Events;
+using MonLingo.Core.Model;
+using MonLingo.Core.Service.AI;
 using MonLingo.ViewModel;
 using NLog;
 
@@ -33,6 +36,7 @@ namespace MonLingo.Core.Service
         private ITranslateService _translateService;
         private IDisplayService _displayService;
         private ILanguageConfigService _languageConfigService;
+        private IAITranslationService _aiTranslationService; // AI翻譯服務
 
         /// <summary>
         /// 建構函式
@@ -173,7 +177,7 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 確保服務已初始化（只在需要時才初始化）
+        /// 確保服務已初始化(只在需要時才初始化)
         /// </summary>
         private void EnsureServicesInitialized()
         {
@@ -185,8 +189,10 @@ namespace MonLingo.Core.Service
                 _translateService = Phase5ServiceContainer.GetService<ITranslateService>();
                 _displayService = Phase5ServiceContainer.GetService<IDisplayService>();
                 _languageConfigService = Phase5ServiceContainer.GetService<ILanguageConfigService>();
+                _aiTranslationService = Phase5ServiceContainer.GetService<IAITranslationService>();
                 
                 Logger.Info($"[QuickTranslationService] DisplayService 獲取完成: {_displayService != null}");
+                Logger.Info($"[QuickTranslationService] AITranslationService 獲取完成: {_aiTranslationService != null}");
             }
         }
 
@@ -359,38 +365,84 @@ namespace MonLingo.Core.Service
                     return (string.Empty, null); // 沒有識別到文字
                 }
 
-                // ============ PHASE 2: 高級版面分析 ============
-                // 📝 階段一：橫向行合併（基於 PRD v5.0 規格）
+                // ============ PHASE 2: AI驅動的智能版面分析與翻譯 ============
+                // 📝 階段一：橫向行合併
+                // 📝 階段二：智能分欄
+                // 🤖 AI翻譯層：段落合併 + 智能翻譯
                 var layoutAnalysis = new LayoutAnalysisService();
                 
-                // 🔍 啟用調試模式以獲得詳細的三階段處理訊息
-                layoutAnalysis.EnableDebugMode = true;
+                // 使用簡化版面分析(僅階段一+二)
+                var layoutResultV2 = layoutAnalysis.AnalyzeLayoutV2(ocrResult);
                 
-                var layoutResult = layoutAnalysis.AnalyzeLayout(ocrResult);
-                
-                if (layoutResult.Success)
+                if (layoutResultV2.Success && layoutResultV2.Columns != null && layoutResultV2.Columns.Count > 0)
                 {
-                    Logger.Info($"📊 版面分析完成：耗時 {layoutResult.ProcessingTimeMs:F1}ms");
+                    Logger.Info($"📊 版面分析V2完成：耗時 {layoutResultV2.ProcessingTimeMs:F1}ms，檢測到 {layoutResultV2.Columns.Count} 個欄位");
                     
-                    // 🔍 調試功能：顯示版面分析結果的視覺化
-                    ShowLayoutAnalysisDebugInfo(ocrResult, layoutResult);
-                    
-                    // 從版面分析結果提取合併後的文字
-                    var analyzedText = ExtractTextFromLayout(layoutResult);
-                    Logger.Info($"🎯 版面分析文字：{analyzedText}");
-                    
-                    // 如果版面分析成功且有結果，使用分析結果
-                    if (!string.IsNullOrEmpty(analyzedText))
+                    // 🤖 使用AI翻譯服務進行智能段落合併和翻譯
+                    if (_aiTranslationService != null)
                     {
-                        return (analyzedText, ocrResult);
+                        try
+                        {
+                            // 獲取目標語言配置
+                            var targetLanguage = await _languageConfigService.GetTargetLanguageAsync();
+                            
+                            Logger.Info($"🤖 開始AI智能翻譯，目標語言: {targetLanguage}");
+                            
+                            // 批量處理所有欄位
+                            var columnLines = layoutResultV2.Columns
+                                .Select(col => col.Lines)
+                                .ToList();
+                            
+                            var aiResults = await _aiTranslationService.SmartTranslateBatchAsync(
+                                columnLines,
+                                sourceLanguage: "auto",
+                                targetLanguage: targetLanguage
+                            );
+                            
+                            // 合併所有欄位的翻譯結果
+                            var translatedTexts = new List<string>();
+                            foreach (var result in aiResults)
+                            {
+                                if (result.Success && result.Paragraphs != null)
+                                {
+                                    var columnText = string.Join("\n", 
+                                        result.Paragraphs.Select(p => p.TranslatedText));
+                                    translatedTexts.Add(columnText);
+                                    
+                                    Logger.Info($"✅ AI翻譯成功 - 檢測語言: {result.DetectedLanguage}, " +
+                                               $"段落數: {result.Paragraphs.Count}, " +
+                                               $"成本: ${result.Metadata?.EstimatedCost:F4}");
+                                }
+                                else
+                                {
+                                    Logger.Warn($"⚠️ AI翻譯失敗: {result.ErrorMessage}");
+                                }
+                            }
+                            
+                            if (translatedTexts.Count > 0)
+                            {
+                                var analyzedText = string.Join("\n\n", translatedTexts);
+                                Logger.Info($"🎯 AI翻譯完成：{analyzedText}");
+                                
+                                // 🔍 調試功能：顯示版面分析結果的視覺化
+                                ShowLayoutAnalysisDebugInfoV2(ocrResult, layoutResultV2);
+                                
+                                return (analyzedText, ocrResult);
+                            }
+                        }
+                        catch (Exception aiEx)
+                        {
+                            Logger.Error(aiEx, "❌ AI翻譯失敗，回退到傳統翻譯流程");
+                        }
+                    }
+                    else
+                    {
+                        Logger.Warn("⚠️ AITranslationService未初始化，回退到傳統翻譯流程");
                     }
                 }
                 else
                 {
-                    Logger.Warn($"⚠️ 版面分析失敗：{layoutResult.ErrorMessage}，回退到傳統文字合併");
-                    
-                    // 如果版面分析失敗，顯示基本OCR識別框
-                    ShowOcrDebugInfo(ocrResult);
+                    Logger.Warn($"⚠️ 版面分析V2失敗或無欄位，回退到傳統文字合併");
                 }
                 
                 // ============ PHASE 2B: 【後備方案】傳統文字合併 ============
@@ -829,6 +881,84 @@ namespace MonLingo.Core.Service
             catch (Exception ex)
             {
                 Logger.Error(ex, "隱藏OCR調試信息時發生錯誤");
+            }
+        }
+
+        /// <summary>
+        /// 顯示版面分析V2調試信息(AI驅動架構)
+        /// </summary>
+        private void ShowLayoutAnalysisDebugInfoV2(OcrResult ocrResult, LayoutAnalysisResultV2 layoutResult)
+        {
+            try
+            {
+                Logger.Info("🔍 顯示版面分析V2調試可視化(AI驅動)");
+                
+                // 檢查多螢幕環境
+                var isMultiScreen = MultiScreenHelper.IsMultiScreenEnvironment();
+                Logger.Info($"🖥️ 多螢幕環境：{(isMultiScreen ? "是" : "否")}");
+                
+                if (isMultiScreen)
+                {
+                    Logger.Info(MultiScreenHelper.GetAllScreensInfo());
+                }
+                
+                // 顯示版面分析結果詳情
+                if (layoutResult?.Success == true)
+                {
+                    Logger.Info($"📊 版面分析V2成功：{layoutResult.Columns?.Count ?? 0} 個欄位");
+                    Logger.Info($"⏱️ 處理時間：{layoutResult.ProcessingTimeMs:F1}ms");
+                    Logger.Info($"📝 總行數：{layoutResult.TotalLines}");
+                }
+                else
+                {
+                    Logger.Warn($"⚠️ 版面分析V2失敗");
+                    return; // 失敗則不顯示調試視覺化
+                }
+                
+                // 創建調試覆蓋層(如果尚未創建)
+                if (_ocrDebugOverlay == null)
+                {
+                    _ocrDebugOverlay = new OcrDebugOverlay();
+                    Logger.Debug("📱 創建新的OCR調試覆蓋層");
+                }
+
+                // 檢測目標螢幕(基於當前選中區域)
+                var targetScreen = MultiScreenHelper.GetScreenContainingRegion(
+                    new System.Drawing.Rectangle(
+                        (int)_currentSelectedRegion.X,
+                        (int)_currentSelectedRegion.Y,
+                        (int)_currentSelectedRegion.Width,
+                        (int)_currentSelectedRegion.Height
+                    )
+                );
+                
+                Logger.Info($"🎯 OCR區域：({_currentSelectedRegion.X},{_currentSelectedRegion.Y},{_currentSelectedRegion.Width},{_currentSelectedRegion.Height})");
+                Logger.Info($"🖥️ 目標螢幕：({targetScreen.X},{targetScreen.Y},{targetScreen.Width},{targetScreen.Height})");
+                
+                // 設置覆蓋層到目標螢幕
+                _ocrDebugOverlay.SetTargetScreen(targetScreen);
+
+                // 計算座標轉換參數
+                var dpiScale = GetDpiScale();
+                var coordinateTransform = new CoordinateTransform
+                {
+                    SelectedRegion = _currentSelectedRegion,
+                    DpiScale = dpiScale,
+                    VirtualScreenLeft = SystemParameters.VirtualScreenLeft,
+                    VirtualScreenTop = SystemParameters.VirtualScreenTop
+                };
+
+                Logger.Info($"📐 座標轉換參數：DPI={dpiScale}, 虛擬螢幕偏移=({SystemParameters.VirtualScreenLeft},{SystemParameters.VirtualScreenTop})");
+
+                // TODO: 未來可擴展OcrDebugOverlay支持Column顯示
+                // 暫時顯示基本OCR識別框
+                _ocrDebugOverlay.ShowOcrDebugInfo(ocrResult, coordinateTransform);
+                
+                Logger.Info("✅ 版面分析V2調試可視化顯示完成");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "顯示版面分析V2調試信息時發生錯誤");
             }
         }
 

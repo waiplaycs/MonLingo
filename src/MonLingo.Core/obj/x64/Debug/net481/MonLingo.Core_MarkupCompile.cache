@@ -12,7 +12,7 @@ DEBUG;TRACE;DEBUG;NETFRAMEWORK;NET481;
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\App.xaml
 20-703911832
 
-138-85856211
+140-528873980
 195-289421280
 Resources\Styles\CommonStyles.xaml;UI\ForgotPasswordDialog.xaml;UI\LoginWindow.xaml;UI\SimpleLoginWindow.xaml;UI\SmsLoginDialog.xaml;View\Controls\EnhancedSelectionBox.xaml;View\Windows\CaptureRegionWindow.xaml;View\Windows\EditWindow.xaml;View\Windows\LanguageSettingsWindow.xaml;View\Windows\MainBarWindow.xaml;View\Windows\OcrDebugOverlay.xaml;View\Windows\RegionSelectionOverlay.xaml;View\Windows\SelectionBoxHostWindow.xaml;View\Windows\SelectionBoxOverlay.xaml;View\Windows\SettingMainWindow.xaml;View\Windows\SingleTranslationWindow.xaml;View\Windows\SubtitleWindow.xaml;View\Windows\TestMainBarWindow.xaml;View\Windows\TranslationOverlayHostWindow.xaml;View\Windows\TranslationResultWindow.xaml;
 
