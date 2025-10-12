@@ -1,6 +1,6 @@
 # Phase 4 測試驗證計劃
 
-**開始日期:** 2025年10月10日  
+**開始日期:** 2025年10月12日  
 **階段:** 測試驗證  
 **狀態:** 🚀 準備開始  
 **預計完成:** 功能測試 → 性能測試 → 穩定性測試
@@ -21,39 +21,97 @@
 
 ## 🔧 前置準備
 
-### 1. API密鑰配置
+### 1. API密鑰配置 (支援多提供商)
 
-**需要完成的配置:**
+**MonLingo 現已支援三種 AI 提供商:**
+- **DeepSeek** (推薦,成本降低 50%)
+- **OpenAI** (GPT-4o-mini)
+- **Gemini** (Google)
 
-#### 方式一: 修改 appsettings.json (不推薦 - 會被Git追蹤)
-```json
-{
-  "AITranslation": {
-    "ApiKey": "sk-your-actual-openai-api-key"
-  }
-}
-```
+#### 🌟 方式一: DeepSeek (推薦 - 性價比最高)
 
-#### 方式二: 環境變數 (推薦)
+**獲取 API Key:**
+1. 訪問 [DeepSeek Platform](https://platform.deepseek.com/)
+2. 註冊並創建 API Key
+
+**配置:**
+
 ```powershell
-# Windows PowerShell
-$env:MONLINGO_OPENAI_API_KEY = "sk-your-actual-openai-api-key"
+# Windows PowerShell - 環境變數 (推薦)
+$env:MONLINGO_DEEPSEEK_API_KEY = "sk-your-deepseek-api-key"
 
-# 或永久設置
+# 永久設置
 [System.Environment]::SetEnvironmentVariable(
-    "MONLINGO_OPENAI_API_KEY", 
-    "sk-your-actual-openai-api-key", 
+    "MONLINGO_DEEPSEEK_API_KEY", 
+    "sk-your-deepseek-api-key", 
     "User"
 )
 ```
 
-#### 方式三: .NET User Secrets (最推薦)
-```powershell
-# 在MonLingo.Core目錄下執行
-cd src/MonLingo.Core
-dotnet user-secrets init
-dotnet user-secrets set "AITranslation:ApiKey" "sk-your-actual-openai-api-key"
+**或在 appsettings.json 配置:**
+```json
+{
+  "AITranslation": {
+    "Provider": "DeepSeek",
+    "Model": "deepseek-chat",
+    "ApiKey": "sk-your-deepseek-api-key",
+    "Temperature": 0.3,
+    "MaxTokens": 2000
+  }
+}
 ```
+
+> 📖 **詳細配置指南**: 參考 [API_Configuration_DeepSeek.md](API_Configuration_DeepSeek.md)
+
+---
+
+#### 方式二: OpenAI
+
+```powershell
+# 環境變數
+$env:MONLINGO_OPENAI_API_KEY = "sk-your-openai-api-key"
+```
+
+```json
+{
+  "AITranslation": {
+    "Provider": "OpenAI",
+    "Model": "gpt-4o-mini",
+    "ApiKey": "sk-your-openai-api-key"
+  }
+}
+```
+
+---
+
+#### 方式三: Gemini
+
+```powershell
+# 環境變數
+$env:MONLINGO_GEMINI_API_KEY = "your-gemini-api-key"
+```
+
+```json
+{
+  "AITranslation": {
+    "Provider": "Gemini",
+    "Model": "gemini-1.5-flash",
+    "ApiKey": "your-gemini-api-key"
+  }
+}
+```
+
+---
+
+### 💰 成本對比 (100頁漫畫示例)
+
+| 提供商 | 模型 | 輸入成本 | 輸出成本 | 總成本 | 節省 |
+|--------|------|---------|---------|--------|------|
+| **DeepSeek** | deepseek-chat | $0.007 | $0.017 | **$0.024** | 基準 |
+| OpenAI | gpt-4o-mini | $0.0075 | $0.036 | $0.044 | -45% |
+| Gemini | gemini-1.5-flash | $0.00375 | $0.018 | $0.022 | +8% |
+
+> 💡 DeepSeek 提供最佳性價比,特別適合大量翻譯任務!
 
 ### 2. 驗證配置加載
 
@@ -62,10 +120,22 @@ dotnet user-secrets set "AITranslation:ApiKey" "sk-your-actual-openai-api-key"
 ```csharp
 // 測試代碼 (可在Program.cs或測試文件中添加)
 var config = AITranslationConfigLoader.LoadFromFile("appsettings.json");
-Console.WriteLine($"Provider: {config.Provider}");
-Console.WriteLine($"Model: {config.Model}");
-Console.WriteLine($"API Key configured: {!string.IsNullOrEmpty(config.ApiKey)}");
-Console.WriteLine($"API Key (masked): {new string('*', Math.Min(10, config.ApiKey?.Length ?? 0))}");
+Console.WriteLine($"提供商: {config.Provider}");
+Console.WriteLine($"模型: {config.Model}");
+Console.WriteLine($"API端點: {config.GetApiEndpoint()}");
+Console.WriteLine($"環境變數: {config.GetEnvironmentVariableName()}");
+Console.WriteLine($"API Key 已配置: {!string.IsNullOrEmpty(config.ApiKey)}");
+Console.WriteLine($"API Key (遮罩): {new string('*', Math.Min(10, config.ApiKey?.Length ?? 0))}");
+```
+
+**預期輸出 (DeepSeek):**
+```
+提供商: DeepSeek
+模型: deepseek-chat
+API端點: https://api.deepseek.com
+環境變數: MONLINGO_DEEPSEEK_API_KEY
+API Key 已配置: True
+API Key (遮罩): **********
 ```
 
 ### 3. 準備測試數據
@@ -91,26 +161,27 @@ tests/test-images/
 
 ### 環境檢查清單
 
-- [ ] **OpenAI API密鑰已配置**
+- [ ] **AI API密鑰已配置** (DeepSeek/OpenAI/Gemini 任選一種)
+- [ ] **提供商選擇** (推薦: DeepSeek)
 - [ ] **MonLingo應用可正常啟動**
 - [ ] **OCR服務工作正常**
-- [ ] **網絡連接正常** (可訪問api.openai.com)
+- [ ] **網絡連接正常** (可訪問對應API端點)
 - [ ] **日誌系統啟用** (用於調試)
 - [ ] **測試圖片已準備**
 
 ### 配置驗證命令
 
 ```powershell
-# 1. 檢查環境變數
-$env:MONLINGO_OPENAI_API_KEY
+# 1. 檢查環境變數 (根據提供商選擇)
+$env:MONLINGO_DEEPSEEK_API_KEY  # DeepSeek
+$env:MONLINGO_OPENAI_API_KEY    # OpenAI
+$env:MONLINGO_GEMINI_API_KEY    # Gemini
 
-# 2. 檢查User Secrets (在MonLingo.Core目錄)
-dotnet user-secrets list
+# 2. 測試網絡連接
+Test-NetConnection -ComputerName api.deepseek.com -Port 443     # DeepSeek
+Test-NetConnection -ComputerName api.openai.com -Port 443       # OpenAI
 
-# 3. 測試網絡連接
-Test-NetConnection -ComputerName api.openai.com -Port 443
-
-# 4. 檢查NuGet包
+# 3. 檢查NuGet包
 dotnet list package | Select-String "OpenAI"
 ```
 

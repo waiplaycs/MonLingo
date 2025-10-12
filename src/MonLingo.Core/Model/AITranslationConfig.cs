@@ -1,17 +1,31 @@
 namespace MonLingo.Core.Model
 {
     /// <summary>
+    /// AI提供商類型
+    /// </summary>
+    public enum AIProvider
+    {
+        OpenAI,
+        DeepSeek,
+        Gemini
+    }
+
+    /// <summary>
     /// AI翻譯服務配置
     /// </summary>
     public class AITranslationConfig
     {
         /// <summary>
-        /// AI提供商(OpenAI, Azure, Claude等)
+        /// AI提供商
         /// </summary>
-        public string Provider { get; set; } = "OpenAI";
+        public AIProvider Provider { get; set; } = AIProvider.OpenAI;
 
         /// <summary>
         /// 使用的模型名稱
+        /// 推薦模型:
+        /// - OpenAI: gpt-4o-mini, gpt-4o
+        /// - DeepSeek: deepseek-chat
+        /// - Gemini: gemini-1.5-flash, gemini-1.5-pro
         /// </summary>
         public string Model { get; set; } = "gpt-4o-mini";
 
@@ -21,9 +35,43 @@ namespace MonLingo.Core.Model
         public string ApiKey { get; set; }
 
         /// <summary>
-        /// API端點(可選，用於Azure OpenAI等)
+        /// API端點(可選)
+        /// 自動配置:
+        /// - OpenAI: https://api.openai.com/v1 (默認)
+        /// - DeepSeek: https://api.deepseek.com
+        /// - Gemini: 通過 Google SDK
         /// </summary>
         public string ApiEndpoint { get; set; }
+
+        /// <summary>
+        /// 獲取API端點(自動根據Provider設置)
+        /// </summary>
+        public string GetApiEndpoint()
+        {
+            if (!string.IsNullOrWhiteSpace(ApiEndpoint))
+                return ApiEndpoint;
+
+            return Provider switch
+            {
+                AIProvider.DeepSeek => "https://api.deepseek.com",
+                AIProvider.OpenAI => "https://api.openai.com/v1",
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// 獲取環境變數名稱(用於API密鑰)
+        /// </summary>
+        public string GetEnvironmentVariableName()
+        {
+            return Provider switch
+            {
+                AIProvider.DeepSeek => "MONLINGO_DEEPSEEK_API_KEY",
+                AIProvider.OpenAI => "MONLINGO_OPENAI_API_KEY",
+                AIProvider.Gemini => "MONLINGO_GEMINI_API_KEY",
+                _ => "MONLINGO_API_KEY"
+            };
+        }
 
         /// <summary>
         /// 請求超時時間(秒)

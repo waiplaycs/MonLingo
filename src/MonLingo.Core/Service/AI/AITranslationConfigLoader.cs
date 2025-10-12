@@ -40,10 +40,15 @@ namespace MonLingo.Core.Service.AI
                         "配置文件中缺少AITranslation節點");
                 }
 
+                var providerStr = GetStringProperty(aiSection, "Provider", "OpenAI");
+                var provider = Enum.TryParse<AIProvider>(providerStr, true, out var parsedProvider)
+                    ? parsedProvider
+                    : AIProvider.OpenAI;
+
                 var config = new AITranslationConfig
                 {
-                    Provider = GetStringProperty(aiSection, "Provider", "OpenAI"),
-                    Model = GetStringProperty(aiSection, "Model", "gpt-4o-mini"),
+                    Provider = provider,
+                    Model = GetStringProperty(aiSection, "Model", GetDefaultModel(provider)),
                     ApiKey = GetStringProperty(aiSection, "ApiKey", null),
                     ApiEndpoint = GetStringProperty(aiSection, "ApiEndpoint", null),
                     TimeoutSeconds = GetIntProperty(aiSection, "TimeoutSeconds", 30),
@@ -57,7 +62,7 @@ namespace MonLingo.Core.Service.AI
                 };
 
                 // 嘗試從環境變數讀取API密鑰(優先級高於配置文件)
-                var envApiKey = Environment.GetEnvironmentVariable("MONLINGO_OPENAI_API_KEY");
+                var envApiKey = Environment.GetEnvironmentVariable(config.GetEnvironmentVariableName());
                 if (!string.IsNullOrWhiteSpace(envApiKey))
                 {
                     config.ApiKey = envApiKey;
@@ -80,13 +85,27 @@ namespace MonLingo.Core.Service.AI
             var config = new AITranslationConfig();
             
             // 嘗試從環境變數讀取API密鑰
-            var envApiKey = Environment.GetEnvironmentVariable("MONLINGO_OPENAI_API_KEY");
+            var envApiKey = Environment.GetEnvironmentVariable(config.GetEnvironmentVariableName());
             if (!string.IsNullOrWhiteSpace(envApiKey))
             {
                 config.ApiKey = envApiKey;
             }
 
             return config;
+        }
+
+        /// <summary>
+        /// 獲取默認模型名稱
+        /// </summary>
+        private static string GetDefaultModel(AIProvider provider)
+        {
+            return provider switch
+            {
+                AIProvider.DeepSeek => "deepseek-chat",
+                AIProvider.Gemini => "gemini-1.5-flash",
+                AIProvider.OpenAI => "gpt-4o-mini",
+                _ => "gpt-4o-mini"
+            };
         }
 
         private static string GetStringProperty(JsonElement element, string propertyName, string defaultValue)

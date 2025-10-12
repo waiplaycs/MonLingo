@@ -1,7 +1,9 @@
 using MonLingo.Core.Model;
 using NLog;
+using OpenAI;
 using OpenAI.Chat;
 using System;
+using System.ClientModel;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -29,17 +31,42 @@ namespace MonLingo.Core.Service.AI
             // 驗證配置
             if (string.IsNullOrWhiteSpace(_config.ApiKey))
             {
+                var envVarName = _config.GetEnvironmentVariableName();
                 throw new InvalidOperationException(
-                    "API密鑰未配置。請在appsettings.json中設置AITranslation:ApiKey，" +
-                    "或設置環境變數MONLINGO_OPENAI_API_KEY");
+                    $"API密鑰未配置。請在appsettings.json中設置AITranslation:ApiKey，" +
+                    $"或設置環境變數{envVarName}");
             }
 
-            // 初始化ChatClient
-            _chatClient = new ChatClient(
+            // 初始化ChatClient (支援多提供商)
+            _chatClient = CreateChatClient();
+
+            Logger.Info($"AITranslationService初始化完成 - 提供商: {_config.Provider}, 模型: {_config.Model}");
+        }
+
+        /// <summary>
+        /// 根據配置創建ChatClient
+        /// </summary>
+        private ChatClient CreateChatClient()
+        {
+            var endpoint = _config.GetApiEndpoint();
+
+            // DeepSeek 和其他兼容 OpenAI API 的服務
+            if (!string.IsNullOrWhiteSpace(endpoint))
+            {
+                var openAiClientOptions = new OpenAIClientOptions
+                {
+                    Endpoint = new Uri(endpoint)
+                };
+                
+                var apiKeyCredential = new ApiKeyCredential(_config.ApiKey);
+                var client = new OpenAIClient(apiKeyCredential, openAiClientOptions);
+                return client.GetChatClient(_config.Model);
+            }
+
+            // 默認 OpenAI
+            return new ChatClient(
                 model: _config.Model,
                 apiKey: _config.ApiKey);
-
-            Logger.Info($"AITranslationService初始化完成 - 模型: {_config.Model}");
         }
 
         /// <summary>
@@ -292,14 +319,27 @@ namespace MonLingo.Core.Service.AI
         /// </summary>
         private double CalculateCost(TokenUsage tokenUsage)
         {
-            // GPT-4o-mini定價: $0.150/1M input tokens, $0.600/1M output tokens
-            const double INPUT_COST_PER_1M = 0.150;
-            const double OUTPUT_COST_PER_1M = 0.600;
+            // 根據不同提供商計算成本
+            switch (_config.Provider)
+            {
+                case AIProvider.DeepSeek:
+                    // DeepSeek定價: $0.14/1M input tokens, $0.28/1M output tokens
+                    return (tokenUsage.InputTokens / 1_000_000.0) * 0.14 +
+                           (tokenUsage.OutputTokens / 1_000_000.0) * 0.28;
 
-            double inputCost = (tokenUsage.InputTokens / 1_000_000.0) * INPUT_COST_PER_1M;
-            double outputCost = (tokenUsage.OutputTokens / 1_000_000.0) * OUTPUT_COST_PER_1M;
+                case AIProvider.OpenAI:
+                    // GPT-4o-mini定價: $0.150/1M input tokens, $0.600/1M output tokens
+                    return (tokenUsage.InputTokens / 1_000_000.0) * 0.150 +
+                           (tokenUsage.OutputTokens / 1_000_000.0) * 0.600;
 
-            return inputCost + outputCost;
+                case AIProvider.Gemini:
+                    // Gemini 1.5 Flash定價: $0.075/1M input tokens, $0.30/1M output tokens
+                    return (tokenUsage.InputTokens / 1_000_000.0) * 0.075 +
+                           (tokenUsage.OutputTokens / 1_000_000.0) * 0.30;
+
+                default:
+                    return 0;
+            }
         }
 
         /// <summary>
