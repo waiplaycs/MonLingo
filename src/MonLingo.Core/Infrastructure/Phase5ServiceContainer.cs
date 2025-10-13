@@ -66,7 +66,7 @@ namespace MonLingo.Core.Infrastructure
             // 🤖 AI翻譯服務 - Phase 3新增
             services.AddSingleton<IAITranslationService>(provider =>
             {
-                var config = AITranslationConfigLoader.LoadFromFile("appsettings.json");
+                var config = AITranslationConfigLoader.LoadFromFile(); // 使用默認路徑
                 return new AITranslationService(config);
             });
             

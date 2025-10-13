@@ -369,14 +369,38 @@ namespace MonLingo.Core.Service
                 // 📝 階段一：橫向行合併
                 // 📝 階段二：智能分欄
                 // 🤖 AI翻譯層：段落合併 + 智能翻譯
+                
+                var startMsg = "🚀🚀🚀 開始執行版面分析V2 (橫向合併 + 智能分欄) 🚀🚀🚀";
+                Logger.Info(startMsg);
+                Console.WriteLine(startMsg);
+                
+                var inputMsg = $"📥 OCR輸入：{ocrResult.Lines.Length} 個文字行";
+                Logger.Info(inputMsg);
+                Console.WriteLine(inputMsg);
+                
                 var layoutAnalysis = new LayoutAnalysisService();
                 
                 // 使用簡化版面分析(僅階段一+二)
                 var layoutResultV2 = layoutAnalysis.AnalyzeLayoutV2(ocrResult);
                 
+                var resultMsg = $"📤 版面分析V2結果：Success={layoutResultV2.Success}, Columns={layoutResultV2.Columns?.Count ?? 0}";
+                Logger.Info(resultMsg);
+                Console.WriteLine(resultMsg);
+                
                 if (layoutResultV2.Success && layoutResultV2.Columns != null && layoutResultV2.Columns.Count > 0)
                 {
-                    Logger.Info($"📊 版面分析V2完成：耗時 {layoutResultV2.ProcessingTimeMs:F1}ms，檢測到 {layoutResultV2.Columns.Count} 個欄位");
+                    var completeMsg = $"✅✅✅ 版面分析V2完成：耗時 {layoutResultV2.ProcessingTimeMs:F1}ms，檢測到 {layoutResultV2.Columns.Count} 個欄位";
+                    Logger.Info(completeMsg);
+                    Console.WriteLine(completeMsg);
+                    
+                    // 🎨 立即顯示調試視覺化 (在AI翻譯之前)
+                    var debugMsg1 = "🎨 準備顯示版面分析調試視覺化...";
+                    Logger.Info(debugMsg1);
+                    Console.WriteLine(debugMsg1);
+                    ShowLayoutAnalysisDebugInfoV2(ocrResult, layoutResultV2);
+                    var debugMsg2 = "🎨 調試視覺化已觸發";
+                    Logger.Info(debugMsg2);
+                    Console.WriteLine(debugMsg2);
                     
                     // 🤖 使用AI翻譯服務進行智能段落合併和翻譯
                     if (_aiTranslationService != null)
@@ -386,7 +410,9 @@ namespace MonLingo.Core.Service
                             // 獲取目標語言配置
                             var targetLanguage = await _languageConfigService.GetTargetLanguageAsync();
                             
-                            Logger.Info($"🤖 開始AI智能翻譯，目標語言: {targetLanguage}");
+                            var aiMsg = $"🤖 開始AI智能翻譯，目標語言: {targetLanguage}";
+                            Logger.Info(aiMsg);
+                            Console.WriteLine(aiMsg);
                             
                             // 批量處理所有欄位
                             var columnLines = layoutResultV2.Columns
@@ -424,8 +450,7 @@ namespace MonLingo.Core.Service
                                 var analyzedText = string.Join("\n\n", translatedTexts);
                                 Logger.Info($"🎯 AI翻譯完成：{analyzedText}");
                                 
-                                // 🔍 調試功能：顯示版面分析結果的視覺化
-                                ShowLayoutAnalysisDebugInfoV2(ocrResult, layoutResultV2);
+                                // 調試視覺化已在版面分析完成後立即顯示,不需要重複
                                 
                                 return (analyzedText, ocrResult);
                             }
@@ -950,9 +975,8 @@ namespace MonLingo.Core.Service
 
                 Logger.Info($"📐 座標轉換參數：DPI={dpiScale}, 虛擬螢幕偏移=({SystemParameters.VirtualScreenLeft},{SystemParameters.VirtualScreenTop})");
 
-                // TODO: 未來可擴展OcrDebugOverlay支持Column顯示
-                // 暫時顯示基本OCR識別框
-                _ocrDebugOverlay.ShowOcrDebugInfo(ocrResult, coordinateTransform);
+                // 顯示版面分析V2調試可視化(用顏色標示不同欄位)
+                _ocrDebugOverlay.ShowLayoutAnalysisDebugInfoV2(ocrResult, layoutResult, coordinateTransform);
                 
                 Logger.Info("✅ 版面分析V2調試可視化顯示完成");
             }

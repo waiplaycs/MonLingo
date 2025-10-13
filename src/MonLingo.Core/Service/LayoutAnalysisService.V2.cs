@@ -24,11 +24,15 @@ namespace MonLingo.Core.Service
         {
             var startTime = DateTime.UtcNow;
 
-            Logger.Info("🚀 開始版面分析 v2.0 (AI驅動架構)");
+            var msg1 = "🚀 開始版面分析 v2.0 (AI驅動架構)";
+            Logger.Info(msg1);
+            Console.WriteLine(msg1);
             
             if (ocrResult?.Lines == null || ocrResult.Lines.Length == 0)
             {
-                Logger.Warn("⚠️ OCR結果為空，返回空版面");
+                var warnMsg = "⚠️ OCR結果為空，返回空版面";
+                Logger.Warn(warnMsg);
+                Console.WriteLine(warnMsg);
                 return new LayoutAnalysisResultV2
                 {
                     Success = false,
@@ -38,14 +42,22 @@ namespace MonLingo.Core.Service
             }
 
             // 階段一：橫向行合併
-            Logger.Info("📝 階段一：開始橫向行合併");
+            var msg2 = "📝 階段一：開始橫向行合併";
+            Logger.Info(msg2);
+            Console.WriteLine(msg2);
             var mergedLines = PerformHorizontalLineMerging(ocrResult.Lines);
-            Logger.Info($"✅ 階段一完成：{ocrResult.Lines.Length} → {mergedLines.Count} 行（合併 {ocrResult.Lines.Length - mergedLines.Count} 個碎片）");
+            var msg3 = $"✅ 階段一完成：{ocrResult.Lines.Length} → {mergedLines.Count} 行（合併 {ocrResult.Lines.Length - mergedLines.Count} 個碎片）";
+            Logger.Info(msg3);
+            Console.WriteLine(msg3);
 
             // 階段二：智能分欄
-            Logger.Info("📂 階段二：開始智能分欄");
+            var msg4 = "📂 階段二：開始智能分欄";
+            Logger.Info(msg4);
+            Console.WriteLine(msg4);
             var columnLines = PerformIntelligentColumnDetection(mergedLines);
-            Logger.Info($"✅ 階段二完成：識別出 {columnLines.Count} 個欄位");
+            var msg5 = $"✅ 階段二完成：識別出 {columnLines.Count} 個欄位";
+            Logger.Info(msg5);
+            Console.WriteLine(msg5);
 
             // 將List<List<LayoutLine>>轉換為List<Column>
             var columns = new List<Column>();

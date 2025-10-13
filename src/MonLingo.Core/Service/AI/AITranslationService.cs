@@ -101,7 +101,79 @@ namespace MonLingo.Core.Service.AI
 
             try
             {
-                Logger.Debug($"開始AI翻譯: {columnLines.Count}行文字 -> {targetLanguage}");
+                var msg1 = $"🤖 開始AI翻譯: {columnLines.Count}行文字 -> {targetLanguage}";
+                Logger.Info(msg1);
+                Console.WriteLine(msg1);
+                
+                // 輸出文字框座標範圍
+                if (columnLines.Count > 0)
+                {
+                    var minX = columnLines.Min(l => l.BoundingBox.Left);
+                    var maxX = columnLines.Max(l => l.BoundingBox.Right);
+                    var minY = columnLines.Min(l => l.BoundingBox.Top);
+                    var maxY = columnLines.Max(l => l.BoundingBox.Bottom);
+                    var coordMsg = $"📍 文字框座標: X[{minX:F0}, {maxX:F0}] Y[{minY:F0}, {maxY:F0}] " +
+                                  $"尺寸: {maxX - minX:F0}×{maxY - minY:F0}px";
+                    Logger.Info(coordMsg);
+                    Console.WriteLine(coordMsg);
+                }
+                
+                // 輸出行間距分析
+                if (columnLines.Count > 1)
+                {
+                    var avgLineHeight = columnLines.Average(l => l.LineHeight);
+                    var msg2 = $"📏 平均行高: {avgLineHeight:F1}px";
+                    Logger.Info(msg2);
+                    Console.WriteLine(msg2);
+                    
+                    for (int i = 0; i < columnLines.Count - 1; i++)
+                    {
+                        var currentLine = columnLines[i];
+                        var nextLine = columnLines[i + 1];
+                        var verticalGap = nextLine.BoundingBox.Top - currentLine.BoundingBox.Bottom;
+                        var gapRatio = verticalGap / avgLineHeight;
+                        
+                        var gapType = gapRatio > 1.0 ? "大間距🔴" : 
+                                     gapRatio > 0.5 ? "中間距🟡" : "正常🟢";
+                        
+                        var previewText = string.IsNullOrEmpty(currentLine.Text) ? "" : 
+                                        currentLine.Text.Substring(0, Math.Min(20, currentLine.Text.Length));
+                        
+                        var bbox = currentLine.BoundingBox;
+                        var gapMsg = $"   行{i}: {gapType} {verticalGap:F0}px ({gapRatio:F2}x) " +
+                                   $"座標[{bbox.Left:F0},{bbox.Top:F0},{bbox.Right:F0},{bbox.Bottom:F0}] " +
+                                   $"「{previewText}...」";
+                        Logger.Debug(gapMsg);
+                        Console.WriteLine(gapMsg);
+                    }
+                    
+                    // 輸出最後一行
+                    if (columnLines.Count > 0)
+                    {
+                        var lastLine = columnLines[columnLines.Count - 1];
+                        var bbox = lastLine.BoundingBox;
+                        var previewText = string.IsNullOrEmpty(lastLine.Text) ? "" : 
+                                        lastLine.Text.Substring(0, Math.Min(20, lastLine.Text.Length));
+                        var lastMsg = $"   行{columnLines.Count - 1}: (最後行) " +
+                                    $"座標[{bbox.Left:F0},{bbox.Top:F0},{bbox.Right:F0},{bbox.Bottom:F0}] " +
+                                    $"「{previewText}...」";
+                        Logger.Debug(lastMsg);
+                        Console.WriteLine(lastMsg);
+                    }
+                }
+                else if (columnLines.Count == 1)
+                {
+                    // 只有一行時也輸出座標
+                    var line = columnLines[0];
+                    var bbox = line.BoundingBox;
+                    var previewText = string.IsNullOrEmpty(line.Text) ? "" : 
+                                    line.Text.Substring(0, Math.Min(20, line.Text.Length));
+                    var singleMsg = $"   行0: (單行) " +
+                                  $"座標[{bbox.Left:F0},{bbox.Top:F0},{bbox.Right:F0},{bbox.Bottom:F0}] " +
+                                  $"「{previewText}...」";
+                    Logger.Info(singleMsg);
+                    Console.WriteLine(singleMsg);
+                }
 
                 // 構建Prompt
                 var userPrompt = PromptTemplates.BuildSmartTranslationPrompt(
@@ -109,7 +181,7 @@ namespace MonLingo.Core.Service.AI
 
                 if (_config.EnableVerboseLogging)
                 {
-                    Logger.Debug($"User Prompt:\n{userPrompt}");
+                    Logger.Debug($"📝 User Prompt:\n{userPrompt}");
                 }
 
                 // 調用OpenAI API (帶重試)
@@ -176,11 +248,29 @@ namespace MonLingo.Core.Service.AI
         {
             var results = new List<AITranslationResult>();
 
-            foreach (var column in columns)
+            var batchMsg = $"📦 批量翻譯開始: 共 {columns.Count} 個欄位 (每個欄位將調用1次API)";
+            Logger.Info(batchMsg);
+            Console.WriteLine(batchMsg);
+
+            for (int i = 0; i < columns.Count; i++)
             {
-                var result = await SmartTranslateAsync(column, sourceLanguage, targetLanguage);
+                var columnMsg = $"🔄 處理第 {i + 1}/{columns.Count} 個欄位...";
+                Logger.Info(columnMsg);
+                Console.WriteLine(columnMsg);
+                
+                var result = await SmartTranslateAsync(columns[i], sourceLanguage, targetLanguage);
                 results.Add(result);
+                
+                var resultMsg = result.Success 
+                    ? $"✅ 第 {i + 1} 個欄位翻譯完成" 
+                    : $"❌ 第 {i + 1} 個欄位翻譯失敗: {result.ErrorMessage}";
+                Logger.Info(resultMsg);
+                Console.WriteLine(resultMsg);
             }
+
+            var summaryMsg = $"📦 批量翻譯完成: 成功 {results.Count(r => r.Success)}/{columns.Count} 個欄位";
+            Logger.Info(summaryMsg);
+            Console.WriteLine(summaryMsg);
 
             return results;
         }

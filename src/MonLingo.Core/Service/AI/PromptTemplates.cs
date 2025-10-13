@@ -32,32 +32,65 @@ namespace MonLingo.Core.Service.AI
             string sourceLang,
             string targetLang)
         {
-            var linesText = string.Join("\n", 
-                lines.Select((l, i) => $"{i}: {l.Text}"));
+            // 計算平均行高和行間距
+            var avgLineHeight = lines.Average(l => l.LineHeight);
+            
+            // 構建帶有垂直距離信息的文字行列表
+            var linesWithSpacing = new System.Text.StringBuilder();
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var line = lines[i];
+                linesWithSpacing.Append($"{i}: {line.Text}");
+                
+                // 計算與下一行的垂直間距
+                if (i < lines.Count - 1)
+                {
+                    var nextLine = lines[i + 1];
+                    var verticalGap = nextLine.BoundingBox.Top - line.BoundingBox.Bottom;
+                    var gapRatio = verticalGap / avgLineHeight;
+                    
+                    // 標記明顯的垂直間距
+                    if (gapRatio > 1.0)
+                    {
+                        linesWithSpacing.Append($" [大間距↓ {gapRatio:F1}x行高]");
+                    }
+                    else if (gapRatio > 0.5)
+                    {
+                        linesWithSpacing.Append($" [中間距↓ {gapRatio:F1}x行高]");
+                    }
+                }
+                
+                linesWithSpacing.AppendLine();
+            }
 
             return $@"**任務**: 
 1. 分析以下OCR識別的文字行
-2. 根據語義智能合併為段落
+2. 根據語義和**視覺間距**智能合併為段落
 3. 翻譯成{GetLanguageName(targetLang)}
 4. 返回結構化結果
 
-**文字行列表**:
-{linesText}
+**文字行列表**(包含行間距信息):
+{linesWithSpacing}
 
 **處理規則**:
 1. **語義分析**: 分析上下文,判斷哪些行屬於同一段落
-2. **段落類型識別**:
+2. **視覺間距分析** (⚠️ 關鍵規則):
+   - **[大間距↓]** (>1.0x行高): **必須分段**,這表示視覺上有明顯空行
+   - **[中間距↓]** (0.5-1.0x行高): 優先分段,除非語義強相關
+   - 無標記: 行距正常,可以根據語義合併
+3. **段落類型識別**:
    - Heading: 標題通常字體較大、簡短、獨立成段
    - Body: 正文段落,語義連貫的多行文字
    - ListItem: 列表項目,有序號、符號或明顯的獨立性
    - Quote: 引用或注釋,通常有引號或縮排
-3. **合併策略**:
+4. **合併策略** (按優先級):
+   - ⚠️ **大間距必須分段** (最高優先級)
    - 標題通常單獨成段
    - 正文段落根據語義連貫性合併
    - 列表項目保持獨立或按邏輯分組
-   - 行間距過大(明顯換行)則分段
+   - 中間距優先分段,除非是明確的句子延續
    - 語義不連貫則分段
-4. **翻譯要求**:
+5. **翻譯要求**:
    - 保持原文的語氣和風格
    - 專有名詞保持原樣或音譯
    - 保留格式標記(如**粗體**、*斜體*)

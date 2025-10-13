@@ -571,6 +571,120 @@ namespace MonLingo.Core.View.Windows
         }
 
         /// <summary>
+        /// 顯示版面分析V2結果的調試信息 (AI驅動模式)
+        /// 只顯示智能分欄結果,每個欄位用不同顏色標示
+        /// </summary>
+        /// <param name="ocrResult">OCR識別結果</param>
+        /// <param name="layoutResultV2">版面分析V2結果</param>
+        /// <param name="transform">座標轉換參數</param>
+        public void ShowLayoutAnalysisDebugInfoV2(OcrResult ocrResult, LayoutAnalysisResultV2 layoutResultV2, CoordinateTransform transform = null)
+        {
+            if (ocrResult?.Lines == null || !ocrResult.Lines.Any())
+                return;
+            
+            if (layoutResultV2?.Columns == null || !layoutResultV2.Columns.Any())
+            {
+                Logger.Warn("⚠️ 沒有分欄結果,無法顯示調試信息");
+                return;
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    // 清除之前的調試元素
+                    ClearDebugElements();
+                    
+                    Logger.Info($"🎯 顯示AI驅動版面分析結果：{layoutResultV2.Columns.Count} 個欄位,用顏色標示");
+
+                    // 為每個欄位分配顏色並繪製
+                    for (int columnIndex = 0; columnIndex < layoutResultV2.Columns.Count; columnIndex++)
+                    {
+                        var column = layoutResultV2.Columns[columnIndex];
+                        var columnColor = GetColumnColor(columnIndex);
+                        
+                        Logger.Info($"📋 欄位 {columnIndex + 1}：{column.Lines.Count} 行文字，顏色：{columnColor}");
+
+                        // 繪製該欄位中的所有行 (用欄位顏色標示,不帶編號)
+                        foreach (var line in column.Lines)
+                        {
+                            Logger.Debug($"🎨 繪製欄位{columnIndex + 1}的行：文字=\"{line.Text?.Trim()}\"");
+                            DrawLayoutLineWithColor(line, columnColor, transform);
+                        }
+                        
+                        // 不繪製欄位邊界框和標籤,只用顏色區分各欄位的文字行
+                        // 用戶要求: 移除大包圍框和"欄位1"文字標籤
+                    }
+
+                    Logger.Info($"✅ 版面分析V2調試顯示完成：{layoutResultV2.Columns.Count} 個欄位");
+
+                    // 顯示視窗
+                    Show();
+                    Activate();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "顯示版面分析V2調試信息時發生錯誤");
+                }
+            });
+        }
+
+        /// <summary>
+        /// 繪製欄位邊界框 - 已禁用 (用戶要求只顯示顏色標示,不要大框和標籤)
+        /// </summary>
+        private void DrawColumnBoundingBox(System.Drawing.Rectangle boundingBox, SolidColorBrush color, CoordinateTransform transform, int columnNumber)
+        {
+            // 🚫 用戶要求: 移除大包圍框和"欄位1"文字標籤
+            // 只保留各文字行的顏色標示即可
+            Logger.Debug($"🎨 欄位{columnNumber}：僅使用顏色標示,不繪製邊界框");
+        }
+
+        /// <summary>
+        /// 繪製 LayoutLine（支援 LayoutLine 類型）
+        /// </summary>
+        private void DrawLayoutLineWithColor(LayoutLine line, SolidColorBrush columnColor, CoordinateTransform transform = null)
+        {
+            var boundingBox = line.BoundingBox;
+            
+            // 計算相對於覆蓋層視窗的座標
+            System.Windows.Point relativePosition;
+            if (transform != null)
+            {
+                // 先計算絕對螢幕座標
+                var absolutePosition = transform.TransformToScreenCoordinates(boundingBox.X, boundingBox.Y);
+                
+                // 轉換為相對於覆蓋層視窗的座標
+                relativePosition = new System.Windows.Point(
+                    absolutePosition.X - _targetScreenBounds.X,
+                    absolutePosition.Y - _targetScreenBounds.Y
+                );
+            }
+            else
+            {
+                // 回退到簡單偏移
+                relativePosition = new System.Windows.Point(boundingBox.X, boundingBox.Y);
+            }
+            
+            // 創建邊界框，使用欄位顏色的虛線
+            var rect = new Rectangle
+            {
+                Width = boundingBox.Width / (transform?.DpiScale ?? 1.0),
+                Height = boundingBox.Height / (transform?.DpiScale ?? 1.0),
+                Stroke = columnColor,
+                StrokeThickness = 1,
+                Fill = Brushes.Transparent,
+                StrokeDashArray = new DoubleCollection { 5, 3 } // 虛線樣式
+            };
+
+            Canvas.SetLeft(rect, relativePosition.X);
+            Canvas.SetTop(rect, relativePosition.Y);
+            _debugCanvas.Children.Add(rect);
+            _debugElements.Add(rect);
+            
+            Logger.Debug($"📝 欄位虛線框：顏色={columnColor}，文字=\"{line.Text?.Trim()}\"");
+        }
+
+        /// <summary>
         /// 獲取邊界框的中心X座標
         /// </summary>
         private double GetCenterX(System.Drawing.Rectangle boundingBox)
