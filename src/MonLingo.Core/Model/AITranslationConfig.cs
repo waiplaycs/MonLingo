@@ -7,7 +7,8 @@ namespace MonLingo.Core.Model
     {
         OpenAI,
         DeepSeek,
-        Gemini
+        Gemini,
+        OpenRouter
     }
 
     /// <summary>
@@ -26,6 +27,7 @@ namespace MonLingo.Core.Model
         /// - OpenAI: gpt-4o-mini, gpt-4o
         /// - DeepSeek: deepseek-chat
         /// - Gemini: gemini-1.5-flash, gemini-1.5-pro
+        /// - OpenRouter: google/gemini-2.0-flash-exp:free, anthropic/claude-3.5-sonnet
         /// </summary>
         public string Model { get; set; } = "gpt-4o-mini";
 
@@ -39,6 +41,7 @@ namespace MonLingo.Core.Model
         /// 自動配置:
         /// - OpenAI: https://api.openai.com/v1 (默認)
         /// - DeepSeek: https://api.deepseek.com
+        /// - OpenRouter: https://openrouter.ai/api/v1
         /// - Gemini: 通過 Google SDK
         /// </summary>
         public string ApiEndpoint { get; set; }
@@ -55,6 +58,7 @@ namespace MonLingo.Core.Model
             {
                 AIProvider.DeepSeek => "https://api.deepseek.com",
                 AIProvider.OpenAI => "https://api.openai.com/v1",
+                AIProvider.OpenRouter => "https://openrouter.ai/api/v1",
                 _ => null
             };
         }
@@ -69,6 +73,7 @@ namespace MonLingo.Core.Model
                 AIProvider.DeepSeek => "MONLINGO_DEEPSEEK_API_KEY",
                 AIProvider.OpenAI => "MONLINGO_OPENAI_API_KEY",
                 AIProvider.Gemini => "MONLINGO_GEMINI_API_KEY",
+                AIProvider.OpenRouter => "MONLINGO_OPENROUTER_API_KEY",
                 _ => "MONLINGO_API_KEY"
             };
         }

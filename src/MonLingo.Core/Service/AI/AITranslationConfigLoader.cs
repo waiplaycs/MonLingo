@@ -104,6 +104,7 @@ namespace MonLingo.Core.Service.AI
                 AIProvider.DeepSeek => "deepseek-chat",
                 AIProvider.Gemini => "gemini-1.5-flash",
                 AIProvider.OpenAI => "gpt-4o-mini",
+                AIProvider.OpenRouter => "google/gemini-2.0-flash-exp:free",
                 _ => "gpt-4o-mini"
             };
         }

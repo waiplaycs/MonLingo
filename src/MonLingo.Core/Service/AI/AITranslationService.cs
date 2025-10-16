@@ -40,7 +40,23 @@ namespace MonLingo.Core.Service.AI
             // 初始化ChatClient (支援多提供商)
             _chatClient = CreateChatClient();
 
-            Logger.Info($"AITranslationService初始化完成 - 提供商: {_config.Provider}, 模型: {_config.Model}");
+            var initMsg = $"🤖 AI翻譯服務初始化完成";
+            Logger.Info(initMsg);
+            Console.WriteLine(initMsg);
+            
+            var providerMsg = $"   提供商: {_config.Provider}";
+            Logger.Info(providerMsg);
+            Console.WriteLine(providerMsg);
+            
+            var modelMsg = $"   模型: {_config.Model}";
+            Logger.Info(modelMsg);
+            Console.WriteLine(modelMsg);
+            
+            var endpointMsg = $"   端點: {_config.GetApiEndpoint() ?? "默認"}";
+            Logger.Info(endpointMsg);
+            Console.WriteLine(endpointMsg);
+            
+            Console.WriteLine();
         }
 
         /// <summary>
@@ -101,7 +117,7 @@ namespace MonLingo.Core.Service.AI
 
             try
             {
-                var msg1 = $"🤖 開始AI翻譯: {columnLines.Count}行文字 -> {targetLanguage}";
+                var msg1 = $"🤖 開始AI翻譯: {columnLines.Count}行文字 -> {targetLanguage} [{_config.Provider}/{_config.Model}]";
                 Logger.Info(msg1);
                 Console.WriteLine(msg1);
                 
@@ -305,20 +321,29 @@ namespace MonLingo.Core.Service.AI
 
             try
             {
-                var msg1 = $"🚀 多欄位一次性翻譯: {columns.Count}個欄位 -> {targetLanguage} (使用欄位標記系統,只調用1次API)";
+                var msg1 = $"🚀 多欄位一次性翻譯: {columns.Count}個欄位 -> {targetLanguage}";
                 Logger.Info(msg1);
                 Console.WriteLine(msg1);
+                
+                var modelMsg = $"   使用模型: {_config.Provider} / {_config.Model}";
+                Logger.Info(modelMsg);
+                Console.WriteLine(modelMsg);
+                
+                var strategyMsg = $"   翻譯策略: 欄位標記系統 (1次API調用,節省{columns.Count - 1}次)";
+                Logger.Info(strategyMsg);
+                Console.WriteLine(strategyMsg);
 
-                // 輸出每個欄位的基本信息和行間距統計
+                // 輸出每個欄位的詳細間距信息
+                Console.WriteLine();
+                Console.WriteLine("📊 欄位間距分析:");
                 for (int i = 0; i < columns.Count; i++)
                 {
                     var column = columns[i];
                     var avgLineHeight = column.Average(l => l.LineHeight);
                     
-                    // 統計大間距和中間距數量
-                    int largeGapCount = 0;
-                    int mediumGapCount = 0;
+                    Console.WriteLine($"   【欄位{i + 1}】{column.Count}行文字, 平均行高: {avgLineHeight:F1}px");
                     
+                    // 顯示每個間距的詳細數值
                     for (int j = 0; j < column.Count - 1; j++)
                     {
                         var currentLine = column[j];
@@ -326,30 +351,52 @@ namespace MonLingo.Core.Service.AI
                         var verticalGap = nextLine.BoundingBox.Top - currentLine.BoundingBox.Bottom;
                         var gapRatio = verticalGap / avgLineHeight;
                         
-                        if (gapRatio > 1.0) largeGapCount++;
-                        else if (gapRatio > 0.5) mediumGapCount++;
+                        string gapType;
+                        string gapIcon;
+                        if (gapRatio > 1.0)
+                        {
+                            gapType = "大間距";
+                            gapIcon = "🔴";
+                        }
+                        else if (gapRatio > 0.5)
+                        {
+                            gapType = "中間距";
+                            gapIcon = "🟡";
+                        }
+                        else
+                        {
+                            gapType = "正常";
+                            gapIcon = "🟢";
+                        }
+                        
+                        // 截取文字預覽
+                        var textPreview = currentLine.Text.Length > 30 
+                            ? currentLine.Text.Substring(0, 30) + "..." 
+                            : currentLine.Text;
+                        
+                        Console.WriteLine($"      行{j}→{j+1}: {gapIcon} {gapType} {verticalGap:F0}px ({gapRatio:F2}x) │ 「{textPreview}」");
                     }
                     
-                    var infoMsg = $"   欄位{i + 1}: {column.Count}行文字, 平均行高{avgLineHeight:F1}px";
-                    if (largeGapCount > 0 || mediumGapCount > 0)
-                    {
-                        infoMsg += $" (檢測到 {largeGapCount}個大間距, {mediumGapCount}個中間距)";
-                    }
-                    Logger.Info(infoMsg);
-                    Console.WriteLine(infoMsg);
+                    Console.WriteLine();
                 }
                 
                 Console.WriteLine("📝 構建多欄位Prompt (使用【欄位X開始/結束】標記 + 行間距比例)...");
+                Console.WriteLine();
 
                 // 構建多欄位Prompt(只包含行間距信息)
                 var userPrompt = PromptTemplates.BuildMultiColumnTranslationPrompt(
                     columns, sourceLanguage, targetLanguage);
 
-                if (_config.EnableVerboseLogging)
-                {
-                    Logger.Debug($"📝 完整多欄位Prompt:\n{userPrompt}");
-                    Console.WriteLine("💡 詳細Prompt已輸出到日誌 (包含欄位標記和間距標記示例)");
-                }
+                // 總是輸出Prompt到Terminal,讓用戶看到欄位分隔
+                Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                Console.WriteLine("� 完整Prompt內容 (發送給AI):");
+                Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                Console.WriteLine(userPrompt);
+                Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                Console.WriteLine();
+                
+                Logger.Info($"Prompt總長度: {userPrompt.Length} 字符");
+                Logger.Debug($"完整Prompt:\n{userPrompt}");
 
                 // 調用OpenAI API (帶重試)
                 var retryResult = await ExecuteWithRetryAsync(
@@ -679,6 +726,11 @@ namespace MonLingo.Core.Service.AI
                     // Gemini 1.5 Flash定價: $0.075/1M input tokens, $0.30/1M output tokens
                     return (tokenUsage.InputTokens / 1_000_000.0) * 0.075 +
                            (tokenUsage.OutputTokens / 1_000_000.0) * 0.30;
+
+                case AIProvider.OpenRouter:
+                    // OpenRouter Gemini 2.0 Flash (免費): $0/1M tokens
+                    // 注意: 免費模型可能有速率限制
+                    return 0;
 
                 default:
                     return 0;
