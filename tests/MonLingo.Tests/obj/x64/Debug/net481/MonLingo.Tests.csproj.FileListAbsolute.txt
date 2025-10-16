@@ -142,3 +142,12 @@ C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Debug\net481\MonLin
 C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Debug\net481\MonLingo.D78247B5.Up2Date
 C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Debug\net481\MonLingo.Tests.dll
 C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\obj\x64\Debug\net481\MonLingo.Tests.pdb
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\appsettings.json
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\Microsoft.Extensions.Http.dll
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\Microsoft.Extensions.Http.Polly.dll
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\OpenAI.dll
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\Polly.dll
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\Polly.Extensions.Http.dll
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\System.ClientModel.dll
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\System.IO.Pipelines.dll
+C:\Users\User\Desktop\MonLingo2\tests\MonLingo.Tests\bin\x64\Debug\net481\System.Memory.Data.dll

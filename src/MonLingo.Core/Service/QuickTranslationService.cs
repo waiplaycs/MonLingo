@@ -414,12 +414,12 @@ namespace MonLingo.Core.Service
                             Logger.Info(aiMsg);
                             Console.WriteLine(aiMsg);
                             
-                            // 批量處理所有欄位
+                            // 使用多欄位一次性翻譯(新方法)
                             var columnLines = layoutResultV2.Columns
                                 .Select(col => col.Lines)
                                 .ToList();
                             
-                            var aiResults = await _aiTranslationService.SmartTranslateBatchAsync(
+                            var aiResults = await _aiTranslationService.SmartTranslateMultiColumnAsync(
                                 columnLines,
                                 sourceLanguage: "auto",
                                 targetLanguage: targetLanguage

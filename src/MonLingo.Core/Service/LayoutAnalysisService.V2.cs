@@ -9,8 +9,8 @@ namespace MonLingo.Core.Service
 {
     /// <summary>
     /// 簡化版版面分析服務 - AI驅動架構
-    /// 僅包含階段一(橫向合併)和階段二(智能分欄)
-    /// 段落合併交由AI翻譯層處理
+    /// 僅包含全局預排序和智能分欄
+    /// 不再執行橫向行合併,段落合併交由AI翻譯層處理
     /// </summary>
     public partial class LayoutAnalysisService
     {
@@ -41,20 +41,20 @@ namespace MonLingo.Core.Service
                 };
             }
 
-            // 階段一：橫向行合併
-            var msg2 = "📝 階段一：開始橫向行合併";
+            // 全局預排序 (供智能分欄使用)
+            var msg2 = "📝 全局預排序：按閱讀順序排序文字行";
             Logger.Info(msg2);
             Console.WriteLine(msg2);
-            var mergedLines = PerformHorizontalLineMerging(ocrResult.Lines);
-            var msg3 = $"✅ 階段一完成：{ocrResult.Lines.Length} → {mergedLines.Count} 行（合併 {ocrResult.Lines.Length - mergedLines.Count} 個碎片）";
+            var sortedLines = PerformGlobalPreSorting(ocrResult.Lines);
+            var msg3 = $"✅ 全局預排序完成：{sortedLines.Count} 行已排序";
             Logger.Info(msg3);
             Console.WriteLine(msg3);
 
-            // 階段二：智能分欄
+            // 階段二：智能分欄 (直接使用排序後的行)
             var msg4 = "📂 階段二：開始智能分欄";
             Logger.Info(msg4);
             Console.WriteLine(msg4);
-            var columnLines = PerformIntelligentColumnDetection(mergedLines);
+            var columnLines = PerformIntelligentColumnDetection(sortedLines);
             var msg5 = $"✅ 階段二完成：識別出 {columnLines.Count} 個欄位";
             Logger.Info(msg5);
             Console.WriteLine(msg5);
@@ -79,7 +79,7 @@ namespace MonLingo.Core.Service
 
             var processingTime = (DateTime.UtcNow - startTime).TotalMilliseconds;
             Logger.Info($"🎯 版面分析v2.0完成，耗時 {processingTime:F1}ms");
-            Logger.Info($"📊 結果: {columns.Count}個欄位, 共{mergedLines.Count}行文字");
+            Logger.Info($"📊 結果: {columns.Count}個欄位, 共{sortedLines.Count}行文字");
             Logger.Info($"🔄 下一步: 交由AI翻譯層進行段落合併和翻譯");
 
             return new LayoutAnalysisResultV2
@@ -87,7 +87,7 @@ namespace MonLingo.Core.Service
                 Success = true,
                 Columns = columns,
                 ProcessingTimeMs = processingTime,
-                TotalLines = mergedLines.Count,
+                TotalLines = sortedLines.Count,
                 OriginalLines = ocrResult.Lines.Length
             };
         }

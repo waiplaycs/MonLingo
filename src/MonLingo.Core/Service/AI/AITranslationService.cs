@@ -239,7 +239,7 @@ namespace MonLingo.Core.Service.AI
         }
 
         /// <summary>
-        /// 批量智能翻譯
+        /// 批量智能翻譯 - 逐個欄位調用(舊方法)
         /// </summary>
         public async Task<List<AITranslationResult>> SmartTranslateBatchAsync(
             List<List<LayoutLine>> columns,
@@ -271,6 +271,259 @@ namespace MonLingo.Core.Service.AI
             var summaryMsg = $"📦 批量翻譯完成: 成功 {results.Count(r => r.Success)}/{columns.Count} 個欄位";
             Logger.Info(summaryMsg);
             Console.WriteLine(summaryMsg);
+
+            return results;
+        }
+
+        /// <summary>
+        /// 多欄位智能翻譯 - 一次性API調用(新方法,推薦)
+        /// 使用欄位標記系統,只發送行間距信息
+        /// </summary>
+        /// <param name="columns">多個欄位的文字行列表</param>
+        /// <param name="sourceLanguage">源語言</param>
+        /// <param name="targetLanguage">目標語言</param>
+        /// <returns>每個欄位的AI翻譯結果</returns>
+        public async Task<List<AITranslationResult>> SmartTranslateMultiColumnAsync(
+            List<List<LayoutLine>> columns,
+            string sourceLanguage = "auto",
+            string targetLanguage = "zh-TW")
+        {
+            if (columns == null || columns.Count == 0)
+            {
+                return new List<AITranslationResult>();
+            }
+
+            // 檢查每日配額
+            if (!CheckDailyQuota())
+            {
+                Logger.Warn("已超出每日API調用配額,回退到逐個欄位翻譯");
+                return await SmartTranslateBatchAsync(columns, sourceLanguage, targetLanguage);
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            var retryCount = 0;
+
+            try
+            {
+                var msg1 = $"🚀 多欄位一次性翻譯: {columns.Count}個欄位 -> {targetLanguage} (使用欄位標記系統,只調用1次API)";
+                Logger.Info(msg1);
+                Console.WriteLine(msg1);
+
+                // 輸出每個欄位的基本信息和行間距統計
+                for (int i = 0; i < columns.Count; i++)
+                {
+                    var column = columns[i];
+                    var avgLineHeight = column.Average(l => l.LineHeight);
+                    
+                    // 統計大間距和中間距數量
+                    int largeGapCount = 0;
+                    int mediumGapCount = 0;
+                    
+                    for (int j = 0; j < column.Count - 1; j++)
+                    {
+                        var currentLine = column[j];
+                        var nextLine = column[j + 1];
+                        var verticalGap = nextLine.BoundingBox.Top - currentLine.BoundingBox.Bottom;
+                        var gapRatio = verticalGap / avgLineHeight;
+                        
+                        if (gapRatio > 1.0) largeGapCount++;
+                        else if (gapRatio > 0.5) mediumGapCount++;
+                    }
+                    
+                    var infoMsg = $"   欄位{i + 1}: {column.Count}行文字, 平均行高{avgLineHeight:F1}px";
+                    if (largeGapCount > 0 || mediumGapCount > 0)
+                    {
+                        infoMsg += $" (檢測到 {largeGapCount}個大間距, {mediumGapCount}個中間距)";
+                    }
+                    Logger.Info(infoMsg);
+                    Console.WriteLine(infoMsg);
+                }
+                
+                Console.WriteLine("📝 構建多欄位Prompt (使用【欄位X開始/結束】標記 + 行間距比例)...");
+
+                // 構建多欄位Prompt(只包含行間距信息)
+                var userPrompt = PromptTemplates.BuildMultiColumnTranslationPrompt(
+                    columns, sourceLanguage, targetLanguage);
+
+                if (_config.EnableVerboseLogging)
+                {
+                    Logger.Debug($"📝 完整多欄位Prompt:\n{userPrompt}");
+                    Console.WriteLine("💡 詳細Prompt已輸出到日誌 (包含欄位標記和間距標記示例)");
+                }
+
+                // 調用OpenAI API (帶重試)
+                var retryResult = await ExecuteWithRetryAsync(
+                    async () => await CallOpenAIAsync(userPrompt),
+                    _config.MaxRetries);
+
+                var apiResponse = retryResult.result;
+                var responseJson = apiResponse.responseJson;
+                var tokenUsage = apiResponse.tokenUsage;
+                retryCount = retryResult.retryCount;
+
+                stopwatch.Stop();
+
+                // 解析多欄位響應
+                var results = ParseMultiColumnResponse(responseJson, columns);
+
+                // 填充元數據
+                for (int i = 0; i < results.Count; i++)
+                {
+                    results[i].Metadata = new AITranslationMetadata
+                    {
+                        Model = _config.Model,
+                        DurationMs = stopwatch.Elapsed.TotalMilliseconds,
+                        TokenUsage = tokenUsage,
+                        EstimatedCost = CalculateCost(tokenUsage),
+                        Timestamp = DateTime.Now,
+                        RetryCount = retryCount
+                    };
+                }
+
+                // 增加調用計數(只算1次)
+                IncrementDailyCallCount();
+
+                var successCount = results.Count(r => r.Success);
+                
+                var summaryMsg = $"✅ 多欄位翻譯完成: {successCount}/{columns.Count}個欄位成功, " +
+                                $"耗時{stopwatch.ElapsedMilliseconds}ms, Token使用 {tokenUsage.TotalTokens}, " +
+                                $"成本${CalculateCost(tokenUsage):F6}, 節省{columns.Count - 1}次API調用";
+                Logger.Info(summaryMsg);
+                Console.WriteLine(summaryMsg);
+                
+                // 輸出每個欄位的翻譯結果
+                for (int i = 0; i < results.Count; i++)
+                {
+                    var result = results[i];
+                    if (result.Success)
+                    {
+                        var detailMsg = $"   欄位{i + 1}: 檢測語言={result.DetectedLanguage}, 段落數={result.Paragraphs.Count}";
+                        Logger.Info(detailMsg);
+                        Console.WriteLine(detailMsg);
+                    }
+                    else
+                    {
+                        var errorMsg = $"   欄位{i + 1}: ❌ 失敗 - {result.ErrorMessage}";
+                        Logger.Warn(errorMsg);
+                        Console.WriteLine(errorMsg);
+                    }
+                }
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                Logger.Error($"多欄位翻譯失敗: {ex.Message}", ex);
+
+                // Fallback: 回退到逐個欄位翻譯
+                Logger.Warn("⚠️ 回退到逐個欄位翻譯模式");
+                return await SmartTranslateBatchAsync(columns, sourceLanguage, targetLanguage);
+            }
+        }
+
+        /// <summary>
+        /// 解析多欄位響應JSON
+        /// </summary>
+        private List<AITranslationResult> ParseMultiColumnResponse(
+            string responseJson,
+            List<List<LayoutLine>> columns)
+        {
+            var results = new List<AITranslationResult>();
+
+            try
+            {
+                var jsonDoc = JsonDocument.Parse(responseJson);
+                var root = jsonDoc.RootElement;
+
+                // 獲取檢測到的語言
+                var detectedLanguage = root.TryGetProperty("detectedLanguage", out var langProp)
+                    ? langProp.GetString() ?? "unknown"
+                    : "unknown";
+
+                // 解析columns數組
+                if (root.TryGetProperty("columns", out var columnsArray))
+                {
+                    var columnElements = columnsArray.EnumerateArray().ToList();
+
+                    for (int colIdx = 0; colIdx < columns.Count; colIdx++)
+                    {
+                        var column = columns[colIdx];
+                        var result = new AITranslationResult
+                        {
+                            Success = true,
+                            Paragraphs = new List<TranslatedParagraph>(),
+                            DetectedLanguage = detectedLanguage
+                        };
+
+                        // 找到對應的欄位元素
+                        var columnElement = columnElements.FirstOrDefault(c =>
+                            c.TryGetProperty("columnIndex", out var idx) && idx.GetInt32() == colIdx);
+
+                        if (columnElement.ValueKind != JsonValueKind.Undefined &&
+                            columnElement.TryGetProperty("paragraphs", out var paragraphs))
+                        {
+                            foreach (var para in paragraphs.EnumerateArray())
+                            {
+                                // 解析段落
+                                var lineIndices = para.GetProperty("lineIndices")
+                                    .EnumerateArray()
+                                    .Select(i => i.GetInt32())
+                                    .ToList();
+
+                                var paragraph = new TranslatedParagraph
+                                {
+                                    LineIndices = lineIndices,
+                                    OriginalText = para.GetProperty("originalText").GetString(),
+                                    TranslatedText = para.GetProperty("translatedText").GetString(),
+                                    Type = ParseParagraphType(para.GetProperty("type").GetString()),
+                                    Confidence = para.GetProperty("confidence").GetDouble(),
+                                    BoundingBox = CalculateBoundingBox(lineIndices, column)
+                                };
+                                
+                                result.Paragraphs.Add(paragraph);
+                            }
+                        }
+
+                        // 如果這個欄位沒有解析到段落,標記為失敗
+                        if (result.Paragraphs.Count == 0)
+                        {
+                            result.Success = false;
+                            result.ErrorMessage = $"欄位{colIdx + 1}沒有解析到段落";
+                        }
+
+                        results.Add(result);
+                    }
+                }
+                else
+                {
+                    // 沒有columns結構,所有欄位標記為失敗
+                    for (int i = 0; i < columns.Count; i++)
+                    {
+                        results.Add(new AITranslationResult
+                        {
+                            Success = false,
+                            ErrorMessage = "響應JSON缺少columns結構",
+                            Paragraphs = new List<TranslatedParagraph>()
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"解析多欄位響應失敗: {ex.Message}");
+
+                // 所有欄位標記為失敗
+                for (int i = 0; i < columns.Count; i++)
+                {
+                    results.Add(new AITranslationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"JSON解析錯誤: {ex.Message}",
+                        Paragraphs = new List<TranslatedParagraph>()
+                    });
+                }
+            }
 
             return results;
         }

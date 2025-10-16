@@ -175,7 +175,160 @@ namespace MonLingo.Core.Service.AI
         }
 
         /// <summary>
-        /// 獲取語言名稱
+        /// 構建多欄位智能翻譯的Prompt
+        /// 使用欄位標記系統,一次性處理多個欄位
+        /// 
+        /// 調試訊息說明:
+        /// - 使用【欄位X開始】和【欄位X結束】明確分隔不同欄位
+        /// - 只發送行間距比例 (如 [大間距↓ 2.3x行高]),不發送完整座標 (Left,Top,Right,Bottom)
+        /// - 間距標記規則:
+        ///   * [大間距↓ Xx行高] - 間距 > 1.0倍行高,AI必須分段
+        ///   * [中間距↓ Xx行高] - 間距 0.5~1.0倍行高,AI優先分段
+        ///   * 無標記 - 正常行間距,AI可語義合併
+        /// 
+        /// 示例Prompt輸出:
+        /// 【欄位1開始】
+        /// 0: 標題文字 [大間距↓ 2.3x行高]
+        /// 1: 正文內容
+        /// 2: 繼續內容 [中間距↓ 0.8x行高]
+        /// 3: 新段落
+        /// 【欄位1結束】
+        /// 
+        /// 【欄位2開始】
+        /// 0: 另一欄內容...
+        /// 【欄位2結束】
+        /// </summary>
+        /// <param name="columns">多個欄位的文字行列表</param>
+        /// <param name="sourceLang">源語言</param>
+        /// <param name="targetLang">目標語言</param>
+        /// <returns>完整的多欄位Prompt</returns>
+        public static string BuildMultiColumnTranslationPrompt(
+            List<List<LayoutLine>> columns,
+            string sourceLang,
+            string targetLang)
+        {
+            var prompt = new System.Text.StringBuilder();
+            
+            prompt.AppendLine($@"**任務**: 
+1. 分析以下{columns.Count}個欄位的OCR識別文字
+2. **每個欄位完全獨立處理**,不要跨欄位合併段落
+3. 根據語義和視覺間距智能合併各欄位內的段落
+4. 翻譯成{GetLanguageName(targetLang)}
+5. 返回結構化結果
+
+**重要**: 每個【欄位X】之間是完全獨立的,絕對不要混淆或合併不同欄位的內容!
+
+---
+
+**多欄位文字** (共{columns.Count}個欄位):
+");
+
+            // 為每個欄位構建內容
+            for (int colIdx = 0; colIdx < columns.Count; colIdx++)
+            {
+                var column = columns[colIdx];
+                if (column == null || column.Count == 0) continue;
+                
+                prompt.AppendLine();
+                prompt.AppendLine($"【欄位{colIdx + 1}開始】");
+                prompt.AppendLine();
+                
+                // 計算該欄位的平均行高
+                var avgLineHeight = column.Average(l => l.LineHeight);
+                
+                // 構建帶行間距的文字列表
+                for (int i = 0; i < column.Count; i++)
+                {
+                    var line = column[i];
+                    prompt.Append($"{i}: {line.Text}");
+                    
+                    // 計算與下一行的垂直間距
+                    if (i < column.Count - 1)
+                    {
+                        var nextLine = column[i + 1];
+                        var verticalGap = nextLine.BoundingBox.Top - line.BoundingBox.Bottom;
+                        var gapRatio = verticalGap / avgLineHeight;
+                        
+                        // 標記明顯的垂直間距
+                        if (gapRatio > 1.0)
+                        {
+                            prompt.Append($" [大間距↓ {gapRatio:F1}x行高]");
+                        }
+                        else if (gapRatio > 0.5)
+                        {
+                            prompt.Append($" [中間距↓ {gapRatio:F1}x行高]");
+                        }
+                    }
+                    
+                    prompt.AppendLine();
+                }
+                
+                prompt.AppendLine();
+                prompt.AppendLine($"【欄位{colIdx + 1}結束】");
+            }
+
+            prompt.AppendLine();
+            prompt.AppendLine(@"
+**處理規則**:
+1. **欄位獨立性** (⚠️ 最高優先級):
+   - 每個【欄位X】是完全獨立的內容區域
+   - 絕對不要跨欄位合併段落
+   - 各欄位之間沒有任何語義關聯
+
+2. **語義分析** (欄位內部):
+   - 分析上下文,判斷哪些行屬於同一段落
+   - 識別標題、正文、列表等不同類型
+
+3. **視覺間距分析** (欄位內部):
+   - **[大間距↓]** (>1.0x行高): **必須分段**,表示視覺上有明顯空行
+   - **[中間距↓]** (0.5-1.0x行高): 優先分段,除非語義強相關
+   - 無標記: 行距正常,可以根據語義合併
+
+4. **段落類型識別**:
+   - Heading: 標題通常字體較大、簡短、獨立成段
+   - Body: 正文段落,語義連貫的多行文字
+   - ListItem: 列表項目,有序號、符號或明顯的獨立性
+   - Quote: 引用或注釋
+
+5. **翻譯要求**:
+   - 保持原文的語氣和風格
+   - 專有名詞保持原樣或音譯
+   - 保留格式標記(如**粗體**、*斜體*)
+
+**輸出格式**(嚴格JSON,不要添加```json標記):
+{
+  ""detectedLanguage"": ""語言代碼(如en、ja、zh-CN)"",
+  ""columns"": [
+    {
+      ""columnIndex"": 0,
+      ""paragraphs"": [
+        {
+          ""lineIndices"": [0, 1, 2],
+          ""originalText"": ""合併後的原文"",
+          ""translatedText"": ""翻譯結果"",
+          ""type"": ""Heading|Body|ListItem|Quote|Other"",
+          ""confidence"": 0.95
+        }
+      ]
+    },
+    {
+      ""columnIndex"": 1,
+      ""paragraphs"": [...]
+    }
+  ]
+}
+
+**重要**: 
+1. 直接返回JSON對象,不要使用```json```包裹
+2. 不要添加任何解釋文字
+3. 確保每個欄位的columnIndex正確對應
+4. 保持欄位順序與輸入一致");
+
+            return prompt.ToString();
+        }
+
+        /// <summary>
+        /// 獲取語言的中文名稱
         /// </summary>
         private static string GetLanguageName(string langCode)
         {

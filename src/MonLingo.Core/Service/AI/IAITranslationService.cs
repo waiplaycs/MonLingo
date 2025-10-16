@@ -23,13 +23,26 @@ namespace MonLingo.Core.Service.AI
             string targetLanguage = "zh-TW");
 
         /// <summary>
-        /// 批量智能翻譯：處理多個欄位
+        /// 批量智能翻譯：處理多個欄位(舊方法 - 逐個調用)
         /// </summary>
         /// <param name="columns">多個欄位的文字行列表</param>
         /// <param name="sourceLanguage">源語言</param>
         /// <param name="targetLanguage">目標語言</param>
         /// <returns>每個欄位的AI翻譯結果</returns>
         Task<List<AITranslationResult>> SmartTranslateBatchAsync(
+            List<List<LayoutLine>> columns,
+            string sourceLanguage = "auto",
+            string targetLanguage = "zh-TW");
+
+        /// <summary>
+        /// 多欄位智能翻譯：一次性處理所有欄位(新方法 - 推薦)
+        /// 使用欄位標記系統,只發送行間距信息,一次API調用處理所有欄位
+        /// </summary>
+        /// <param name="columns">多個欄位的文字行列表</param>
+        /// <param name="sourceLanguage">源語言(auto=自動檢測)</param>
+        /// <param name="targetLanguage">目標語言</param>
+        /// <returns>每個欄位的AI翻譯結果</returns>
+        Task<List<AITranslationResult>> SmartTranslateMultiColumnAsync(
             List<List<LayoutLine>> columns,
             string sourceLanguage = "auto",
             string targetLanguage = "zh-TW");

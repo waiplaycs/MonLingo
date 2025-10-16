@@ -253,17 +253,17 @@ namespace MonLingo.Core.Service
                     };
                 }
 
-                // 階段一：橫向行合併 (保持不變)
-                Logger.Info("📝 階段一：開始橫向行合併");
-                DebugLog($"📝 階段一：輸入 {ocrResult.Lines.Length} 行文字");
-                var mergedLines = PerformHorizontalLineMerging(ocrResult.Lines);
-                Logger.Info($"✅ 階段一完成：{ocrResult.Lines.Length} → {mergedLines.Count} 行");
-                DebugLog($"✅ 階段一結果：合併了 {ocrResult.Lines.Length - mergedLines.Count} 個文字碎片");
+                // 全局預排序 (供智能分欄使用)
+                Logger.Info("📝 全局預排序：按閱讀順序排序文字行");
+                DebugLog($"📝 全局預排序：輸入 {ocrResult.Lines.Length} 行文字");
+                var sortedLines = PerformGlobalPreSorting(ocrResult.Lines);
+                Logger.Info($"✅ 全局預排序完成：{sortedLines.Count} 行已排序");
+                DebugLog($"✅ 全局預排序結果：{sortedLines.Count} 行按「從上到下、從左到右」排序");
 
-                // 階段二：智能分欄 (保持不變)
+                // 階段二：智能分欄 (直接使用排序後的行)
                 Logger.Info("📂 階段二：開始智能分欄");
-                DebugLog($"📂 階段二：對 {mergedLines.Count} 行執行分欄檢測");
-                var columns = PerformIntelligentColumnDetection(mergedLines);
+                DebugLog($"📂 階段二：對 {sortedLines.Count} 行執行分欄檢測");
+                var columns = PerformIntelligentColumnDetection(sortedLines);
                 Logger.Info($"✅ 階段二完成：識別出 {columns.Count} 個欄位");
                 DebugLog($"✅ 階段二結果：識別出 {columns.Count} 個欄位");
 

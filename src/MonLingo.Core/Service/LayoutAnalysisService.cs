@@ -381,17 +381,17 @@ namespace MonLingo.Core.Service
                     };
                 }
 
-                // 階段一：橫向行合併
-                Logger.Info("📝 階段一：開始橫向行合併");
-                DebugLog($"📝 階段一：輸入 {ocrResult.Lines.Length} 行文字");
-                var mergedLines = PerformHorizontalLineMerging(ocrResult.Lines);
-                Logger.Info($"✅ 階段一完成：{ocrResult.Lines.Length} → {mergedLines.Count} 行（合併 {ocrResult.Lines.Length - mergedLines.Count} 個碎片）");
-                DebugLog($"✅ 階段一結果：合併了 {ocrResult.Lines.Length - mergedLines.Count} 個文字碎片");
+                // 全局預排序 (供智能分欄使用)
+                Logger.Info("📝 全局預排序：按閱讀順序排序文字行");
+                DebugLog($"📝 全局預排序：輸入 {ocrResult.Lines.Length} 行文字");
+                var sortedLines = PerformGlobalPreSorting(ocrResult.Lines);
+                Logger.Info($"✅ 全局預排序完成：{sortedLines.Count} 行已排序");
+                DebugLog($"✅ 全局預排序結果：{sortedLines.Count} 行按「從上到下、從左到右」排序");
 
-                // 階段二：智能分欄
+                // 階段二：智能分欄 (直接使用排序後的行,不再執行橫向合併)
                 Logger.Info("📂 階段二：開始智能分欄");
-                DebugLog($"📂 階段二：對 {mergedLines.Count} 行執行分欄檢測");
-                var columns = PerformIntelligentColumnDetection(mergedLines);
+                DebugLog($"📂 階段二：對 {sortedLines.Count} 行執行分欄檢測");
+                var columns = PerformIntelligentColumnDetection(sortedLines);
                 Logger.Info($"✅ 階段二完成：識別出 {columns.Count} 個欄位");
                 DebugLog($"✅ 階段二結果：識別出 {columns.Count} 個欄位");
                 
@@ -454,12 +454,49 @@ namespace MonLingo.Core.Service
         }
 
         /// <summary>
-        /// 階段一：橫向行合併 (v3版本)
-        /// 將因OCR辨識而產生的、在同一水平線上的文字碎片，拼接成語義上完整的單行文字
-        /// 採用迭代式順序合併演算法 (O(n)優化版本)
+        /// 全局預排序 (Global Pre-sorting)
+        /// 將所有OCR文字行按「從上到下、從左到右」的閱讀順序排序
+        /// 這是智能分欄的基礎,確保處理順序符合閱讀直覺
+        /// </summary>
+        /// <param name="ocrLines">原始OCR行結果</param>
+        /// <returns>排序後的文字行列表</returns>
+        private List<LayoutLine> PerformGlobalPreSorting(OcrLine[] ocrLines)
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            
+            Logger.Debug($"🔄 開始全局預排序，輸入 {ocrLines.Length} 個OCR行");
+            Logger.Debug($"📊 排序規則：按Y座標升序(從上到下)，Y相同時按X座標升序(從左到右)");
+
+            // 全局預排序 - 先按Y座標升序，Y座標相同時再按X座標升序
+            // 確保處理順序符合「從上到下、從左到右」的閱讀直覺
+            var sortedLines = ocrLines.Select((line, index) => new LayoutLine
+            {
+                Text = line.Text,
+                Confidence = line.Confidence,
+                BoundingBox = line.BoundingBox,
+                LineHeight = line.BoundingBox.Height,
+                OriginalIndex = index,
+                MergedFromIndices = new List<int> { index } // 初始狀態，每行對應自己的索引
+            }).OrderBy(line => line.BoundingBox.Top)      // 主要按Y座標排序（從上到下）
+              .ThenBy(line => line.BoundingBox.Left)      // 次要按X座標排序（從左到右）
+              .ToList();
+
+            Logger.Info($"🎯 全局預排序完成：{ocrLines.Length} 行已排序 (算法複雜度: O(n log n))");
+            
+            stopwatch.Stop();
+            DebugStagePerformance("全局預排序", ocrLines.Length, sortedLines.Count, stopwatch.Elapsed.TotalMilliseconds, "O(n log n)");
+            
+            return sortedLines;
+        }
+
+        /// <summary>
+        /// 階段一：橫向行合併 (v3版本) - 已廢棄
+        /// ⚠️ 此方法已不再使用,改為只執行全局預排序
+        /// 原功能：將因OCR辨識而產生的、在同一水平線上的文字碎片，拼接成語義上完整的單行文字
         /// </summary>
         /// <param name="ocrLines">原始OCR行結果</param>
         /// <returns>合併後的完整文字行列表</returns>
+        [Obsolete("階段一橫向行合併已移除,請使用 PerformGlobalPreSorting 進行全局預排序")]
         private List<LayoutLine> PerformHorizontalLineMerging(OcrLine[] ocrLines)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
