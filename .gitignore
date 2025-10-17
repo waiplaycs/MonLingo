@@ -101,6 +101,12 @@ models/ch_ppocr_mobile_v2.0_cls_infer/*.pdiparams.info
 *.backup
 
 # 🔒 Security: 敏感配置文件 (包含 API 密鑰)
+appsettings.json
+appsettings.*.json
+!appsettings.*.example.json
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.*.example.json
 appsettings.local.json
 appsettings.*.local.json
 **/appsettings.local.json
@@ -108,3 +114,4 @@ appsettings.*.local.json
 .env
 .env.local
 secrets.json
+docs/api-keys.md
