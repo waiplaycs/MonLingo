@@ -425,30 +425,57 @@ namespace MonLingo.Core.Service
                                 targetLanguage: targetLanguage
                             );
                             
-                            // 合併所有欄位的翻譯結果
-                            var translatedTexts = new List<string>();
-                            foreach (var result in aiResults)
+                            // 合併所有欄位的翻譯結果,保持欄位分隔
+                            var columnOutputs = new List<string>();
+                            
+                            for (int i = 0; i < aiResults.Count; i++)
                             {
-                                if (result.Success && result.Paragraphs != null)
+                                var result = aiResults[i];
+                                if (result.Success && result.Paragraphs != null && result.Paragraphs.Count > 0)
                                 {
-                                    var columnText = string.Join("\n", 
-                                        result.Paragraphs.Select(p => p.TranslatedText));
-                                    translatedTexts.Add(columnText);
+                                    // 為每個欄位構建獨立的輸出
+                                    var outputLines = new List<string>();
+                                    outputLines.Add($"[欄位 {i + 1}]");
                                     
-                                    Logger.Info($"✅ AI翻譯成功 - 檢測語言: {result.DetectedLanguage}, " +
-                                               $"段落數: {result.Paragraphs.Count}, " +
-                                               $"成本: ${result.Metadata?.EstimatedCost:F4}");
+                                    // 按行索引排序段落,確保順序正確
+                                    var sortedParagraphs = result.Paragraphs
+                                        .OrderBy(p => p.LineIndices.FirstOrDefault())
+                                        .ToList();
+                                    
+                                    // 逐個段落添加翻譯文本
+                                    foreach (var para in sortedParagraphs)
+                                    {
+                                        outputLines.Add(para.TranslatedText);
+                                    }
+                                    
+                                    // 組合這個欄位的所有行
+                                    columnOutputs.Add(string.Join("\n", outputLines));
+                                    
+                                    var detailMsg = $"✅ 欄位{i + 1}翻譯成功 - 檢測語言: {result.DetectedLanguage}, 段落數: {result.Paragraphs.Count}";
+                                    Logger.Info(detailMsg);
+                                    Console.WriteLine($"   {detailMsg}");
                                 }
                                 else
                                 {
-                                    Logger.Warn($"⚠️ AI翻譯失敗: {result.ErrorMessage}");
+                                    var errorMsg = $"❌ 欄位{i + 1}翻譯失敗: {result.ErrorMessage ?? "無段落"}";
+                                    Logger.Warn(errorMsg);
+                                    Console.WriteLine($"   {errorMsg}");
                                 }
                             }
                             
-                            if (translatedTexts.Count > 0)
+                            if (columnOutputs.Count > 0)
                             {
-                                var analyzedText = string.Join("\n\n", translatedTexts);
-                                Logger.Info($"🎯 AI翻譯完成：{analyzedText}");
+                                // 使用雙換行分隔不同欄位
+                                var analyzedText = string.Join("\n\n", columnOutputs);
+                                
+                                Console.WriteLine();
+                                Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                                Console.WriteLine("📄 翻譯結果 (按欄位輸出):");
+                                Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                                Console.WriteLine(analyzedText);
+                                Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                                
+                                Logger.Info($"🎯 AI翻譯完成，共{columnOutputs.Count}個欄位");
                                 
                                 // 調試視覺化已在版面分析完成後立即顯示,不需要重複
                                 

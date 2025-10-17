@@ -1,0 +1,18 @@
+# 基於 qwen3:8b 的快速翻譯模型 (禁用 thinking)
+FROM qwen3:8b
+
+# 禁用思考過程,直接輸出結果
+PARAMETER think false
+
+# 針對翻譯任務優化的參數
+PARAMETER temperature 0.3
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+
+# System prompt (針對翻譯和 JSON 輸出)
+SYSTEM """你是一個專業的翻譯助手。你的任務是:
+1. 智能合併段落 (根據語義判斷是否需要合併)
+2. 翻譯成繁體中文
+3. 嚴格返回 JSON 格式,不要包含任何解釋性文字
+
+請直接輸出結果,不要顯示思考過程。"""

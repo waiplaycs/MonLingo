@@ -37,6 +37,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" />
+    <PackageReference Include="Mscc.GenerativeAI" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="OpenAI" />
     <PackageReference Include="PaddleOCRSharp" />

@@ -6,9 +6,10 @@
   <!-- 核心 .NET 框架組件 - 嚴格版本鎖定 (基於 PRD §2.1.2) -->
   <ItemGroup>
     <PackageVersion Include="GuerrillaNtp" Version="1.6.2" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http.Polly" Version="8.0.0" />
+    <PackageVersion Include="Mscc.GenerativeAI" Version="2.8.18" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="OpenAI" Version="2.1.0" />
     <PackageVersion Include="PaddleOCRSharp" Version="2.0.4" />
@@ -20,7 +21,7 @@
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.6" />
     <!-- 音訊處理與語音識別 (Phase 4) -->
     <PackageVersion Include="NAudio" Version="2.2.1" />
-    <PackageVersion Include="System.Text.Json" Version="9.0.0" />
+    <PackageVersion Include="System.Text.Json" Version="9.0.10" />
     <PackageVersion Include="Whisper.net" Version="1.4.7" />
     <!-- 網路與同步 (Phase 4) -->
     <PackageVersion Include="Downloader" Version="3.0.6" />

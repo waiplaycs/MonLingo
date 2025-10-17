@@ -10,6 +10,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Mscc.GenerativeAI;
 
 namespace MonLingo.Core.Service.AI
 {
@@ -309,13 +310,6 @@ namespace MonLingo.Core.Service.AI
                 return new List<AITranslationResult>();
             }
 
-            // 檢查每日配額
-            if (!CheckDailyQuota())
-            {
-                Logger.Warn("已超出每日API調用配額,回退到逐個欄位翻譯");
-                return await SmartTranslateBatchAsync(columns, sourceLanguage, targetLanguage);
-            }
-
             var stopwatch = Stopwatch.StartNew();
             var retryCount = 0;
 
@@ -408,10 +402,12 @@ namespace MonLingo.Core.Service.AI
                 var tokenUsage = apiResponse.tokenUsage;
                 retryCount = retryResult.retryCount;
 
-                stopwatch.Stop();
-
                 // 解析多欄位響應
                 var results = ParseMultiColumnResponse(responseJson, columns);
+
+                // 停止計時
+                stopwatch.Stop();
+                var durationMs = stopwatch.ElapsedMilliseconds;
 
                 // 填充元數據
                 for (int i = 0; i < results.Count; i++)
@@ -419,7 +415,7 @@ namespace MonLingo.Core.Service.AI
                     results[i].Metadata = new AITranslationMetadata
                     {
                         Model = _config.Model,
-                        DurationMs = stopwatch.Elapsed.TotalMilliseconds,
+                        DurationMs = durationMs,
                         TokenUsage = tokenUsage,
                         EstimatedCost = CalculateCost(tokenUsage),
                         Timestamp = DateTime.Now,
@@ -430,13 +426,22 @@ namespace MonLingo.Core.Service.AI
                 // 增加調用計數(只算1次)
                 IncrementDailyCallCount();
 
+                // 輸出總結訊息
                 var successCount = results.Count(r => r.Success);
                 
-                var summaryMsg = $"✅ 多欄位翻譯完成: {successCount}/{columns.Count}個欄位成功, " +
-                                $"耗時{stopwatch.ElapsedMilliseconds}ms, Token使用 {tokenUsage.TotalTokens}, " +
-                                $"成本${CalculateCost(tokenUsage):F6}, 節省{columns.Count - 1}次API調用";
-                Logger.Info(summaryMsg);
+                Console.WriteLine();
+                var summaryMsg = $"✅ 多欄位翻譯完成: {successCount}/{columns.Count}個欄位成功, 耗時 {durationMs}ms ⚡";
                 Console.WriteLine(summaryMsg);
+                Logger.Info(summaryMsg);
+                
+                var tokenMsg = $"   Token使用: {tokenUsage.TotalTokens} (輸入:{tokenUsage.InputTokens}, 輸出:{tokenUsage.OutputTokens})";
+                Console.WriteLine(tokenMsg);
+                Logger.Info(tokenMsg);
+                
+                var costMsg = $"   成本: ${CalculateCost(tokenUsage):F6}, 節省 {columns.Count - 1} 次API調用";
+                Console.WriteLine(costMsg);
+                Logger.Info(costMsg);
+                Console.WriteLine();
                 
                 // 輸出每個欄位的翻譯結果
                 for (int i = 0; i < results.Count; i++)
@@ -463,9 +468,18 @@ namespace MonLingo.Core.Service.AI
                 stopwatch.Stop();
                 Logger.Error($"多欄位翻譯失敗: {ex.Message}", ex);
 
-                // Fallback: 回退到逐個欄位翻譯
-                Logger.Warn("⚠️ 回退到逐個欄位翻譯模式");
-                return await SmartTranslateBatchAsync(columns, sourceLanguage, targetLanguage);
+                // 返回錯誤結果,不再回退到逐個欄位翻譯
+                var errorResults = new List<AITranslationResult>();
+                for (int i = 0; i < columns.Count; i++)
+                {
+                    errorResults.Add(new AITranslationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"多欄位翻譯失敗: {ex.Message}",
+                        Paragraphs = new List<TranslatedParagraph>()
+                    });
+                }
+                return errorResults;
             }
         }
 
@@ -580,10 +594,26 @@ namespace MonLingo.Core.Service.AI
         /// </summary>
         private async Task<(string responseJson, TokenUsage tokenUsage)> CallOpenAIAsync(string userPrompt)
         {
-            var messages = new List<ChatMessage>
+            // 如果是 GoogleAI provider,使用 Google SDK
+            if (_config.Provider == AIProvider.GoogleAI)
             {
-                new SystemChatMessage(PromptTemplates.SYSTEM_PROMPT),
-                new UserChatMessage(userPrompt)
+                return await CallGoogleAIAsync(userPrompt);
+            }
+
+            // 其他 provider 使用 OpenAI SDK
+            var apiTimer = System.Diagnostics.Stopwatch.StartNew();
+            
+            // 為 Qwen3 模型添加 /no_think 指令以禁用思考模式
+            var enhancedUserPrompt = userPrompt;
+            if (_config.Model.IndexOf("qwen3", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                enhancedUserPrompt = userPrompt + " /no_think";
+            }
+            
+            var messages = new List<OpenAI.Chat.ChatMessage>
+            {
+                new OpenAI.Chat.SystemChatMessage(PromptTemplates.SYSTEM_PROMPT),
+                new OpenAI.Chat.UserChatMessage(enhancedUserPrompt)
             };
 
             var options = new ChatCompletionOptions
@@ -593,7 +623,11 @@ namespace MonLingo.Core.Service.AI
                 ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
             };
 
+            Console.WriteLine($"⏱️  開始API調用...");
+            var requestTimer = System.Diagnostics.Stopwatch.StartNew();
             var response = await _chatClient.CompleteChatAsync(messages, options);
+            requestTimer.Stop();
+            Console.WriteLine($"⏱️  API回應時間: {requestTimer.ElapsedMilliseconds}ms");
 
             var responseText = response.Value.Content[0].Text;
             
@@ -607,6 +641,47 @@ namespace MonLingo.Core.Service.AI
             if (_config.EnableVerboseLogging)
             {
                 Logger.Debug($"API響應:\n{responseText}");
+                Logger.Debug($"Token使用: Input={tokenUsage.InputTokens}, Output={tokenUsage.OutputTokens}");
+            }
+
+            return (responseText, tokenUsage);
+        }
+
+        /// <summary>
+        /// 調用 Google Generative AI API (使用 Mscc.GenerativeAI SDK)
+        /// </summary>
+        private async Task<(string responseJson, TokenUsage tokenUsage)> CallGoogleAIAsync(string userPrompt)
+        {
+            var apiTimer = System.Diagnostics.Stopwatch.StartNew();
+
+            // 創建 Google AI model
+            var googleAI = new Mscc.GenerativeAI.GoogleAI(apiKey: _config.ApiKey);
+            var model = googleAI.GenerativeModel(model: _config.Model);
+
+            // 構建完整 prompt (System + User)
+            var fullPrompt = $"{PromptTemplates.SYSTEM_PROMPT}\n\n{userPrompt}";
+
+            Console.WriteLine($"⏱️  開始Google AI API調用...");
+            var requestTimer = System.Diagnostics.Stopwatch.StartNew();
+
+            // 調用 Google Generative AI
+            var response = await model.GenerateContent(fullPrompt);
+
+            requestTimer.Stop();
+            Console.WriteLine($"⏱️  API回應時間: {requestTimer.ElapsedMilliseconds}ms");
+
+            var responseText = response?.Text ?? "";
+
+            // Google AI 的 token 使用情況  
+            var tokenUsage = new TokenUsage
+            {
+                InputTokens = response?.UsageMetadata?.PromptTokenCount ?? 0,
+                OutputTokens = response?.UsageMetadata?.CandidatesTokenCount ?? 0
+            };
+
+            if (_config.EnableVerboseLogging)
+            {
+                Logger.Debug($"Google AI 響應:\n{responseText}");
                 Logger.Debug($"Token使用: Input={tokenUsage.InputTokens}, Output={tokenUsage.OutputTokens}");
             }
 
@@ -759,10 +834,36 @@ namespace MonLingo.Core.Service.AI
                     lastException = ex;
                     retryCount = i;
 
+                    // 檢查是否為速率限制錯誤
+                    bool isRateLimitError = ex.Message.Contains("429") || 
+                                           ex.Message.Contains("Too Many Requests") ||
+                                           ex.Message.Contains("rate limit");
+
+                    // 輸出詳細錯誤信息
+                    var errorMsg = $"❌ API調用失敗(第{i + 1}/{maxRetries + 1}次)\n" +
+                                  $"   錯誤類型: {ex.GetType().Name}\n" +
+                                  $"   錯誤訊息: {ex.Message}\n" +
+                                  $"   內部異常: {ex.InnerException?.Message ?? "無"}";
+                    
+                    if (isRateLimitError)
+                    {
+                        errorMsg += "\n   ⚠️ 速率限制 (429) - 將使用更長延遲重試";
+                    }
+                    
+                    Logger.Error(errorMsg, ex);
+                    Console.WriteLine(errorMsg);
+
                     if (i < maxRetries)
                     {
-                        var delay = TimeSpan.FromSeconds(Math.Pow(2, i)); // 指數退避
-                        Logger.Warn($"API調用失敗(第{i + 1}次),{delay.TotalSeconds}秒後重試: {ex.Message}");
+                        // 如果是速率限制錯誤,使用更長的延遲
+                        var delaySeconds = isRateLimitError 
+                            ? Math.Pow(3, i + 1)  // 3秒, 9秒, 27秒 (更激進的退避)
+                            : Math.Pow(2, i);      // 1秒, 2秒, 4秒 (標準退避)
+                        
+                        var delay = TimeSpan.FromSeconds(delaySeconds);
+                        var retryMsg = $"   ⏳ {delay.TotalSeconds}秒後重試...";
+                        Logger.Warn(retryMsg);
+                        Console.WriteLine(retryMsg);
                         await Task.Delay(delay);
                     }
                 }

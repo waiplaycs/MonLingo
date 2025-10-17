@@ -8,6 +8,7 @@ namespace MonLingo.Core.Model
         OpenAI,
         DeepSeek,
         Gemini,
+        GoogleAI,
         OpenRouter
     }
 
@@ -27,6 +28,7 @@ namespace MonLingo.Core.Model
         /// - OpenAI: gpt-4o-mini, gpt-4o
         /// - DeepSeek: deepseek-chat
         /// - Gemini: gemini-1.5-flash, gemini-1.5-pro
+        /// - GoogleAI: gemini-2.0-flash-latest (直連 Google AI Studio,推薦!)
         /// - OpenRouter: google/gemini-2.0-flash-exp:free, anthropic/claude-3.5-sonnet
         /// </summary>
         public string Model { get; set; } = "gpt-4o-mini";
@@ -41,6 +43,7 @@ namespace MonLingo.Core.Model
         /// 自動配置:
         /// - OpenAI: https://api.openai.com/v1 (默認)
         /// - DeepSeek: https://api.deepseek.com
+        /// - GoogleAI: https://generativelanguage.googleapis.com/v1beta
         /// - OpenRouter: https://openrouter.ai/api/v1
         /// - Gemini: 通過 Google SDK
         /// </summary>
@@ -58,6 +61,7 @@ namespace MonLingo.Core.Model
             {
                 AIProvider.DeepSeek => "https://api.deepseek.com",
                 AIProvider.OpenAI => "https://api.openai.com/v1",
+                AIProvider.GoogleAI => "https://generativelanguage.googleapis.com/v1beta",
                 AIProvider.OpenRouter => "https://openrouter.ai/api/v1",
                 _ => null
             };
@@ -73,6 +77,7 @@ namespace MonLingo.Core.Model
                 AIProvider.DeepSeek => "MONLINGO_DEEPSEEK_API_KEY",
                 AIProvider.OpenAI => "MONLINGO_OPENAI_API_KEY",
                 AIProvider.Gemini => "MONLINGO_GEMINI_API_KEY",
+                AIProvider.GoogleAI => "MONLINGO_GOOGLEAI_API_KEY",
                 AIProvider.OpenRouter => "MONLINGO_OPENROUTER_API_KEY",
                 _ => "MONLINGO_API_KEY"
             };

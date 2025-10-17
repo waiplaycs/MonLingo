@@ -269,3 +269,9 @@ C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\MonLingo.
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\MonLingo.10CBB05A.Up2Date
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\MonLingo.Core.exe
 C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\obj\x64\Debug\net481\MonLingo.Core.pdb
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\Humanizer.dll
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\Json.More.dll
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\JsonPointer.Net.dll
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\JsonSchema.Net.dll
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\JsonSchema.Net.Generation.dll
+C:\Users\User\Desktop\MonLingo2\src\MonLingo.Core\bin\x64\Debug\net481\Mscc.GenerativeAI.dll

@@ -10,9 +10,21 @@ namespace MonLingo.Core.Service.AI
     public static class PromptTemplates
     {
         /// <summary>
-        /// 系統提示詞 - 極簡版
+        /// 系統提示詞 - 標準版 (禁用思考模式以提升速度)
         /// </summary>
-        public const string SYSTEM_PROMPT = @"You are a professional translator. Return JSON only, no explanations.";
+        public const string SYSTEM_PROMPT = @"You are a professional OCR text processing and translation assistant.
+
+CRITICAL INSTRUCTIONS:
+- Respond IMMEDIATELY without thinking process
+- Output JSON ONLY, no explanations
+- Be FAST and concise
+
+Your tasks:
+1. Analyze semantic relationships
+2. Merge paragraphs intelligently
+3. Translate accurately
+
+Output strict JSON format only.";
 
         /// <summary>
         /// 構建智能翻譯的Prompt
@@ -151,28 +163,42 @@ JSON: {{""detectedLanguage"":"""",""paragraphs"":[{{""lineIndices"":[],""origina
         {
             var prompt = new System.Text.StringBuilder();
             
-            // 極簡任務說明
-            prompt.AppendLine($"Translate {columns.Count} columns to {GetLanguageName(targetLang)}. Each column is independent.");
+            // 標準版任務說明
+            prompt.AppendLine("**任務**: ");
+            prompt.AppendLine($"1. 分析以下{columns.Count}個欄位的OCR識別文字");
+            prompt.AppendLine("2. **每個欄位完全獨立處理**,不要跨欄位合併段落");
+            prompt.AppendLine("3. **⚠️ 智能合併段落 - 語義優先,間距輔助**");
+            prompt.AppendLine("   - **優先考慮語義**: 語義連貫的行應該合併(如 \"FROM THE\" + \"COLLECTIONS\" = \"FROM THE COLLECTIONS\")");
+            prompt.AppendLine("   - **間距作為提示**: 文字行後標記 [大間距↓] 或 [中間距↓] 僅作為視覺排版參考");
+            prompt.AppendLine("   - **智能判斷**: 即使有間距標記,若語義強相關(如標題片段、句子延續)也應合併");
+            prompt.AppendLine($"4. 翻譯成{GetLanguageName(targetLang)}");
+            prompt.AppendLine("5. 返回結構化結果");
+            prompt.AppendLine();
+            prompt.AppendLine("**重要**: 每個【欄位X】之間是完全獨立的,絕對不要混淆或合併不同欄位的內容!");
+            prompt.AppendLine();
+            prompt.AppendLine("---");
+            prompt.AppendLine();
+            prompt.AppendLine($"**多欄位文字** (共{columns.Count}個欄位):");
             prompt.AppendLine();
 
-            // 構建欄位內容 (移除冗長的標記)
+            // 構建欄位內容 - 標準版格式
             for (int colIdx = 0; colIdx < columns.Count; colIdx++)
             {
                 var column = columns[colIdx];
                 if (column == null || column.Count == 0) continue;
                 
-                prompt.AppendLine($"[Col{colIdx + 1}]");
+                prompt.AppendLine($"【欄位{colIdx + 1}開始】");
                 
                 // 計算該欄位的平均行高
                 var avgLineHeight = column.Average(l => l.LineHeight);
                 
-                // 只標記大間距 (>1.0x),移除中間距標記
+                // 標準版間距標記
                 for (int i = 0; i < column.Count; i++)
                 {
                     var line = column[i];
-                    prompt.Append($"{i}:{line.Text}");
+                    prompt.Append($"{i}: {line.Text}");
                     
-                    // 只標記必須分段的大間距
+                    // 詳細的間距標記
                     if (i < column.Count - 1)
                     {
                         var nextLine = column[i + 1];
@@ -181,34 +207,81 @@ JSON: {{""detectedLanguage"":"""",""paragraphs"":[{{""lineIndices"":[],""origina
                         
                         if (gapRatio > 1.0)
                         {
-                            prompt.Append(" [GAP]");
+                            prompt.Append($" [大間距↓ {gapRatio:F1}x行高]");
+                        }
+                        else if (gapRatio > 0.5)
+                        {
+                            prompt.Append($" [中間距↓ {gapRatio:F1}x行高]");
                         }
                     }
                     
                     prompt.AppendLine();
                 }
                 
+                prompt.AppendLine($"【欄位{colIdx + 1}結束】");
                 prompt.AppendLine();
             }
 
-            // 極簡規則 (從5大類減少到2條核心規則)
-            prompt.AppendLine("Rules:");
-            prompt.AppendLine("1. Merge lines by semantic, split at [GAP]");
-            prompt.AppendLine("2. Never merge across columns");
+            prompt.AppendLine("---");
             prompt.AppendLine();
             
-            // 清晰的JSON格式示例 (多行但簡潔)
-            prompt.AppendLine("JSON format:");
+            // 標準版處理規則
+            prompt.AppendLine("**處理規則**:");
+            prompt.AppendLine("1. **欄位獨立性** (⚠️ 最高優先級):");
+            prompt.AppendLine("   - 每個【欄位X】是完全獨立的內容區域");
+            prompt.AppendLine("   - 絕對不要跨欄位合併段落");
+            prompt.AppendLine("   - 各欄位之間沒有任何語義關聯");
+            prompt.AppendLine("   - 欄位1的最後一行和欄位2的第一行永遠不會合併");
+            prompt.AppendLine("   - 必須為每個欄位生成獨立的paragraphs數組");
+            prompt.AppendLine();
+            prompt.AppendLine("2. **智能合併策略** (欄位內部) - ⚠️ 語義優先:");
+            prompt.AppendLine("   - **語義連貫性 > 視覺間距**: 優先根據語義判斷是否合併");
+            prompt.AppendLine("   - **標題片段**: \"FROM THE\" + \"COLLECTIONS\" → 合併為完整標題");
+            prompt.AppendLine("   - **句子延續**: \"It's goodbye from...\" + \"closing and...\" → 合併為完整句子");
+            prompt.AppendLine("   - **列表項目**: 有序號、符號或明確獨立性的保持分開");
+            prompt.AppendLine("   - **大間距例外**: 只有當大間距(>1.0x)且語義不相關時才強制分段");
+            prompt.AppendLine();
+            prompt.AppendLine("3. **視覺間距參考** (輔助判斷):");
+            prompt.AppendLine("   - **[大間距↓ X.Xx行高]** (>1.0x): 通常表示新段落,但若語義強相關仍可合併");
+            prompt.AppendLine("   - **[中間距↓ X.Xx行高]** (0.5-1.0x): 僅作參考,語義連貫時應合併");
+            prompt.AppendLine("   - **無標記**: 行距正常(<0.5x行高),通常應合併");
+            prompt.AppendLine();
+            prompt.AppendLine("4. **段落類型識別**:");
+            prompt.AppendLine("   - Heading: 標題(可能跨多行,如 \"FROM THE COLLECTIONS\")");
+            prompt.AppendLine("   - Body: 正文段落,語義連貫的多行文字");
+            prompt.AppendLine("   - ListItem: 列表項目,有序號、符號或明顯的獨立性");
+            prompt.AppendLine("   - Quote: 引用或注釋");
+            prompt.AppendLine();
+            prompt.AppendLine("5. **翻譯要求**:");
+            prompt.AppendLine("   - 保持原文的語氣和風格");
+            prompt.AppendLine("   - 專有名詞保持原樣或音譯");
+            prompt.AppendLine("   - 保留格式標記(如**粗體**、*斜體*)");
+            prompt.AppendLine();
+            
+            // 標準版JSON格式示例
+            prompt.AppendLine("**輸出格式**(嚴格JSON,不要添加```json標記):");
             prompt.AppendLine("{");
-            prompt.AppendLine("  \"detectedLanguage\": \"en\",");
+            prompt.AppendLine("  \"detectedLanguage\": \"語言代碼(如en、ja、zh-CN)\",");
             prompt.AppendLine("  \"columns\": [");
             prompt.AppendLine("    {");
             prompt.AppendLine("      \"columnIndex\": 0,");
             prompt.AppendLine("      \"paragraphs\": [");
             prompt.AppendLine("        {");
-            prompt.AppendLine("          \"lineIndices\": [0,1],");
-            prompt.AppendLine("          \"originalText\": \"merged text\",");
-            prompt.AppendLine("          \"translatedText\": \"翻譯文字\",");
+            prompt.AppendLine("          \"lineIndices\": [0, 1, 2],");
+            prompt.AppendLine("          \"originalText\": \"合併後的原文\",");
+            prompt.AppendLine("          \"translatedText\": \"翻譯結果\",");
+            prompt.AppendLine("          \"type\": \"Heading|Body|ListItem|Quote|Other\",");
+            prompt.AppendLine("          \"confidence\": 0.95");
+            prompt.AppendLine("        }");
+            prompt.AppendLine("      ]");
+            prompt.AppendLine("    },");
+            prompt.AppendLine("    {");
+            prompt.AppendLine("      \"columnIndex\": 1,");
+            prompt.AppendLine("      \"paragraphs\": [");
+            prompt.AppendLine("        {");
+            prompt.AppendLine("          \"lineIndices\": [0, 1],");
+            prompt.AppendLine("          \"originalText\": \"另一欄位的原文\",");
+            prompt.AppendLine("          \"translatedText\": \"另一欄位的翻譯\",");
             prompt.AppendLine("          \"type\": \"Body\",");
             prompt.AppendLine("          \"confidence\": 0.9");
             prompt.AppendLine("        }");
@@ -216,6 +289,34 @@ JSON: {{""detectedLanguage"":"""",""paragraphs"":[{{""lineIndices"":[],""origina
             prompt.AppendLine("    }");
             prompt.AppendLine("  ]");
             prompt.AppendLine("}");
+            prompt.AppendLine();
+            prompt.AppendLine("**合併示例** (理解語義優先原則):");
+            prompt.AppendLine("```");
+            prompt.AppendLine("錯誤示例 (機械按間距分段):");
+            prompt.AppendLine("  0: FROM THE");
+            prompt.AppendLine("  1: COLLECTIONS [中間距↓ 0.9x]");
+            prompt.AppendLine("  → 錯誤: 分成兩段 \"FROM THE\" 和 \"COLLECTIONS\"");
+            prompt.AppendLine();
+            prompt.AppendLine("正確示例 (語義合併):");
+            prompt.AppendLine("  0: FROM THE");
+            prompt.AppendLine("  1: COLLECTIONS [中間距↓ 0.9x]");
+            prompt.AppendLine("  → 正確: 合併為 \"FROM THE COLLECTIONS\" (完整標題)");
+            prompt.AppendLine("  → lineIndices: [0, 1]");
+            prompt.AppendLine();
+            prompt.AppendLine("另一個正確示例:");
+            prompt.AppendLine("  3: It's goodbye from the Wellcome...");
+            prompt.AppendLine("  4: closing and will no longer be...");
+            prompt.AppendLine("  → 正確: 合併為完整句子 (語義連貫)");
+            prompt.AppendLine("  → lineIndices: [3, 4, 5, 6]");
+            prompt.AppendLine("```");
+            prompt.AppendLine();
+            prompt.AppendLine("**重要**: ");
+            prompt.AppendLine("1. 直接返回JSON對象,不要使用```json```包裹");
+            prompt.AppendLine("2. 不要添加任何解釋文字");
+            prompt.AppendLine("3. 確保每個欄位的columnIndex正確對應");
+            prompt.AppendLine("4. 保持欄位順序與輸入一致");
+            prompt.AppendLine("5. 絕對不要跨欄位合併段落");
+            prompt.AppendLine("6. **語義優先**: 語義連貫時忽略間距標記,智能合併段落");
 
             return prompt.ToString();
         }
